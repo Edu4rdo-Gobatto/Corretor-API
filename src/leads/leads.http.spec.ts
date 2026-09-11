@@ -1,3 +1,5 @@
+import { RefreshSession } from '../auth/refresh-session.entity';
+import { SessionRepositoryFixture } from '../testing/session-repository.fixture';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -32,7 +34,7 @@ describe('lead HTTP contract', () => {
         load: [() => ({ JWT_SECRET: secret, JWT_EXPIRES_IN: '7d' })] }),
       AuthModule, LeadsModule,
     ] })
-      .overrideProvider(getRepositoryToken(Agent)).useValue(agents)
+      .overrideProvider(getRepositoryToken(RefreshSession)).useValue(new SessionRepositoryFixture()).overrideProvider(getRepositoryToken(Agent)).useValue(agents)
       .overrideProvider(getRepositoryToken(Property)).useValue(properties)
       .overrideProvider(getRepositoryToken(Lead)).useValue(leads)
       .compile();

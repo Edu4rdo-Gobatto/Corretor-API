@@ -15,7 +15,7 @@ describe('environment validation', () => {
       ...validEnvironment,
       PORT: 3000,
       NODE_ENV: 'development',
-      JWT_EXPIRES_IN: '7d',
+      JWT_EXPIRES_IN: '15m',
     });
   });
 

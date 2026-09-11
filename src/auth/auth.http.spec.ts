@@ -1,3 +1,5 @@
+import { RefreshSession } from '../auth/refresh-session.entity';
+import { SessionRepositoryFixture } from '../testing/session-repository.fixture';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -24,7 +26,7 @@ describe('authentication HTTP contract (database boundary replaced)', () => {
           load: [() => ({ JWT_SECRET: secret, JWT_EXPIRES_IN: '7d' })] }),
         AuthModule,
       ],
-    }).overrideProvider(getRepositoryToken(Agent)).useValue(repository).compile();
+    }).overrideProvider(getRepositoryToken(RefreshSession)).useValue(new SessionRepositoryFixture()).overrideProvider(getRepositoryToken(Agent)).useValue(repository).compile();
     application = module.createNestApplication();
     application.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await application.listen(0, '127.0.0.1');
@@ -149,4 +151,53 @@ describe('authentication HTTP contract (database boundary replaced)', () => {
     expect((await request('/auth/login', 'POST', { email: 'bad', password: 'password' })).status).toBe(400);
     expect((await request('/auth/login', 'POST', { email: agent.email })).status).toBe(400);
   });
+describe('browser session security', () => {
+  it('rejects untrusted browser origins before login', async () => {
+    const response = await fetch(`${baseUrl}/auth/login`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' },
+      body: JSON.stringify({ email: administrator.email, password: 'correct-test-password' }) });
+    expect(response.status).toBe(403);
+  });
+  it('rotates refresh cookies and refuses replay and revoked sessions', async () => {
+    const login = await request('/auth/login', 'POST', { email: administrator.email, password: 'correct-test-password' });
+    const cookie = login.headers.get('set-cookie')!;
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('SameSite=Strict');
+    const refresh = (value: string) => fetch(`${baseUrl}/auth/refresh`, { method: 'POST', headers: { Cookie: value.split(';')[0] } });
+    const renewed = await refresh(cookie);
+    expect(renewed.status).toBe(200);
+    expect(await renewed.json()).toHaveProperty('accessToken');
+    expect((await refresh(cookie)).status).toBe(401);
+    const nextCookie = renewed.headers.get('set-cookie')!;
+    const logout = await fetch(`${baseUrl}/auth/logout`, { method: 'POST', headers: { Cookie: nextCookie.split(';')[0] } });
+    expect(logout.status).toBe(204);
+    expect((await refresh(nextCookie)).status).toBe(401);
+  });
+  it('restricts listing and updates to administrators', async () => {
+    expect((await request('/agents', 'GET', undefined, tokenFor(agent))).status).toBe(403);
+    expect((await request(`/agents/${agent.id}`, 'PATCH', { active: false }, tokenFor(agent))).status).toBe(403);
+    const listing = await request('/agents', 'GET', undefined, tokenFor(administrator));
+    expect(listing.status).toBe(200);
+    expect(await listing.json()).toMatchObject({ total: 2, page: 1 });
+    expect((await request(`/agents/${administrator.id}`, 'PATCH', { active: false }, tokenFor(administrator))).status).toBe(409);
+    expect((await request(`/agents/${agent.id}`, 'PATCH', { active: false }, tokenFor(administrator))).status).toBe(200);
+    expect((await request('/auth/me', 'GET', undefined, tokenFor(agent))).status).toBe(401);
+  });
+  it('preserves role on profile edits and validates account changes', async () => {
+    const edited = await request(`/agents/${administrator.id}`, 'PATCH', { name: 'Admin updated' }, tokenFor(administrator));
+    expect(edited.status).toBe(200);
+    expect(await edited.json()).toMatchObject({ name: 'Admin updated', role: 'ADMIN' });
+    expect((await request(`/agents/${administrator.id}`, 'PATCH', { role: 'AGENT' }, tokenFor(administrator))).status).toBe(409);
+    expect((await request(`/agents/${agent.id}`, 'PATCH', { active: null }, tokenFor(administrator))).status).toBe(400);
+    expect((await request(`/agents/${agent.id}`, 'PATCH', { password: 'short' }, tokenFor(administrator))).status).toBe(400);
+  });
+  it('refuses renewal after account deactivation', async () => {
+    const login = await request('/auth/login', 'POST', { email: agent.email, password: 'correct-test-password' });
+    const cookie = login.headers.get('set-cookie')!.split(';')[0];
+    agent.active = false;
+    const refresh = await fetch(`${baseUrl}/auth/refresh`, { method: 'POST', headers: { Cookie: cookie } });
+    expect(refresh.status).toBe(401);
+  });
+});
+
 });

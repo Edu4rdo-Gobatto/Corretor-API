@@ -39,7 +39,7 @@ Preencha `.env` antes de iniciar a API. Os testes e o build não precisam de `.e
 | NODE_ENV | development, test ou production; padrão development |
 | DATABASE_URL | URL postgres:// ou postgresql:// do Neon, com usuário, senha, banco e sslmode=require, verify-ca ou verify-full |
 | JWT_SECRET | Segredo aleatório de pelo menos 32 caracteres, não vazio |
-| JWT_EXPIRES_IN | Inteiro positivo seguido de s, m, h ou d; padrão 7d |
+| JWT_EXPIRES_IN | Inteiro positivo seguido de s, m, h ou d; padrão 15m |
 | R2_ENDPOINT | URL HTTPS; use https://<account_id>.r2.cloudflarestorage.com |
 | R2_ACCESS_KEY_ID | Chave de acesso não vazia |
 | R2_SECRET_ACCESS_KEY | Segredo não vazio |
@@ -74,7 +74,7 @@ O cadastro aceita `name`, `email`, `password`, `whatsappNumber` e, opcionalmente
 
 Credenciais incorretas e contas inativas recebem 401 no login. E-mail duplicado recebe 409; entrada inválida, 400. Cadastro sem token recebe 401 e cadastro por AGENT recebe 403. O JWT usa HS256, issuer `corretor-api` e audience `corretor-web`. A cada requisição protegida o corretor é consultado novamente: contas inativas/removidas perdem acesso e alterações de papel passam a valer mesmo para tokens já emitidos.
 
-Nesta etapa, a API entrega apenas access token. Renovação por cookie httpOnly, logout/revogação de sessão, CORS para o frontend e limitação de tentativas de login ainda precisam ser concluídos antes da integração/publicação do painel. O frontend deverá manter o access token em memória, conforme o plano; não foi criado armazenamento em localStorage.
+A API entrega access token para uso em memória e refresh token em cookie httpOnly rotativo. Logout/revogação, origens autorizadas e limitação de login estão implementados; consulte os contratos e limites operacionais na seção de integração abaixo.
 
 ## Preparar o banco e o primeiro administrador
 
@@ -154,3 +154,51 @@ O lockfile registra as versões instaladas. O override `multer: 2.3.0` corrige o
 A suíte verifica configuração, erros sem segredos, opções de conexão, Argon2id, tokens e guards, cadastro e login via HTTP local, proteção de hashes nas consultas, validação do bootstrap e CRUD/filtros/paginação/posse de imóveis. Somente a persistência é substituída nos testes HTTP; não existe banco em memória no código de produção. Conexão real, aplicação das migrations, certificado do Neon e acesso ao R2 permanecem pendentes.
 
 Referências de implementação: [Configuração NestJS](https://docs.nestjs.com/techniques/configuration) e [Integração TypeORM](https://docs.nestjs.com/techniques/database).
+
+## Integração com Corretor-web
+
+O front usa /api como proxy e remove esse prefixo: /api/auth/login chega a /auth/login.
+Configure ALLOWED_ORIGINS com as origens exatas autorizadas, separadas por vírgula,
+sem barra final (ex.: https://imoveis.example.com). O CORS aceita credenciais somente
+nessas origens; login, refresh e logout recusam Origin não autorizado e metadados
+de navegação cross-site sem Origin. Clientes HTTP sem cabeçalhos de navegador
+continuam permitidos. Em produção, use HTTPS e NODE_ENV=production.
+
+- POST /auth/login: JSON {email,password}; retorna {accessToken,tokenType,agent}
+  e define corretor_refresh em cookie httpOnly, SameSite=Strict, Path=/, Secure em produção.
+- POST /auth/refresh: envia o cookie e retorna o mesmo formato, rotacionando o cookie.
+- POST /auth/logout: revoga o cookie atual, limpa-o e retorna 204.
+- GET /auth/me: recebe Authorization: Bearer e retorna o perfil atual.
+- Access token padrão: 15 minutos; o front deve mantê-lo somente em memória.
+  Refresh token: 30 dias por renovação, aleatório, persistido somente como SHA-256.
+  DELETE RETURNING torna o refresh de uso único mesmo com requisições concorrentes.
+  O front deve coordenar renovações para evitar disparar refresh concorrente.
+- GET /agents?page=1&limit=20: ADMIN; {items,total,page,limit,totalPages}; limite máximo 100.
+- PATCH /agents/:id: ADMIN; campos opcionais de criação e active booleano. Senha omitida
+  permanece intacta. Desativação preserva vínculos; o último ADMIN ativo não pode ser
+  desativado ou rebaixado. Edições são serializadas por advisory lock transacional.
+- Listagens de imóveis incluem mídia para exibir capa. Permissões usam a conta e
+  o papel atuais do banco em cada requisição; conta inativa não renova sessão.
+
+A migração 1789084804000 cria refresh_sessions e deve ser revisada e executada no Neon
+autorizado antes de iniciar a versão nova. Nenhuma migração foi executada nesta entrega.
+Inclua limpeza periódica de refresh_sessions WHERE expires_at < now() na manutenção
+do banco. Logout revoga o refresh atual; um access token já emitido pode durar até sua
+expiração (ou desativação da conta).
+
+Login tem janela de 15 minutos, com 10 tentativas por conta e 50 por IP. O limite é
+local ao processo, inclusive reinicia com o processo; antes de escalar para múltiplas
+instâncias, complemente no gateway com armazenamento compartilhado. Configure o
+proxy confiável conforme sua infraestrutura; o bootstrap atual confia em um salto.
+
+Validação de integração real com Neon/R2 exige ambiente e credenciais autorizados.
+Os testes HTTP substituem somente os repositórios e o armazenamento externo;
+não comprovam a execução de SQL no PostgreSQL nem upload real no R2.
+
+Caso a descoberta padrão do Jest omita arquivos hidratados no Windows/OneDrive,
+execute todos os testes explicitamente em PowerShell:
+
+```powershell
+$specs = @(rg --files src -g '*.spec.ts')
+node node_modules/jest/bin/jest.js --runInBand --runTestsByPath @specs
+```

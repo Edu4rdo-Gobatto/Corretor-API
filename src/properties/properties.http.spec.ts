@@ -1,3 +1,5 @@
+import { RefreshSession } from '../auth/refresh-session.entity';
+import { SessionRepositoryFixture } from '../testing/session-repository.fixture';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -33,7 +35,7 @@ describe('property HTTP contract (database boundary replaced)', () => {
         load: [() => ({ JWT_SECRET: secret, JWT_EXPIRES_IN: '7d' })] }),
       AuthModule, PropertiesModule,
     ] })
-      .overrideProvider(getRepositoryToken(Agent)).useValue(agents)
+      .overrideProvider(getRepositoryToken(RefreshSession)).useValue(new SessionRepositoryFixture()).overrideProvider(getRepositoryToken(Agent)).useValue(agents)
       .overrideProvider(getRepositoryToken(Property)).useValue(properties).compile();
     application = module.createNestApplication();
     application.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));

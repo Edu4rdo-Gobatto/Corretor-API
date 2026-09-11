@@ -6,6 +6,20 @@ import { Agent, AgentRole } from '../agents/agent.entity';
 export class AgentRepositoryFixture {
   readonly agents = new Map<string, Agent>();
 
+  readonly manager = {
+    transaction: async <T>(action: (manager: { query: () => Promise<void>; getRepository: () => AgentRepositoryFixture }) => Promise<T>): Promise<T> =>
+      action({ query: () => Promise.resolve(), getRepository: () => this }),
+  };
+
+  findAndCount(options: { skip?: number; take?: number }): Promise<[Agent[], number]> {
+    const agents = [...this.agents.values()].sort((first, second) => first.name.localeCompare(second.name));
+    return Promise.resolve([agents.slice(options.skip ?? 0, (options.skip ?? 0) + (options.take ?? agents.length)), agents.length]);
+  }
+
+  countBy(where: FindOptionsWhere<Agent>): Promise<number> {
+    return Promise.resolve([...this.agents.values()].filter(agent => Object.entries(where).every(([key, value]) => agent[key as keyof Agent] === value)).length);
+  }
+
   create(agent: DeepPartial<Agent>): Agent {
     return Object.assign(new Agent(), {
       id: randomUUID(),

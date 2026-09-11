@@ -1,3 +1,5 @@
+import { RefreshSession } from '../auth/refresh-session.entity';
+import { CreateRefreshSessions1789084804000 } from './migrations/1789084804000-create-refresh-sessions';
 import 'reflect-metadata';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
@@ -16,7 +18,7 @@ const environment = validateEnvironment(process.env);
 
 export default new DataSource({
   ...createPostgresOptions(environment.DATABASE_URL),
-  entities: [Agent, Property, PropertyMedia, Lead],
-  migrations: [CreateAgents1789084800000, CreateProperties1789084801000, CreatePropertyMedia1789084802000, CreateLeads1789084803000],
+  entities: [Agent, Property, PropertyMedia, Lead, RefreshSession],
+  migrations: [CreateAgents1789084800000, CreateProperties1789084801000, CreatePropertyMedia1789084802000, CreateLeads1789084803000, CreateRefreshSessions1789084804000],
   migrationsTableName: 'typeorm_migrations',
 });

@@ -1,3 +1,5 @@
+import { RefreshSession } from '../auth/refresh-session.entity';
+import { SessionRepositoryFixture } from '../testing/session-repository.fixture';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -35,7 +37,7 @@ describe('media HTTP contract (database and R2 boundaries replaced)', () => {
         load: [() => ({ JWT_SECRET: secret, JWT_EXPIRES_IN: '7d', R2_PUBLIC_URL: 'https://media.example.test' })] }),
       AuthModule, MediaModule,
     ] })
-      .overrideProvider(getRepositoryToken(Agent)).useValue(agents)
+      .overrideProvider(getRepositoryToken(RefreshSession)).useValue(new SessionRepositoryFixture()).overrideProvider(getRepositoryToken(Agent)).useValue(agents)
       .overrideProvider(getRepositoryToken(Property)).useValue(properties)
       .overrideProvider(getRepositoryToken(PropertyMedia)).useValue(media)
       .overrideProvider('R2_S3_CLIENT').useValue(storage)

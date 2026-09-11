@@ -53,7 +53,11 @@ export class EnvironmentVariables {
   JWT_SECRET!: string;
 
   @Matches(/^[1-9]\d*(s|m|h|d)$/)
-  JWT_EXPIRES_IN = '7d';
+  JWT_EXPIRES_IN = '15m';
+
+  @IsString()
+  @Matches(/^https?:\/\/[^\s,/]+(,https?:\/\/[^\s,/]+)*$/)
+  ALLOWED_ORIGINS = 'http://localhost:5173';
 
   @IsUrl({ protocols: ['https'], require_protocol: true })
   R2_ENDPOINT!: string;
