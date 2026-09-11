@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { Repository } from 'typeorm';
@@ -7,8 +8,17 @@ import { RefreshSession } from './refresh-session.entity';
 export const SESSION_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
 
 @Injectable()
-export class SessionService {
+export class SessionService implements OnModuleInit {
   constructor(@InjectRepository(RefreshSession) private readonly sessions: Repository<RefreshSession>) {}
+
+  onModuleInit(): void {
+    setInterval(() => void this.purgeExpired(), 60 * 60 * 1000).unref();
+  }
+
+  async purgeExpired(): Promise<number> {
+    const result = await this.sessions.createQueryBuilder().delete().where('expires_at <= :now', { now: new Date() }).execute();
+    return result.affected ?? 0;
+  }
 
   async create(agentId: string): Promise<string> {
     const token = randomBytes(48).toString('base64url');

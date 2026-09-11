@@ -6,6 +6,7 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { PropertyQueryDto } from './dto/property-query.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertiesService } from './properties.service';
+import { ParseSlugPipe } from './pipes/parse-slug.pipe';
 
 type AuthenticatedRequest = Request & { user: AgentProfile };
 
@@ -17,7 +18,7 @@ export class PropertiesController {
   list(@Query() query: PropertyQueryDto) { return this.properties.listPublic(query); }
 
   @Get(':slug')
-  detail(@Param('slug') slug: string) { return this.properties.findPublic(slug); }
+  detail(@Param('slug', ParseSlugPipe) slug: string) { return this.properties.findPublic(slug); }
 
   @Post()
   @UseGuards(JwtAuthGuard)

@@ -2,9 +2,11 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPi
 import { Request } from 'express';
 import { AgentProfile } from '../agents/dto/agent-profile.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BrowserOriginGuard } from '../auth/browser-origin.guard';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { LeadQueryDto } from './dto/lead-query.dto';
 import { LeadsService } from './leads.service';
+import { LeadRateGuard } from './lead-rate.guard';
 
 type AuthenticatedRequest = Request & { user: AgentProfile };
 
@@ -13,6 +15,7 @@ export class LeadsController {
   constructor(private readonly leads: LeadsService) {}
 
   @Post()
+  @UseGuards(BrowserOriginGuard, LeadRateGuard)
   create(@Body() dto: CreateLeadDto, @Req() request: Request) {
     return this.leads.create(dto, request.ip ?? 'unknown');
   }

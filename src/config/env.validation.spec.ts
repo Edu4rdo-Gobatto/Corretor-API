@@ -7,6 +7,7 @@ const validEnvironment = {
   R2_ACCESS_KEY_ID: 'test-access-key',
   R2_SECRET_ACCESS_KEY: 'test-storage-secret',
   R2_PUBLIC_URL: 'https://pub-sample.r2.dev',
+  LEADS_ENCRYPTION_KEY: 'test-leads-encryption-key-with-at-least-32-characters',
 };
 
 describe('environment validation', () => {

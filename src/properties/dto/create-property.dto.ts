@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import { IsEnum, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Length, Max, Min, ValidateIf } from 'class-validator';
 import { PropertyPurpose, PropertyStatus, PropertyType } from '../property.entity';
+import { BadRequestException } from '@nestjs/common';
 
 export class CreatePropertyDto {
   @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value)
@@ -69,6 +70,12 @@ export class CreatePropertyDto {
   @Length(1, 20000)
   description!: string;
 
+  @Transform(({ value }: { value: unknown }) => {
+    if (value !== undefined && (typeof value !== 'object' || value === null || JSON.stringify(value).length > 10000)) {
+      throw new BadRequestException('features inválido ou excede 10 KB.');
+    }
+    return value;
+  })
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsObject()
   features?: Record<string, unknown>;

@@ -79,7 +79,7 @@ export class PropertiesService {
       where.price = Between(query.minPrice ?? 0, query.maxPrice ?? 9999999999.99);
     }
     const [properties, total] = await this.properties.findAndCount({
-      where, relations: { agent: true, media: true }, order: { createdAt: 'DESC', id: 'DESC' },
+      where, relations: { agent: true }, order: { createdAt: 'DESC', id: 'DESC' },
       skip: (query.page - 1) * query.limit, take: query.limit,
     });
     return { items: properties.map(toPropertyResponse), total, page: query.page, limit: query.limit,

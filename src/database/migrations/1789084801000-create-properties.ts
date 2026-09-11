@@ -4,6 +4,7 @@ export class CreateProperties1789084801000 implements MigrationInterface {
   name = 'CreateProperties1789084801000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('CREATE EXTENSION IF NOT EXISTS pg_trgm');
     await queryRunner.query(`CREATE TYPE "PropertyType" AS ENUM ('GALPAO', 'SALA', 'PREDIO', 'LOJA', 'TERRENO')`);
     await queryRunner.query(`CREATE TYPE "PropertyPurpose" AS ENUM ('LOCACAO', 'VENDA')`);
     await queryRunner.query(`CREATE TYPE "PropertyStatus" AS ENUM ('DISPONIVEL', 'RESERVADO', 'CONCLUIDO')`);
@@ -39,6 +40,7 @@ export class CreateProperties1789084801000 implements MigrationInterface {
     `);
     await queryRunner.query('CREATE INDEX "IDX_properties_agent_id" ON "properties" ("agent_id")');
     await queryRunner.query('CREATE INDEX "IDX_properties_public_created" ON "properties" ("status", "created_at")');
+    await queryRunner.query('CREATE INDEX "IDX_properties_city_trgm" ON "properties" USING gin ("address_city" gin_trgm_ops)');
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {

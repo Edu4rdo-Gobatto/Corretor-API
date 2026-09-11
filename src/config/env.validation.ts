@@ -33,7 +33,6 @@ class NeonDatabaseUrl implements ValidatorConstraintInterface {
     return 'DATABASE_URL deve ser uma URL PostgreSQL do Neon com usuário, senha, banco e sslmode=require ou verify-full';
   }
 }
-
 export class EnvironmentVariables {
   @Type(() => Number)
   @IsInt()
@@ -72,6 +71,20 @@ export class EnvironmentVariables {
 
   @IsUrl({ protocols: ['https'], require_protocol: true })
   R2_PUBLIC_URL!: string;
+
+  @IsString()
+  @MinLength(32)
+  LEADS_ENCRYPTION_KEY!: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  R2_REQUEST_TIMEOUT_MS = 30000;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(100)
+  R2_CONNECTION_TIMEOUT_MS = 5000;
 }
 
 export function validateEnvironment(environment: Record<string, unknown>): EnvironmentVariables {

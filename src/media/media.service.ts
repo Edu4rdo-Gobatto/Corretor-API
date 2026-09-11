@@ -8,6 +8,7 @@ import { AgentRole } from '../agents/agent.entity';
 import { AgentProfile } from '../agents/dto/agent-profile.dto';
 import { Property } from '../properties/property.entity';
 import { CreateMediaEmbedDto } from './dto/create-media-embed.dto';
+import { canonicalEmbedUrl } from './embed-url';
 import { ReorderMediaDto } from './dto/reorder-media.dto';
 import { MediaType, PropertyMedia } from './property-media.entity';
 
@@ -41,18 +42,17 @@ export class MediaService {
     const entities: PropertyMedia[] = [];
 
     try {
-      for (const [offset, file] of files.entries()) {
+      const results = await Promise.allSettled(files.map(async (file, offset) => {
         const { type, extension } = this.validateFile(file);
         const storageKey = `properties/${property.id}/${randomUUID()}${extension}`;
-        await this.storage.send(new PutObjectCommand({
-          Bucket: 'corretor-midia', Key: storageKey, Body: file.buffer, ContentType: file.mimetype,
-        }));
+        await this.storage.send(new PutObjectCommand({ Bucket: 'corretor-midia', Key: storageKey, Body: file.buffer, ContentType: file.mimetype }));
         uploadedKeys.push(storageKey);
-        entities.push(this.media.create({
-          propertyId: property.id, property, type, url: this.publicUrl(storageKey), storageKey,
-          orderIndex: existing.length + offset, isCover: existing.length === 0 && offset === 0,
-        }));
-      }
+        return this.media.create({ propertyId: property.id, property, type, url: this.publicUrl(storageKey), storageKey,
+          orderIndex: existing.length + offset, isCover: existing.length === 0 && offset === 0 });
+      }));
+      const rejected = results.find((result) => result.status === 'rejected');
+      if (rejected) throw rejected.reason;
+      entities.push(...results.map((result) => (result as PromiseFulfilledResult<PropertyMedia>).value));
       return await this.media.save(entities);
     } catch (error) {
       await Promise.all(uploadedKeys.map((key) => this.deleteFromStorage(key)));
@@ -62,10 +62,11 @@ export class MediaService {
 
   async addEmbed(propertyId: string, dto: CreateMediaEmbedDto, viewer: AgentProfile): Promise<PropertyMedia> {
     const property = await this.findOwnedProperty(propertyId, viewer);
-    if (!this.isSupportedEmbed(dto.url)) throw new BadRequestException('O link deve ser do YouTube ou Vimeo.');
+    const url = canonicalEmbedUrl(dto.url);
+    if (!url) throw new BadRequestException('O link deve ser um vídeo válido do YouTube ou Vimeo.');
     const existing = await this.listForProperty(property.id);
     return this.media.save(this.media.create({
-      propertyId: property.id, property, type: MediaType.VIDEO_EMBED, url: dto.url,
+      propertyId: property.id, property, type: MediaType.VIDEO_EMBED, url,
       storageKey: null, orderIndex: existing.length, isCover: existing.length === 0,
     }));
   }
@@ -81,17 +82,19 @@ export class MediaService {
     }
     const byId = new Map(existing.map((item) => [item.id, item]));
     const ordered = dto.mediaIds.map((id, orderIndex) => Object.assign(byId.get(id)!, { orderIndex }));
-    return this.media.save(ordered);
+    return this.media.manager.transaction(async (manager) => manager.getRepository(PropertyMedia).save(ordered));
   }
 
   async setCover(propertyId: string, mediaId: string, viewer: AgentProfile): Promise<PropertyMedia> {
     const property = await this.findOwnedProperty(propertyId, viewer);
-    const selected = await this.findMedia(property.id, mediaId);
-    const existing = await this.listForProperty(property.id);
-    for (const item of existing) item.isCover = item.id === selected.id;
-    await this.media.save(existing);
-    selected.isCover = true;
-    return selected;
+    return this.media.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(PropertyMedia);
+      const selected = await repository.findOne({ where: { id: mediaId, propertyId: property.id } });
+      if (!selected) throw new NotFoundException('Mídia não encontrada.');
+      await repository.update({ propertyId: property.id }, { isCover: false });
+      selected.isCover = true;
+      return repository.save(selected);
+    });
   }
 
   async remove(propertyId: string, mediaId: string, viewer: AgentProfile): Promise<void> {
@@ -137,16 +140,6 @@ export class MediaService {
       return { type: MediaType.VIDEO_FILE, extension: videoExtension };
     }
     throw new BadRequestException('Tipo de mídia não suportado. Use JPEG, PNG, WebP, MP4 ou WebM.');
-  }
-
-  private isSupportedEmbed(value: string): boolean {
-    try {
-      const hostname = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
-      return hostname === 'youtube.com' || hostname === 'youtu.be'
-        || hostname === 'vimeo.com' || hostname === 'player.vimeo.com';
-    } catch {
-      return false;
-    }
   }
 
   private publicUrl(key: string): string {

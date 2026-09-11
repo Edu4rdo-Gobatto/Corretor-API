@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Relation } from 'typeorm';
 import { Agent } from '../agents/agent.entity';
 import { Property } from '../properties/property.entity';
+import { encryptedTextTransformer } from '../common/security/field-encryption.transformer';
 
 @Entity('leads')
 @Index('IDX_leads_agent_created', ['agentId', 'createdAt'])
@@ -24,13 +25,13 @@ export class Lead {
   @JoinColumn({ name: 'agent_id' })
   agent!: Relation<Agent>;
 
-  @Column({ name: 'lead_name', type: 'text' })
+  @Column({ name: 'lead_name', type: 'text', transformer: encryptedTextTransformer })
   leadName!: string;
 
-  @Column({ name: 'lead_phone', type: 'text' })
+  @Column({ name: 'lead_phone', type: 'text', transformer: encryptedTextTransformer })
   leadPhone!: string;
 
-  @Column({ name: 'lead_email', type: 'text', nullable: true })
+  @Column({ name: 'lead_email', type: 'text', nullable: true, transformer: encryptedTextTransformer })
   leadEmail!: string | null;
 
   @Column({ type: 'text', nullable: true })

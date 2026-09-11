@@ -119,11 +119,13 @@ describe('media HTTP contract (database and R2 boundaries replaced)', () => {
   });
 
   it('accepts supported embeds and rejects other hosts', async () => {
-    const accepted = await request(`/properties/${property.id}/media/embed`, 'POST', JSON.stringify({ url: 'https://youtu.be/example' }), owner);
+    const accepted = await request(`/properties/${property.id}/media/embed`, 'POST', JSON.stringify({ url: 'https://youtu.be/dQw4w9WgXcQ' }), owner);
     expect(accepted.status).toBe(201);
-    expect(await accepted.json()).toMatchObject({ type: MediaType.VIDEO_EMBED, isCover: true, storageKey: null });
-    const rejected = await request(`/properties/${property.id}/media/embed`, 'POST', JSON.stringify({ url: 'https://evil.example/video' }), owner);
-    expect(rejected.status).toBe(400);
+    expect(await accepted.json()).toMatchObject({ type: MediaType.VIDEO_EMBED, url: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', isCover: true, storageKey: null });
+    for (const url of ['https://evil.example/video', 'javascript:alert(1)', 'https://youtu.be/example']) {
+      const rejected = await request(`/properties/${property.id}/media/embed`, 'POST', JSON.stringify({ url }), owner);
+      expect(rejected.status).toBe(400);
+    }
   });
 
   it('reorders only complete unique media sets and changes the single cover', async () => {

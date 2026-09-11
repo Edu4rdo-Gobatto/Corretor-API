@@ -6,6 +6,11 @@ export class MediaRepositoryFixture {
   readonly media = new Map<string, PropertyMedia>();
   failSave = false;
 
+  readonly manager = {
+    transaction: async <T>(action: (manager: { getRepository: () => MediaRepositoryFixture }) => Promise<T>): Promise<T> =>
+      action({ getRepository: () => this }),
+  };
+
   create(fields: DeepPartial<PropertyMedia>): PropertyMedia {
     return Object.assign(new PropertyMedia(), {
       id: randomUUID(), type: MediaType.IMAGE, storageKey: null, orderIndex: 0, isCover: false,
@@ -22,6 +27,11 @@ export class MediaRepositoryFixture {
   remove(item: PropertyMedia): Promise<PropertyMedia> {
     this.media.delete(item.id);
     return Promise.resolve(item);
+  }
+
+  update(_criteria: FindOptionsWhere<PropertyMedia>, changes: Partial<PropertyMedia>): Promise<void> {
+    for (const item of this.media.values()) Object.assign(item, changes);
+    return Promise.resolve();
   }
 
   findOne(options: FindOneOptions<PropertyMedia>): Promise<PropertyMedia | null> {

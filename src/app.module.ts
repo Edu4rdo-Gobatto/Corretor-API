@@ -8,6 +8,7 @@ import { validateEnvironment } from './config/env.validation';
 import { LeadsModule } from './leads/leads.module';
 import { MediaModule } from './media/media.module';
 import { PropertiesModule } from './properties/properties.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PropertiesModule } from './properties/properties.module';
     PropertiesModule,
     MediaModule,
     LeadsModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

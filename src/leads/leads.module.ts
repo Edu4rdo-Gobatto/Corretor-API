@@ -6,11 +6,12 @@ import { Property } from '../properties/property.entity';
 import { Lead } from './lead.entity';
 import { LeadsController, ManagedLeadsController } from './leads.controller';
 import { LeadsService } from './leads.service';
+import { LeadRateGuard } from './lead-rate.guard';
 
 @Module({
   imports: [AuthModule, TypeOrmModule.forFeature([Lead, Property, Agent])],
   controllers: [LeadsController, ManagedLeadsController],
-  providers: [LeadsService],
+  providers: [LeadsService, LeadRateGuard],
   exports: [LeadsService],
 })
 export class LeadsModule {}

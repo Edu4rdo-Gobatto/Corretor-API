@@ -1,12 +1,21 @@
 import { allowedOrigins } from './auth/browser-origin.guard';
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const application = await NestFactory.create(AppModule);
+  application.use(helmet());
+  application.useGlobalFilters(new GlobalExceptionFilter());
+  application.setGlobalPrefix('api/v1');
+  application.use((request: { url: string }, _response: unknown, next: () => void) => {
+    if (!request.url.startsWith('/api/v1')) request.url = `/api/v1${request.url}`;
+    next();
+  });
   const configuration = application.get(ConfigService);
   const httpServer = application.getHttpAdapter().getInstance() as { set: (setting: string, value: number) => void };
   httpServer.set('trust proxy', 1);

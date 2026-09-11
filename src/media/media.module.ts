@@ -22,6 +22,10 @@ import { PropertyMedia } from './property-media.entity';
           accessKeyId: configuration.getOrThrow<string>('R2_ACCESS_KEY_ID'),
           secretAccessKey: configuration.getOrThrow<string>('R2_SECRET_ACCESS_KEY'),
         },
+        requestHandler: {
+          requestTimeout: configuration.getOrThrow<number>('R2_REQUEST_TIMEOUT_MS'),
+          connectionTimeout: configuration.getOrThrow<number>('R2_CONNECTION_TIMEOUT_MS'),
+        },
       }),
     },
   ],
