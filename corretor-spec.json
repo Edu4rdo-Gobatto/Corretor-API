@@ -1,0 +1,339 @@
+{
+  "project": {
+    "name": "corretor-engine",
+    "description": "Sistema comercial não-transacional de site para corretor de imóveis comerciais, vendido diretamente ao corretor/agência.",
+    "goal": "Validar demanda comercial com custo de infraestrutura zero antes de qualquer investimento pago.",
+    "non_negotiable_principles": [
+      "Custo $0/mes durante a fase de validacao. Nenhuma ferramenta paga entra antes de haver cliente pagante confirmado.",
+      "Banco de dados sempre hospedado online. Nunca Postgres local.",
+      "Um padrao por problema: um ORM, uma lib de validacao por camada. Nao duplicar solucoes.",
+      "Nenhum atalho que gere divida tecnica silenciosa (filesystem efemero, cold start, limites de free tier devem ser tratados explicitamente, nunca ignorados).",
+      "Toda feature nova deve caber no padrao entity+dto+service+controller antes de ser aceita."
+    ]
+  },
+
+  "architecture": {
+    "flow": "Visitante/Corretor -> Vercel (frontend React) -> HTTPS/JSON/Multipart -> Render (backend NestJS) -> [TypeORM/TCP] Neon PostgreSQL e [S3 SDK] Cloudflare R2",
+    "backend_runtime_note": "Servidor Node.js tradicional, NAO edge/serverless de CPU limitada. Autenticacao e upload de arquivos rodam sem restricao artificial de tempo de CPU."
+  },
+
+  "stack": {
+    "frontend": { "tech": "React 18 + TypeScript + Vite", "hosting": "Vercel free", "cost": "$0" },
+    "backend": { "tech": "NestJS + TypeScript", "hosting": "Render free", "cost": "$0", "known_limitation": "Cold start ~15-60s apos 15min de inatividade. Filesystem efemero (arquivos locais sao apagados a cada spin down/restart)." },
+    "database": { "tech": "PostgreSQL 16", "hosting": "Neon free tier (3GB)", "cost": "$0", "note": "Sem pausa longa como Supabase; wake time ~500ms" },
+    "orm": { "tech": "TypeORM", "cost": "$0" },
+    "media_storage": { "tech": "Cloudflare R2 (S3-compatible)", "cost": "$0 ate 10GB, egress zero", "reason_mandatory": "Filesystem do Render e efemero; imagens/videos NAO podem ser salvos localmente no backend." },
+    "auth": { "tech": "JWT + Argon2id", "cost": "$0", "note": "Roda em servidor Node normal, sem limite de CPU por requisicao. Sem trade-off seguranca vs velocidade." },
+    "validation": { "backend": "class-validator + class-transformer", "frontend": "react-hook-form + zod" },
+    "backup": { "method": "pg_dump manual", "target": "maquina local", "frequency": "antes de mudanca estrutural no banco + semanal durante validacao" }
+  },
+
+  "rejected_decisions": [
+    { "option": "Supabase", "reason": "Free tier pausa projeto apos inatividade prolongada; wake time 30-60s inaceitavel para cliente final" },
+    { "option": "Cloudflare Workers + Hono no backend", "reason": "Limite de 10ms CPU no free tier incompativel com hash de senha seguro (Argon2id/bcrypt exigem 100-300ms por design); bcrypt nativo nao roda em runtime V8 isolado" },
+    { "option": "Drizzle ORM", "reason": "So fazia sentido no cenario Workers; TypeORM e o padrao maduro do NestJS" },
+    { "option": "GitHub Actions para backup automatizado", "reason": "Workflows agendados sao desabilitados apos 60 dias sem atividade no repo; execucao em horario fixo nao e garantida" },
+    { "option": "Cloudflare Containers", "reason": "Exige Workers Paid Plan ($5/mes minimo), nao e free" }
+  ],
+
+  "repositories": {
+    "corretor-api": {
+      "framework": "NestJS",
+      "structure": [
+        "src/config/env.validation.ts",
+        "src/auth/{auth.module.ts,auth.service.ts,auth.controller.ts,strategies/jwt.strategy.ts,guards/jwt-auth.guard.ts,guards/roles.guard.ts,decorators/roles.decorator.ts,dto/}",
+        "src/agents/{agent.entity.ts,agents.module.ts,agents.service.ts,agents.controller.ts,dto/}",
+        "src/properties/{property.entity.ts,properties.module.ts,properties.service.ts,properties.controller.ts,dto/}",
+        "src/media/{property-media.entity.ts,media.module.ts,media.service.ts,media.controller.ts}",
+        "src/leads/{lead.entity.ts,leads.module.ts,leads.service.ts,leads.controller.ts}",
+        "src/common/{filters/,interceptors/}",
+        "src/app.module.ts",
+        "src/main.ts",
+        ".env.example"
+      ],
+      "required_packages": [
+        "@nestjs/typeorm", "typeorm", "pg", "@nestjs/config",
+        "class-validator", "class-transformer",
+        "@nestjs/jwt", "@nestjs/passport", "passport", "passport-jwt",
+        "argon2", "@aws-sdk/client-s3"
+      ]
+    },
+    "corretor-web": {
+      "framework": "React + Vite",
+      "structure": [
+        "src/components/{PropertyCard.tsx,MediaGallery.tsx,LeadFormModal.tsx}",
+        "src/pages/public/{Catalog.tsx,PropertyDetail.tsx,PrivacyPolicy.tsx}",
+        "src/pages/admin/{Login.tsx,Dashboard.tsx,PropertyList.tsx,PropertyForm.tsx,LeadsList.tsx}",
+        "src/services/{api.ts,auth.service.ts,properties.service.ts,leads.service.ts}",
+        "src/hooks/useAuth.ts",
+        "src/types/index.ts",
+        "src/main.tsx",
+        ".env.example"
+      ],
+      "required_packages": [
+        "react-router-dom", "react-hook-form", "zod", "browser-image-compression"
+      ]
+    }
+  },
+
+  "database_schema": {
+    "agents": {
+      "table": "agents",
+      "fields": [
+        { "name": "id", "type": "uuid", "pk": true, "generated": true },
+        { "name": "name", "type": "text" },
+        { "name": "email", "type": "text", "unique": true },
+        { "name": "password_hash", "type": "text" },
+        { "name": "whatsapp_number", "type": "text", "note": "formato ex: 5511999999999" },
+        { "name": "creci", "type": "text", "nullable": true },
+        { "name": "role", "type": "enum", "enum_name": "AgentRole", "values": ["ADMIN", "AGENT"], "default": "AGENT" },
+        { "name": "avatar_url", "type": "text", "nullable": true },
+        { "name": "active", "type": "boolean", "default": true },
+        { "name": "created_at", "type": "timestamptz", "generated": "create" }
+      ],
+      "relations": [{ "type": "OneToMany", "target": "properties", "via": "agent_id" }]
+    },
+    "properties": {
+      "table": "properties",
+      "fields": [
+        { "name": "id", "type": "uuid", "pk": true, "generated": true },
+        { "name": "title", "type": "text" },
+        { "name": "slug", "type": "text", "unique": true, "indexed": true },
+        { "name": "type", "type": "enum", "enum_name": "PropertyType", "values": ["GALPAO", "SALA", "PREDIO", "LOJA", "TERRENO"] },
+        { "name": "purpose", "type": "enum", "enum_name": "PropertyPurpose", "values": ["LOCACAO", "VENDA"] },
+        { "name": "price", "type": "numeric(12,2)" },
+        { "name": "condo_fee", "type": "numeric(10,2)", "nullable": true },
+        { "name": "iptu_fee", "type": "numeric(10,2)", "nullable": true },
+        { "name": "usable_area", "type": "numeric(10,2)" },
+        { "name": "total_area", "type": "numeric(10,2)" },
+        { "name": "address_street", "type": "text" },
+        { "name": "address_number", "type": "text" },
+        { "name": "address_city", "type": "text" },
+        { "name": "address_state", "type": "text" },
+        { "name": "neighborhood", "type": "text" },
+        { "name": "description", "type": "text" },
+        { "name": "features", "type": "jsonb", "default": {}, "note": "ex: { docas: 4, peDireito: 10, vagas: 12 }" },
+        { "name": "status", "type": "enum", "enum_name": "PropertyStatus", "values": ["DISPONIVEL", "RESERVADO", "CONCLUIDO"], "default": "DISPONIVEL" },
+        { "name": "agent_id", "type": "uuid", "fk": "agents.id" },
+        { "name": "created_at", "type": "timestamptz", "generated": "create" },
+        { "name": "updated_at", "type": "timestamptz", "generated": "update" }
+      ],
+      "relations": [
+        { "type": "ManyToOne", "target": "agents" },
+        { "type": "OneToMany", "target": "property_media", "via": "property_id" }
+      ]
+    },
+    "property_media": {
+      "table": "property_media",
+      "fields": [
+        { "name": "id", "type": "uuid", "pk": true, "generated": true },
+        { "name": "property_id", "type": "uuid", "fk": "properties.id", "on_delete": "CASCADE" },
+        { "name": "type", "type": "enum", "enum_name": "MediaType", "values": ["IMAGE", "VIDEO_EMBED", "VIDEO_FILE"] },
+        { "name": "url", "type": "text" },
+        { "name": "storage_key", "type": "text", "nullable": true, "note": "chave no bucket R2, usada para deletar depois" },
+        { "name": "order_index", "type": "integer", "default": 0 },
+        { "name": "is_cover", "type": "boolean", "default": false }
+      ]
+    },
+    "leads": {
+      "table": "leads",
+      "fields": [
+        { "name": "id", "type": "uuid", "pk": true, "generated": true },
+        { "name": "property_id", "type": "uuid", "fk": "properties.id", "on_delete": "SET NULL", "nullable": true },
+        { "name": "agent_id", "type": "uuid", "fk": "agents.id" },
+        { "name": "lead_name", "type": "text" },
+        { "name": "lead_phone", "type": "text" },
+        { "name": "lead_email", "type": "text", "nullable": true },
+        { "name": "message", "type": "text", "nullable": true },
+        { "name": "consent_given", "type": "boolean", "note": "OBRIGATORIO true para salvar; rejeitar com 400 se false/ausente" },
+        { "name": "consent_timestamp", "type": "timestamptz" },
+        { "name": "consent_ip", "type": "text" },
+        { "name": "terms_version", "type": "text", "default": "v1.0" },
+        { "name": "created_at", "type": "timestamptz", "generated": "create" }
+      ]
+    }
+  },
+
+  "auth": {
+    "flow": [
+      "POST /auth/login recebe email + senha",
+      "AuthService busca Agent por email, compara senha com argon2.verify()",
+      "Se valido, gera JWT com payload { sub: agent.id, role: agent.role }",
+      "Frontend guarda token em memoria + refresh via cookie httpOnly (nunca em localStorage puro)",
+      "Rotas protegidas usam JwtAuthGuard + RolesGuard combinados"
+    ],
+    "hash_algorithm": "argon2id",
+    "guard_rules": {
+      "public_no_guard": ["listagem publica de imoveis", "detalhe publico de imovel", "criacao de lead"],
+      "jwt_auth_guard": ["CRUD administrativo de imoveis", "upload/gestao de midia", "listagem de leads no painel"],
+      "jwt_auth_guard_plus_roles_admin": ["criacao/edicao/remocao de corretores"]
+    }
+  },
+
+  "media_pipeline": {
+    "bucket_name": "corretor-midia",
+    "setup_steps": [
+      "Criar bucket no painel Cloudflare",
+      "Gerar API Token com permissao leitura/escrita (Account -> R2 -> Manage API Tokens)",
+      "Anotar Account ID, Access Key ID, Secret Access Key, endpoint https://<account_id>.r2.cloudflarestorage.com",
+      "Ativar acesso publico de leitura via subdominio r2.dev (dominio customizado fica para pos-validacao)"
+    ],
+    "backend_client": "@aws-sdk/client-s3 apontando region=auto, endpoint=R2_ENDPOINT",
+    "frontend_compression": {
+      "package": "browser-image-compression",
+      "rules": "converter para WebP, max 1920x1080, antes do upload"
+    },
+    "video_rules": {
+      "preferred": "link YouTube nao listado ou Vimeo, armazenar apenas URL",
+      "direct_file": "limite 30MB validado no frontend antes do envio ao R2"
+    }
+  },
+
+  "leads_flow": {
+    "sequence": [
+      "Visitante preenche formulario (nome, telefone, checkbox LGPD)",
+      "Ao clicar em 'Falar com o corretor': abre wa.me IMEDIATAMENTE (nao bloqueante)",
+      "Em paralelo: fetch assincrono POST /leads (nao trava a navegacao)",
+      "Backend valida consent_given === true obrigatoriamente; rejeita com 400 se ausente/false"
+    ],
+    "whatsapp_url_template": "https://wa.me/{agent.whatsappNumber}?text=Ola {agent.name}, tenho interesse no imovel {property.title} (Ref: {property.id})."
+  },
+
+  "env_vars": {
+    "corretor-api": {
+      "PORT": "3000",
+      "NODE_ENV": "development",
+      "DATABASE_URL": "postgresql://usuario:senha@host.neon.tech/corretor-db?sslmode=require",
+      "JWT_SECRET": "chave forte, nunca commitada",
+      "JWT_EXPIRES_IN": "7d",
+      "R2_ENDPOINT": "https://<account_id>.r2.cloudflarestorage.com",
+      "R2_ACCESS_KEY_ID": "",
+      "R2_SECRET_ACCESS_KEY": "",
+      "R2_PUBLIC_URL": "https://<bucket>.r2.dev"
+    },
+    "corretor-web": {
+      "VITE_API_URL": "http://localhost:3000"
+    },
+    "note": "Numero de WhatsApp de cada corretor fica no banco (campo agents.whatsapp_number), nao em variavel de ambiente."
+  },
+
+  "backup": {
+    "command": "pg_dump \"postgresql://usuario:senha@host.neon.tech/corretor-db?sslmode=require\" > backup_$(date +%Y%m%d).sql",
+    "when": ["antes de mudanca estrutural no banco", "semanalmente durante validacao"]
+  },
+
+  "execution_phases": [
+    {
+      "id": 1,
+      "title": "Fundacao de Infraestrutura",
+      "tasks": [
+        "Projeto Neon criado, connection string salva",
+        "Bucket R2 criado, API token gerado, credenciais salvas",
+        "Repositorios corretor-api e corretor-web criados no GitHub",
+        "Conta Render criada, sem deploy ainda",
+        "Conta Vercel criada, sem deploy ainda"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Backend: Fundacao do NestJS",
+      "tasks": [
+        "Instalar todas as dependencias listadas em required_packages",
+        "ConfigModule com validacao de env no boot (falhar rapido se faltar variavel)",
+        "TypeOrmModule conectado ao Neon",
+        "Estrutura de pastas dos modulos criada (mesmo vazios)"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Modulo de Autenticacao",
+      "tasks": [
+        "Entity Agent criada e sincronizada",
+        "AuthService com hash Argon2id",
+        "JwtStrategy, JwtAuthGuard, RolesGuard, Roles decorator",
+        "Endpoints: login, criacao de corretor (admin only), /auth/me",
+        "Teste manual: login retorna token valido"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Modulo de Imoveis",
+      "tasks": [
+        "Entity Property com enums",
+        "DTOs de criacao/atualizacao com validacao",
+        "CRUD completo + filtros (tipo, finalidade, cidade, faixa de preco)",
+        "Paginacao na listagem publica",
+        "Teste manual: criar, listar, filtrar, editar, deletar um imovel"
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Modulo de Midia",
+      "tasks": [
+        "Client S3 configurado apontando pro R2",
+        "Entity PropertyMedia",
+        "Endpoint de upload multipart, validacao de tipo/tamanho",
+        "Endpoint de reordenacao e marcacao de capa",
+        "Endpoint de exclusao (remove do R2 e do banco)",
+        "Teste manual: upload de 3 fotos, marcar capa, deletar uma"
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Modulo de Leads",
+      "tasks": [
+        "Entity Lead com campos LGPD",
+        "Endpoint publico de criacao (valida consentimento obrigatorio)",
+        "Endpoint protegido de listagem (painel do corretor)",
+        "Endpoint de exclusao (direito do titular)",
+        "Teste manual: lead sem consentimento rejeitado, com consentimento salvo"
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Frontend Publico",
+      "tasks": [
+        "Rotas configuradas (react-router-dom)",
+        "Pagina de catalogo com filtros consumindo a API",
+        "Pagina de detalhe com galeria de midia",
+        "Formulario de lead com checkbox LGPD e redirecionamento WhatsApp",
+        "Pagina de Politica de Privacidade"
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Painel Administrativo",
+      "tasks": [
+        "Tela de login consumindo /auth/login",
+        "Dashboard simples (total de imoveis, leads recentes)",
+        "CRUD de imoveis com upload de midia (compressao client-side incluida)",
+        "Listagem e gestao de leads",
+        "Gestao de corretores (visivel so para ADMIN)"
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Deploy",
+      "tasks": [
+        "Backend no Render: repo conectado, env vars configuradas, build/start commands corretos",
+        "Frontend na Vercel: repo conectado, VITE_API_URL apontando pro backend em producao",
+        "Teste ponta a ponta em producao: cadastrar imovel -> upload de fotos -> visualizar publicamente -> enviar lead -> confirmar redirecionamento WhatsApp -> confirmar lead salvo no painel",
+        "Primeiro backup manual do banco em producao"
+      ]
+    }
+  ],
+
+  "out_of_scope_for_validation": [
+    "Preview de Open Graph para WhatsApp/LinkedIn (crawler detection)",
+    "Backup automatizado",
+    "Multi-tenant (multiplas imobiliarias isoladas)",
+    "Migracao para Cloud Run (so se cold start virar problema real em demonstracao pra cliente)"
+  ],
+
+  "golden_rule_for_new_features": [
+    "Cabe no padrao entity + dto + service + controller ja existente?",
+    "Precisa de biblioteca nova, ou uma ja instalada resolve?",
+    "Esta no escopo da validacao, ou e otimizacao prematura pra problema que ainda nao existe?",
+    "Se qualquer resposta for nao, questionar antes de implementar."
+  ]
+}
