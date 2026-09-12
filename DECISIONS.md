@@ -110,6 +110,36 @@ Não fazer:
 - Não commitar sem rodar `npm test`, `npm run lint` e `npm run typecheck`.
 - Não commitar `.env`, dump ou credencial: sem branch de revisão, o erro vai direto para a `main`.
 
+## 2026-09-12 — Limpeza de `refresh_sessions` continua manual
+
+Decisão: as sessões expiradas são apagadas à mão, com `DELETE FROM refresh_sessions WHERE expires_at < now()`,
+até que OPS-001 defina uma rotina. Em 12/09 as 2 linhas dos logins de homologação de 11/09 foram removidas
+(backup `backups/backup_20260912_0908.sql` gerado antes).
+
+Motivo: a tabela é pequena e não há agendador confiável no plano gratuito. Automatizar antes de publicar a API
+seria decidir sem conhecer a plataforma.
+
+Não fazer:
+
+- Não apagar sessões sem saber se há alguém logado: o `DELETE` derruba a sessão de quem estiver usando o painel.
+- Não criar a rotina dentro da API com `setInterval`: o processo do plano gratuito hiberna e a limpeza não roda.
+
+## 2026-09-12 — Variáveis `BOOTSTRAP_*` voltaram ao `.env` e devem sair
+
+Situação registrada, não decisão nova: em 12/09 o `.env` local foi encontrado de novo com as quatro variáveis
+`BOOTSTRAP_ADMIN_*` preenchidas, e o `.env.example` versionado apareceu sobrescrito com a mesma estrutura,
+tendo perdido os comentários que explicavam cada campo. Isso contraria a decisão de 11/09.
+
+Agrava o caso: a senha que está no `.env` **não é** a que está gravada no banco. O login com ela responde 401,
+então o valor em texto claro não serve nem para entrar — só para vazar.
+
+Não fazer:
+
+- Não deixar as `BOOTSTRAP_*` no `.env` depois de criar o administrador.
+- Não sobrescrever o `.env.example` com uma cópia do `.env`: o exemplo documenta os campos, e os comentários
+  fazem parte dele.
+- Não tratar o valor atual de `BOOTSTRAP_ADMIN_PASSWORD` como a senha do administrador: ela não é.
+
 ## Decisões herdadas da especificação (`corretor-spec.json`)
 
 Já foram rejeitadas, e não devem ser reabertas sem revisão explícita:

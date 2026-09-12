@@ -59,7 +59,7 @@ Dependências: a pesquisa de deploy iniciada em 11/09 precisa ser concluída e i
 
 ## ADMIN-001 — Corrigir o WhatsApp do administrador
 
-Status: aberta
+Status: bloqueada por ADMIN-002 (e pelo número real, que o dono precisa informar)
 Responsável: —
 
 Objetivo:
@@ -71,6 +71,27 @@ Critérios de conclusão:
 
 - Número real gravado, via painel em `/admin/corretores` ou `PATCH /agents/:id` com token de ADMIN.
 - Conferir na página pública de um imóvel que o link `wa.me` usa o número correto.
+
+---
+
+## ADMIN-002 — Acesso ao painel bloqueado: senha do administrador não confere
+
+Status: em andamento
+Responsável: Claude (aguardando a senha escolhida pelo dono)
+
+Objetivo:
+
+O único administrador (`190d1d1a-f9aa-41f5-8218-ec9dcd5e2c9f`) não consegue entrar no painel. O e-mail do `.env`
+confere com o do banco, mas a senha não: `POST /auth/login` responde 401. O hash Argon2id gravado em 11/09 não
+corresponde ao valor que está hoje em `BOOTSTRAP_ADMIN_PASSWORD`. Como o hash é de mão única, só resta redefinir.
+
+Critérios de conclusão:
+
+- Comando de redefinição de senha criado, validando a senha com as mesmas regras do cadastro (12 a 128 caracteres)
+  e reusando o `PasswordService` já existente. Registrar em `DECISIONS.md`.
+- Backup do banco antes da escrita (feito: `backups/backup_20260912_0908.sql`).
+- `POST /auth/login` respondendo 200 com cookie de refresh, e `/admin` abrindo no front.
+- Variáveis `BOOTSTRAP_*` removidas do `.env` depois, e `.env.example` restaurado com os comentários originais.
 
 ---
 
@@ -88,6 +109,9 @@ Critérios de conclusão:
 - Definir e registrar como a limpeza será feita (`DELETE FROM refresh_sessions WHERE expires_at < now()`),
   manual ou automática, sem depender de agendador que expire por inatividade.
 - Registrar a decisão em `DECISIONS.md`.
+
+Em 12/09 as 2 linhas de teste foram apagadas à mão e ficou registrado em `DECISIONS.md` que a limpeza segue manual
+até a publicação da API. A tabela está vazia hoje, mas a tarefa continua aberta: falta a rotina.
 
 ---
 

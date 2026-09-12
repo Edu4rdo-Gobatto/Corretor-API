@@ -1,16 +1,29 @@
 # Estado atual — corretor-api
 
-Atualizado em: 2026-09-11
-Agente responsável: Claude (sessão de infraestrutura e homologação)
+Atualizado em: 2026-09-12
+Agente responsável: Claude (sessão de ambiente de desenvolvimento e limpeza de dados fixos)
 Commit da `main`: `a41f49b` — "crente - task: secure frontend API integration"
 Repositório irmão: corretor-web, `main` em `d4f6b2f` ("feat: add complete SEO and SSR delivery")
 
 ## Em andamento
 
-- Nada em execução por agente neste momento.
+- **ADMIN-002 — acesso ao painel bloqueado.** A senha do único administrador não confere com o hash do banco;
+  aguardando o dono escolher a senha nova para a redefinição.
+- Ambiente de desenvolvimento no ar: API em `http://localhost:3000` (conectada ao Neon) e front SSR em
+  `http://127.0.0.1:5173`, com o proxy `/api` funcionando.
 - Pesquisa de deploy (Render e Vercel) iniciada pelo Claude; resultado ainda não incorporado às tarefas.
 
 ## Concluído recentemente
+
+- **Ambiente de desenvolvimento levantado e verificado (12/09/2026).** `npm test` com 13 suítes e 130 testes
+  aprovados, lint, typecheck e build sem erro. A API subiu, conectou ao Neon e respondeu: `GET /properties` 200,
+  `GET /auth/me` e `GET /agents` 401 sem token, rota inexistente 404. O front subiu e o proxy `/api/properties`
+  respondeu 200 através dele.
+- **Dados de teste da homologação removidos (12/09/2026).** Backup `backups/backup_20260912_0908.sql` gerado antes.
+  Apagadas as 2 linhas de `refresh_sessions` dos logins de 11/09 e o objeto `_amostra/teste-navegador.png` do bucket
+  R2, que agora está vazio. O banco segue com 1 administrador e nenhum imóvel, mídia ou lead.
+- **Limpeza de dados fixos no repositório irmão (12/09/2026).** O modo demonstração foi removido por inteiro do
+  corretor-web e a identidade do site foi centralizada em `src/config/brand.ts`. Detalhes no `CHANGELOG_AI.md` de lá.
 
 - **Infraestrutura externa criada e homologada (11/09/2026).**
   - Neon: projeto com banco `corretor-db`, PostgreSQL 16.15, região `aws-sa-east-1` (São Paulo), conexão direta (sem pooler).
@@ -33,22 +46,29 @@ Repositório irmão: corretor-web, `main` em `d4f6b2f` ("feat: add complete SEO 
   código publicado. Só o autor (SHURIKA6) pode recuperá-lo com um push.
 - Sem esse commit, a API não tem rota de health nem filtro global de exceções, o que afeta o deploy no Render.
 - O WhatsApp do administrador criado ficou com o número de exemplo `5565999999999` e precisa ser corrigido no painel.
+  Depende de ADMIN-002 (sem acesso ao painel) e do número real, que só o dono tem.
+- **A senha do administrador não confere com o hash do banco.** `POST /auth/login` responde 401 com o valor que está
+  em `BOOTSTRAP_ADMIN_PASSWORD`. Sem redefinir, não há acesso ao painel — só o catálogo público funciona. Ver ADMIN-002.
+- **As variáveis `BOOTSTRAP_*` voltaram ao `.env`** e o `.env.example` versionado foi sobrescrito, perdendo os
+  comentários. Contraria a decisão de 11/09; o `.env.example` aparece como modificado e não commitado no Git.
 
 ## Próximo passo
 
-Decidir o caminho de publicação da API (Render free ou alternativa), considerando cold start, ausência de rota de
-health e a latência entre a API nos EUA e o Neon em São Paulo. Detalhes e tarefas em `TASKS.md`.
+Destravar ADMIN-002 (redefinir a senha do administrador) para poder testar o painel ponta a ponta. Em seguida,
+corrigir o WhatsApp (ADMIN-001) e retomar a decisão de publicação da API, considerando cold start, ausência de rota
+de health e a latência entre a API nos EUA e o Neon em São Paulo. Detalhes e tarefas em `TASKS.md`.
 
 ## Arquivos modificados recentemente
 
-Nenhum arquivo de código foi alterado nesta sessão. Foram criados apenas os arquivos de contexto
-(`AGENTS.md`, `CLAUDE.md`, `PROJECT_STATUS.md`, `DECISIONS.md`, `TASKS.md`, `CHANGELOG_AI.md`, `docs/handoffs/`).
+Nenhum arquivo de código da API foi alterado nesta sessão. Alterados apenas os arquivos de contexto
+(`PROJECT_STATUS.md`, `TASKS.md`, `DECISIONS.md`, `CHANGELOG_AI.md`). O `.env.example` aparece modificado no Git
+desde antes desta sessão, por alteração de terceiro — ver Bloqueios.
 
 ## Estado dos serviços externos
 
 | Serviço | Estado | Detalhe |
 |---|---|---|
-| Neon | ativo | 1 admin, nenhum imóvel, mídia ou lead. Suspende após 5 min de inatividade; free tier de 0,5 GB por projeto |
-| Cloudflare R2 | ativo | bucket vazio, fora uma imagem de amostra em `_amostra/` criada para teste manual |
+| Neon | ativo | 1 admin, nenhum imóvel, mídia, lead ou sessão. Suspende após 5 min de inatividade; free tier de 0,5 GB por projeto |
+| Cloudflare R2 | ativo | bucket **vazio**: a imagem de amostra em `_amostra/` foi apagada em 12/09 |
 | Render | não criado | — |
 | Vercel | não criado | — |
