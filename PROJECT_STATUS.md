@@ -114,3 +114,4 @@ Deploy dep-dajfg6gjo6nc73dlrs10 LIVE; health da API HTTP 200. Escrita de objeto 
 
 ## 2026-09-13 — opencode: perfil próprio, senha e filtro de status (implementado, sem commit)
 Área assumida: PATCH /auth/me, PATCH /auth/me/password e status? no gerenciado, a pedido do dono (inclui front no repositório irmão). Sem migration e sem mudança no contrato público. Typecheck, lint e 18 suítes/195 testes aprovados. Sem commit/push (aguardando confirmação do dono); deploy no Render pendente. Troca/reset não revoga outras sessões (decisão em DECISIONS.md).
+Commit a6026d3 na main, push c404f6e..a6026d3 main -> main.
