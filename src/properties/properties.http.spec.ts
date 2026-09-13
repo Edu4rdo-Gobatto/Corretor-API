@@ -8,7 +8,9 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Agent, AgentRole } from '../agents/agent.entity';
 import { AuthModule } from '../auth/auth.module';
 import { AgentRepositoryFixture } from '../testing/agent-repository.fixture';
+import { MediaRepositoryFixture } from '../testing/media-repository.fixture';
 import { PropertyRepositoryFixture } from '../testing/property-repository.fixture';
+import { MediaType, PropertyMedia } from '../media/property-media.entity';
 import { Property, PropertyStatus } from './property.entity';
 import { PropertiesModule } from './properties.module';
 
@@ -17,6 +19,7 @@ describe('property HTTP contract (database boundary replaced)', () => {
   let baseUrl: string;
   const agents = new AgentRepositoryFixture();
   const properties = new PropertyRepositoryFixture(agents);
+  const media = new MediaRepositoryFixture();
   const secret = 'properties-test-secret-with-more-than-32-characters';
   const jwt = new JwtService({ secret, signOptions: { issuer: 'corretor-api', audience: 'corretor-web', expiresIn: '7d' } });
   let owner: Agent;
@@ -36,7 +39,8 @@ describe('property HTTP contract (database boundary replaced)', () => {
       AuthModule, PropertiesModule,
     ] })
       .overrideProvider(getRepositoryToken(RefreshSession)).useValue(new SessionRepositoryFixture()).overrideProvider(getRepositoryToken(Agent)).useValue(agents)
-      .overrideProvider(getRepositoryToken(Property)).useValue(properties).compile();
+      .overrideProvider(getRepositoryToken(Property)).useValue(properties)
+      .overrideProvider(getRepositoryToken(PropertyMedia)).useValue(media).compile();
     application = module.createNestApplication();
     application.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     await application.listen(0, '127.0.0.1');
@@ -44,7 +48,7 @@ describe('property HTTP contract (database boundary replaced)', () => {
   });
 
   beforeEach(async () => {
-    agents.agents.clear(); properties.properties.clear();
+    agents.agents.clear(); properties.properties.clear(); media.media.clear();
     owner = await agents.save(agents.create({ name: 'Owner', email: 'owner@example.com', whatsappNumber: '5565999999999', passwordHash: 'private-hash' }));
     other = await agents.save(agents.create({ name: 'Other', email: 'other@example.com', whatsappNumber: '5565988888888' }));
     admin = await agents.save(agents.create({ name: 'Admin', email: 'admin@example.com', role: AgentRole.ADMIN }));
@@ -98,6 +102,26 @@ describe('property HTTP contract (database boundary replaced)', () => {
     expect(body).toMatchObject({ total: 2, page: 2, limit: 1, totalPages: 2 });
     expect(body.items).toHaveLength(1);
     expect(body.items[0].type).toBe('GALPAO');
+  });
+
+  it('includes ordered cover media in public listings', async () => {
+    const first = await create();
+    const second = await create(owner, { title: 'Second property' });
+    await media.save(media.create({ propertyId: second.id, type: MediaType.IMAGE, url: 'https://media.example.test/second.jpg', orderIndex: 0, isCover: true }));
+    await media.save(media.create({ propertyId: first.id, type: MediaType.IMAGE, url: 'https://media.example.test/first-2.jpg', orderIndex: 1, isCover: false }));
+    await media.save(media.create({ propertyId: first.id, type: MediaType.IMAGE, url: 'https://media.example.test/first-1.jpg', orderIndex: 0, isCover: true }));
+    const response = await request('/properties?limit=10');
+    expect(response.status).toBe(200);
+    const body = await response.json() as { items: { id: string; media: { url: string; orderIndex: number; isCover: boolean }[] }[]; total: number };
+    expect(body.total).toBe(2);
+    const listed = new Map(body.items.map((item) => [item.id, item.media]));
+    expect(listed.get(first.id)).toMatchObject([
+      { url: 'https://media.example.test/first-1.jpg', orderIndex: 0, isCover: true },
+      { url: 'https://media.example.test/first-2.jpg', orderIndex: 1, isCover: false },
+    ]);
+    expect(listed.get(second.id)).toMatchObject([
+      { url: 'https://media.example.test/second.jpg', orderIndex: 0, isCover: true },
+    ]);
   });
 
   it('hides reserved/completed properties and properties of inactive agents from public views', async () => {

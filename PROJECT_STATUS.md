@@ -90,3 +90,24 @@ Validação: typecheck, lint, build, suíte de 93 testes e teste adicional de na
 
 ## 2026-09-13 — Preparação de commit e push autorizada
 Codex: revisão do diff concluída; typecheck, lint, 21 arquivos/94 testes, build e smoke de SEO aprovados novamente. Front: código e documentação das URLs; API: somente documentação correspondente. Alterações anteriores da API em .env.example e .gitignore excluídas do commit.
+
+
+## 2026-09-13 — Codex: investigação de upload de mídia
+Logs do Render para o POST de mídia registram `write EPROTO ... SSL alert handshake failure` no processo da API. O erro acontece durante `PutObject` no cliente S3, antes de persistir `property_media`; credenciais inválidas produziriam resposta HTTP 4xx, portanto o próximo passo é corrigir/verificar `R2_ENDPOINT` TLS no ambiente Render (endpoint S3 HTTPS da conta, sem bucket no caminho) e repetir o upload.
+Área assumida: erro HTTP 500 ao enviar mídia no ambiente corretor-web-test; rastrear proxy, API e R2. Em andamento.
+
+
+## 2026-09-13 — Codex: diagnóstico NoSuchBucket
+Conta Cloudflare conectada consultada: corretor-documentos-test existe; corretor-midia ausente. Código de mídia usa corretor-midia fixo; documentos usam R2_DOCUMENTS_BUCKET. Render Corretor-API confirmado no workspace autorizado. Pendente conferir R2_ENDPOINT implantado: conector disponível não retorna variáveis. Sem alteração de infraestrutura ou código; ausência do bucket explica upload de fotos se endpoint aponta para essa conta.
+
+
+## 2026-09-13 — Codex: correção da infraestrutura de mídia em andamento
+Criado corretor-midia na conta confirmada pelo endpoint informado. R2_PUBLIC_URL atualizado no Render para https://pub-64e891dc485143119f5d8fddfa8280be.r2.dev; deploy dep-dajfg6gjo6nc73dlrs10 iniciado automaticamente. Na verificação, corretor-documentos-test tinha r2.dev público ativo; desativado para restaurar privacidade exigida pelo projeto. Credenciais S3 preservadas; validação de upload autenticado pendente.
+
+
+## 2026-09-13 — Codex: mídia R2 provisionada
+Deploy dep-dajfg6gjo6nc73dlrs10 LIVE; health da API HTTP 200. Escrita de objeto temporário pelo conector Cloudflare, leitura pública HTTP 200 e exclusão aprovadas. Documentos com r2.dev desativado e sem domínios personalizados. Falta repetir upload autenticado no painel para confirmar permissões das credenciais S3 do Render, que não foram acessadas nem alteradas.
+
+
+## 2026-09-13 — opencode: capa na listagem pública (implementado, sem commit)
+Área assumida: capa some no catálogo (`media: []` na listagem) embora apareça no detalhe. Causa: `PropertiesService.list()` carregava só `agent`, sem `media`. Correção sem migration e sem mudar contrato: segunda query por `propertyId` (`In`, ordenada) anexada antes de `toPropertyResponse`, preservando a paginação. `MediaRepositoryFixture` passou a entender o operador `In`. Typecheck, lint e 18 suítes/191 testes aprovados (inclui teste novo de capa ordenada na listagem). Sem commit/push (aguardando confirmação do dono); deploy no Render pendente para o catálogo publicado refletir a correção.

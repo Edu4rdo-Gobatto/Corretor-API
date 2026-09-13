@@ -1,10 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
-import { Between, FindOptionsWhere, ILike, Repository } from 'typeorm';
+import { Between, FindOptionsWhere, ILike, In, Repository } from 'typeorm';
 import { AgentRole } from '../agents/agent.entity';
 import { AgentsService } from '../agents/agents.service';
 import { AgentProfile } from '../agents/dto/agent-profile.dto';
+import { PropertyMedia } from '../media/property-media.entity';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { PropertyQueryDto, ManagedPropertyQueryDto } from './dto/property-query.dto';
 import { toPropertyResponse } from './dto/property-response.dto';
@@ -15,6 +16,7 @@ import { Property, PropertyStatus } from './property.entity';
 export class PropertiesService {
   constructor(
     @InjectRepository(Property) private readonly properties: Repository<Property>,
+    @InjectRepository(PropertyMedia) private readonly mediaItems: Repository<PropertyMedia>,
     private readonly agents: AgentsService,
   ) {}
 
@@ -88,6 +90,23 @@ export class PropertiesService {
       where, relations: { agent: true }, order: { createdAt: 'DESC', id: 'DESC' },
       skip: (query.page - 1) * query.limit, take: query.limit,
     });
+    // Media is loaded in a second query on purpose: joining the one-to-many
+    // relation inside findAndCount would duplicate property rows and break
+    // pagination. Without this, public listings return media: [] and the
+    // catalog card falls back to "Foto em breve".
+    if (properties.length > 0) {
+      const items = await this.mediaItems.find({
+        where: { propertyId: In(properties.map((property) => property.id)) },
+        order: { orderIndex: 'ASC', id: 'ASC' },
+      });
+      const byProperty = new Map<string, PropertyMedia[]>();
+      for (const item of items) {
+        const group = byProperty.get(item.propertyId) ?? [];
+        group.push(item);
+        byProperty.set(item.propertyId, group);
+      }
+      for (const property of properties) property.media = byProperty.get(property.id) ?? [];
+    }
     return { items: properties.map(toPropertyResponse), total, page: query.page, limit: query.limit,
       totalPages: Math.ceil(total / query.limit) };
   }

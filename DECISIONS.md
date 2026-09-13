@@ -173,3 +173,17 @@ Correção de compatibilidade: mensagens do filtro global da API agora seguem st
 
 ## 2026-09-13 — URLs públicas e indexação (Codex)
 Plano aprovado: finalidades para-alugar/para-comprar e tipos salas/lojas/galpoes/predios/terrenos em /imoveis; cidade, preco-minimo, preco-maximo e pagina na query. Slugs estáveis e endpoints da API preservados. Aliases administrativos login -> entrar e leads -> contatos, com 301 no SSR e replace no cliente. Filtros continuam noindex,follow. Dono autorizou SITE_URL=https://corretor-web-test.vercel.app e SEO_INDEXABLE=true em Production da Vercel; API_ORIGIN existente deve ser HTTPS; previews bloqueados. Não alterar banco, storage ou permissões.
+
+## 2026-09-13 — Infraestrutura de mídia R2
+A pedido do dono, criado bucket corretor-midia com acesso r2.dev público para imagens e vídeos do catálogo. R2_PUBLIC_URL do Render atualizado para o domínio desse bucket, preservando as demais variáveis. Documentos permanecem em corretor-documentos-test: acesso público r2.dev encontrado ativo e desativado. Não usar o bucket de documentos como base pública de mídia.
+
+## 2026-09-13 — Listagem pública retorna mídia via segunda query (opencode)
+
+Decisão: `PropertiesService.list()` anexa as mídias com uma segunda consulta (`propertyId In (...)`, ordenada por `orderIndex`), em vez de incluir a relação one-to-many no `findAndCount`.
+
+Motivo: o join dentro do `findAndCount` duplica linhas de imóvel e quebra a paginação; sem a mídia, o cartão do catálogo cai sempre no "Foto em breve" enquanto o detalhe exibe a capa.
+
+Não fazer:
+
+- Não voltar a relação `media` para dentro do `findAndCount` com `take`: a paginação volta a contar linhas do join.
+- Não criar campo novo (`coverUrl`) sem necessidade: o contrato `media[]` com `isCover` já atende o front e o SEO.

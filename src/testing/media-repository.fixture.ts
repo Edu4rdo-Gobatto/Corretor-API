@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { DeepPartial, FindManyOptions, FindOneOptions, FindOptionsWhere } from 'typeorm';
+import { DeepPartial, FindManyOptions, FindOneOptions, FindOperator, FindOptionsWhere } from 'typeorm';
 import { MediaType, PropertyMedia } from '../media/property-media.entity';
 
 export class MediaRepositoryFixture {
@@ -45,6 +45,12 @@ export class MediaRepositoryFixture {
   }
 
   private filtered(where: FindOptionsWhere<PropertyMedia>): PropertyMedia[] {
-    return [...this.media.values()].filter((item) => Object.entries(where).every(([key, value]) => item[key as keyof PropertyMedia] === value));
+    return [...this.media.values()].filter((item) => Object.entries(where).every(([key, value]) => {
+      const actual = item[key as keyof PropertyMedia];
+      if (value instanceof FindOperator && value.type === 'in' && Array.isArray(value.value)) {
+        return (value.value as unknown[]).includes(actual);
+      }
+      return actual === value;
+    }));
   }
 }

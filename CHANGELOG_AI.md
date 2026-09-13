@@ -143,3 +143,34 @@ Arquivos do front: services/urls.ts e testes, App.tsx, Catalog, PublicLayout, Pr
 
 ## 2026-09-13 — Preparação de commit e push autorizada
 Codex: revisão do diff concluída; typecheck, lint, 21 arquivos/94 testes, build e smoke de SEO aprovados novamente. Front: código e documentação das URLs; API: somente documentação correspondente. Alterações anteriores da API em .env.example e .gitignore excluídas do commit.
+## 2026-09-13 — Investigação do HTTP 500 no upload de mídia
+
+Logs do serviço Render `srv-daj21e15efls73fab4gg` no horário do erro mostram `Error: write EPROTO ... SSL alert handshake failure` e `GlobalExceptionFilter`. O proxy do front encaminha o multipart por streaming e o controller chega ao `MediaService`; a falha ocorre no `PutObject` do S3 antes do banco. Causa provável: `R2_ENDPOINT` inválido ou incompatível com TLS no ambiente Render. Nenhum segredo foi lido ou registrado; correção pendente no painel Render, seguida de novo teste autenticado.
+
+## 2026-09-13 — Codex: investigação NoSuchBucket
+Verificação somente de leitura no Cloudflare e Render; bucket corretor-midia não consta na conta conectada, enquanto corretor-documentos-test existe. Confirmados MediaService (bucket fixo) e configuração do S3Client por R2_ENDPOINT. Causa exata depende de comparar endpoint implantado com a conta consultada; não criar bucket ou mudar credenciais sem essa confirmação. Alterados PROJECT_STATUS.md e CHANGELOG_AI.md, preservando registros anteriores. Nenhuma mudança de código/infraestrutura; testes de código não executados, upload autenticado não refeito.
+
+
+## 2026-09-13 — Codex: provisionamento de mídia autorizado
+Criado corretor-midia, ativado r2.dev e atualizado somente R2_PUBLIC_URL do Render para https://pub-64e891dc485143119f5d8fddfa8280be.r2.dev. Deploy automático dep-dajfg6gjo6nc73dlrs10 confirmado LIVE; health HTTP 200. Teste real pelo conector Cloudflare: gravação temporária, leitura pública HTTP 200 e exclusão bem-sucedidas. Verificação encontrou documentos-test com acesso r2.dev ativo: desativado, sem domínios personalizados. Credenciais e endpoint preservados conforme confirmação do dono. Arquivos: PROJECT_STATUS.md, DECISIONS.md, CHANGELOG_AI.md. Sem mudança de código, sem testes unitários ou commit. Upload pelo painel com credenciais S3 do Render ainda não exercitado.
+
+## 2026-09-13 — opencode: capa na listagem pública
+
+Tarefa: a capa definida no painel não aparecia no catálogo ("Foto em breve"), só no detalhe do imóvel.
+
+Alterações em código (API apenas, sem migration, rota ou DTO novo):
+
+- `src/properties/properties.service.ts`: `list()` anexa mídias com segunda query (`In` + `orderIndex`) antes de `toPropertyResponse`; paginação por `findAndCount` preservada.
+- `src/properties/properties.module.ts`: `PropertyMedia` registrado no `forFeature` do módulo.
+- `src/testing/media-repository.fixture.ts`: filtro passa a entender o operador `In`.
+- `src/properties/properties.http.spec.ts`: teste novo "includes ordered cover media in public listings".
+
+Testes executados (resultado real):
+
+- `npm run typecheck`: aprovado.
+- `npm run lint`: aprovado.
+- `npm test`: 18 suítes, 191 testes aprovados.
+
+Risco/pendência:
+
+- Conferência com dados reais e redeploy no Render pendentes; sem commit/push (aguardando confirmação do dono).
