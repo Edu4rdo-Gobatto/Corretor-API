@@ -202,3 +202,13 @@ execute todos os testes explicitamente em PowerShell:
 $specs = @(rg --files src -g '*.spec.ts')
 node node_modules/jest/bin/jest.js --runInBand --runTestsByPath @specs
 ```
+
+## Administração de locações — entrega de 12/09/2026
+
+Cadastros de proprietários e inquilinos PF/PJ, dados bancários do proprietário, contratos e documentos privados estão disponíveis para ADMIN. Consulte `docs/plans/2026-09-12-rental-administration.md` para interfaces, limites e fluxo. Comissão, cobranças e repasses ainda não fazem parte desta entrega.
+
+No painel: Proprietários → Novo cadastro; Inquilinos → Novo cadastro; Contratos → selecionar imóvel de locação e as duas partes. As fichas permitem editar dados, consultar contratos vinculados e anexar documentos. Pessoas com contrato ativo não podem ser desativadas. Contratos encerrados permanecem no histórico.
+
+Pré-requisitos novos na API: aplicar a migration `1789257600000-create-rental-administration` após backup do Neon e configurar `R2_DOCUMENTS_BUCKET` com bucket **privado**, separado de `corretor-midia`, e permissão S3 de leitura/escrita no token existente. Sem bucket configurado, os anexos retornam 503; não há fallback público. Não aplicar migrations sem revisar o histórico existente. Não publicar arquivos .env nem dados pessoais.
+
+Verificações: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` em cada repositório. No front, `node scripts/seo-smoke.mjs` confere SSR, proxy e discovery após o build. Node suportado: >=24 <25.

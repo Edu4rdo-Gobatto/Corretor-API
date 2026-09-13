@@ -42,3 +42,10 @@ export class PropertyQueryDto {
   @Max(9999999999.99)
   maxPrice?: number;
 }
+
+export class ManagedPropertyQueryDto extends PropertyQueryDto {
+  @IsOptional()
+  @IsString()
+  @Length(0, 200)
+  search?: string;
+}

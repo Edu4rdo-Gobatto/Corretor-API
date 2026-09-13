@@ -1,3 +1,5 @@
+# Registro histórico preservado antes da sincronização de 12/09/2026
+
 # Plano de Projeto — Sistema de Corretor Imobiliário
 
 > Versão consolidada após revisão de arquitetura. Documento de referência único — consulte aqui antes de tomar qualquer decisão de stack ou estrutura durante o desenvolvimento.
@@ -566,9 +568,7 @@ Execute manualmente antes de qualquer mudança estrutural grande no banco (nova 
 
 ### Acompanhamento da implementação — 10/09/2026
 
-Código do backend implementado na branch `codex/backend-foundation` do repositório Corretor-API. As caixas marcadas abaixo correspondem a código ou configuração verificados localmente. Conexão com Neon, aplicação da migration, criação real do administrador e serviços externos permanecem pendentes; nenhum banco local foi criado.
-
-Atualização de 11/09/2026: frontend público e painel administrativo implementados na branch `codex/editorial-frontend` do repositório Corretor-web; integração de sessão, gestão de corretores e ajustes de segurança implementados na branch `codex/frontend-integration` do Corretor-API. Testes automatizados, lint, typecheck e build passaram localmente. As caixas continuam desmarcadas quando dependem de credenciais ou validação em serviços externos.
+Código do backend implementado na branch `codex/backend-foundation` do repositório Corretor-API. As caixas marcadas abaixo correspondem a código ou configuração verificados localmente. Conexão com Neon, aplicação da migration, criação real do administrador e serviços externos permanecem pendentes; nenhum banco local foi criado. Próxima etapa de negócio: fase 4, módulo de imóveis.
 
 ### Fase 1 — Fundação de Infraestrutura
 - [ ] Projeto Neon criado, connection string salva
@@ -593,7 +593,7 @@ Atualização de 11/09/2026: frontend público e painel administrativo implement
 - [x] Comandos explícitos de migration e criação do primeiro ADMIN, sem senha padrão
 - [x] Testes locais: login/cadastro via HTTP, tokens inválidos/expirados, roles atuais, conta inativa, hash protegido e configuração
 - [ ] Teste manual via Postman/Insomnia com Neon: login retorna token válido
-- [x] Antes de integrar/publicar o painel: refresh via cookie httpOnly, logout/revogação, CORS e limitação de tentativas de login
+- [ ] Antes de integrar/publicar o painel: refresh via cookie httpOnly, logout/revogação, CORS e limitação de tentativas de login
 
 ### Fase 4 — Módulo de Imóveis
 - [x] Entity `Property` com enums, constraints e migration inicial
@@ -615,21 +615,21 @@ Atualização de 11/09/2026: frontend público e painel administrativo implement
 - [x] Endpoint público de criação (valida consentimento obrigatório)
 - [x] Endpoint protegido de listagem (painel do corretor)
 - [x] Endpoint de exclusão (direito do titular)
-- [ ] Teste manual: enviar lead sem consentimento (deve rejeitar), com consentimento (deve salvar)
+- [ ] Teste manual com Neon: enviar lead sem consentimento (deve rejeitar), com consentimento (deve salvar)
 
 ### Fase 7 — Frontend Público
-- [x] Rotas configuradas (react-router-dom)
-- [x] Página de catálogo com filtros consumindo a API
-- [x] Página de detalhe com galeria de mídia
-- [x] Formulário de lead com checkbox LGPD e redirecionamento WhatsApp
-- [x] Página de Política de Privacidade (com campos institucionais configuráveis antes da publicação)
+- [ ] Rotas configuradas (react-router-dom)
+- [ ] Página de catálogo com filtros consumindo a API
+- [ ] Página de detalhe com galeria de mídia
+- [ ] Formulário de lead com checkbox LGPD e redirecionamento WhatsApp
+- [ ] Página de Política de Privacidade
 
 ### Fase 8 — Painel Administrativo
-- [x] Tela de login consumindo `/auth/login`
-- [x] Dashboard simples (total de imóveis, leads recentes)
-- [x] CRUD de imóveis com upload de mídia (compressão client-side incluída)
-- [x] Listagem e gestão de leads
-- [x] Gestão de corretores (visível só para ADMIN)
+- [ ] Tela de login consumindo `/auth/login`
+- [ ] Dashboard simples (total de imóveis, leads recentes)
+- [ ] CRUD de imóveis com upload de mídia (compressão client-side incluída)
+- [ ] Listagem e gestão de leads
+- [ ] Gestão de corretores (visível só para ADMIN)
 
 ### Fase 9 — Deploy
 - [ ] Backend no Render: repositório conectado, variáveis de ambiente configuradas, build e start commands corretos
@@ -654,14 +654,3 @@ Sempre que for adicionar uma feature nova, pergunte antes de escrever código:
 3. Ela está no escopo da validação, ou é uma otimização prematura pra um problema que ainda não existe?
 
 Se a resposta de qualquer uma dessas for "não", pare e questione antes de seguir — é exatamente esse tipo de decisão que gerou a complexidade que descartamos nesse planejamento.
-
-
-## Atualização compartilhada — 12/09/2026: administração de locações
-
-Esta atualização prevalece sobre marcações históricas de escopo. A versão anterior divergente da API foi preservada em docs/handoffs/2026-09-12-plano-anterior-api.md no repositório da API.
-
-Primeira entrega aprovada: proprietário → inquilino → contrato → documentos privados, exclusivamente ADMIN. Fichas completas PF/PJ, dados bancários do proprietário, busca, paginação, datas e valor contratual. Um imóvel e uma parte de cada tipo por contrato. Cadastros e contratos são mantidos no histórico; documentos têm download autenticado, nunca URL pública.
-
-Implementação: entidades rental_parties, leases, rental_documents; módulo rentals; rotas administrativas dos dois repositórios. Detalhes em docs/plans/2026-09-12-rental-administration.md e corretor-spec.json. Migration e bucket privado precisam de homologação real antes da operação.
-
-Etapa financeira futura: a regra de comissão está explicitamente pendente. Recebimentos e repasses serão registrados manualmente no primeiro MVP financeiro; integrações bancárias não estão aprovadas. SI9/Imonov permanecem independentes; carga inicial manual. Relatórios, cobranças e alertas não foram implementados nesta primeira entrega.

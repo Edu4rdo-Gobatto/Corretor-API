@@ -1,3 +1,11 @@
+import { RentalParty } from '../rentals/rental-party.entity';
+import { Lease } from '../rentals/lease.entity';
+import { RentalDocument } from '../rentals/rental-document.entity';
+import { CreateRentalAdministration1789257600000 } from './migrations/1789257600000-create-rental-administration';
+import { AcquisitionCommission, CommissionInstallment } from '../finance/commission.entity';
+import { CreateAcquisitionCommissions1789344000000 } from './migrations/1789344000000-create-acquisition-commissions';
+import { RentPayment } from '../finance/rent-payment.entity';
+import { CreateRentPayments1789430400000 } from './migrations/1789430400000-create-rent-payments';
 import { RefreshSession } from '../auth/refresh-session.entity';
 import { CreateRefreshSessions1789084804000 } from './migrations/1789084804000-create-refresh-sessions';
 import 'reflect-metadata';
@@ -18,7 +26,7 @@ const environment = validateEnvironment(process.env);
 
 export default new DataSource({
   ...createPostgresOptions(environment.DATABASE_URL),
-  entities: [Agent, Property, PropertyMedia, Lead, RefreshSession],
-  migrations: [CreateAgents1789084800000, CreateProperties1789084801000, CreatePropertyMedia1789084802000, CreateLeads1789084803000, CreateRefreshSessions1789084804000],
+  entities: [Agent, Property, PropertyMedia, Lead, RefreshSession, RentalParty, Lease, RentalDocument, AcquisitionCommission, CommissionInstallment, RentPayment],
+  migrations: [CreateAgents1789084800000, CreateProperties1789084801000, CreatePropertyMedia1789084802000, CreateLeads1789084803000, CreateRefreshSessions1789084804000, CreateRentalAdministration1789257600000, CreateAcquisitionCommissions1789344000000, CreateRentPayments1789430400000],
   migrationsTableName: 'typeorm_migrations',
 });

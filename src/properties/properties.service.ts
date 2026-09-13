@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { Between, FindOptionsWhere, ILike, Repository } from 'typeorm';
@@ -6,7 +6,7 @@ import { AgentRole } from '../agents/agent.entity';
 import { AgentsService } from '../agents/agents.service';
 import { AgentProfile } from '../agents/dto/agent-profile.dto';
 import { CreatePropertyDto } from './dto/create-property.dto';
-import { PropertyQueryDto } from './dto/property-query.dto';
+import { PropertyQueryDto, ManagedPropertyQueryDto } from './dto/property-query.dto';
 import { toPropertyResponse } from './dto/property-response.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { Property, PropertyStatus } from './property.entity';
@@ -22,8 +22,10 @@ export class PropertiesService {
     return this.list(query, { status: PropertyStatus.DISPONIVEL, agent: { active: true } });
   }
 
-  listManaged(query: PropertyQueryDto, viewer: AgentProfile) {
-    return this.list(query, this.ownerRestriction(viewer));
+  listManaged(query: ManagedPropertyQueryDto, viewer: AgentProfile) {
+    const restriction = this.ownerRestriction(viewer);
+    if (query.search?.trim()) restriction.title = ILike(`%${query.search.trim().replace(/[\\%_]/g, '\\$&')}%`);
+    return this.list(query, restriction);
   }
 
   async findPublic(slug: string) {
@@ -64,7 +66,11 @@ export class PropertiesService {
 
   async remove(id: string, viewer: AgentProfile): Promise<void> {
     const property = await this.findOwned(id, viewer);
-    await this.properties.remove(property);
+    try { await this.properties.remove(property); }
+    catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23503') throw new ConflictException('Este imóvel possui vínculos e não pode ser excluído. Preserve o histórico dos contratos.');
+      throw error;
+    }
   }
 
   private async list(query: PropertyQueryDto, restriction: FindOptionsWhere<Property>) {

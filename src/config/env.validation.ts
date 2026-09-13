@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { plainToInstance, Type } from 'class-transformer';
 import {
-  IsIn, IsInt, IsString, IsUrl, Matches, Max, Min, MinLength,
+  IsIn, IsInt, IsString, IsUrl, Matches, Max, Min, MinLength, ValidateIf,
   Validate, ValidatorConstraint, validateSync,
   type ValidatorConstraintInterface,
 } from 'class-validator';
@@ -57,6 +57,10 @@ export class EnvironmentVariables {
   @IsString()
   @Matches(/^https?:\/\/[^\s,/]+(,https?:\/\/[^\s,/]+)*$/)
   ALLOWED_ORIGINS = 'http://localhost:5173';
+
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @Matches(/^(?!corretor-midia$)[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/)
+  R2_DOCUMENTS_BUCKET?: string;
 
   @IsUrl({ protocols: ['https'], require_protocol: true })
   R2_ENDPOINT!: string;

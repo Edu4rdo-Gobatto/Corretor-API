@@ -72,3 +72,7 @@ desde antes desta sessão, por alteração de terceiro — ver Bloqueios.
 | Cloudflare R2 | ativo | bucket **vazio**: a imagem de amostra em `_amostra/` foi apagada em 12/09 |
 | Render | não criado | — |
 | Vercel | não criado | — |
+
+## 2026-09-12 — Codex: administração de locações em implementação
+
+Área assumida: cadastros, contratos e documentos privados (ADMIN). Comissão de captação parcelada iniciada em `src/finance/`, sem SI9/Imonov. Alterações preexistentes preservadas; sem commit/push e sem mudança automática do banco real.

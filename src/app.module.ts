@@ -1,3 +1,5 @@
+import { RentalsModule } from './rentals/rentals.module';
+import { FinanceModule } from './finance/finance.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -23,6 +25,8 @@ import { HealthModule } from './health/health.module';
     MediaModule,
     LeadsModule,
     HealthModule,
+    RentalsModule,
+    FinanceModule,
   ],
 })
 export class AppModule {}

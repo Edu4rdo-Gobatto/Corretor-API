@@ -140,3 +140,17 @@ Critérios de conclusão:
 Neon com PostgreSQL 16.15 em São Paulo, banco `corretor-db` e as 5 migrations aplicadas; bucket R2 `corretor-midia`
 com URL pública e token restrito; primeiro ADMIN criado; dois backups em `backups/`; teste ponta a ponta com
 Neon e R2 reais aprovado em 25 passos. Detalhes em `docs/handoffs/2026-09-11-infra-neon-r2.md`.
+
+## RENTAL-001 — Cadastros, contratos e documentos privados — em revisão
+
+Responsável: Codex. Escopo e interfaces: docs/plans/2026-09-12-rental-administration.md.
+
+Critérios: ADMIN em todas as rotas; fichas PF/PJ e dados bancários; contrato com vínculos válidos; documentos privados com tamanho/assinatura validados; busca/paginação; nenhuma comissão presumida. Validação local e revisão em andamento, resultados finais no CHANGELOG_AI.md.
+
+## RENTAL-002 — Homologar banco e documentos privados — bloqueada por ambiente
+
+Disponibilizar o .env local pelo fluxo habitual do dono, sem enviá-lo ao chat. Verificar acesso ADMIN, fazer backup do Neon, conferir migrations já aplicadas e executar a nova migration explicitamente. Provisionar bucket privado R2 e acesso do token; configurar R2_DOCUMENTS_BUCKET. Verificar cadastro/edição de pessoa, criação/encerramento de contrato, upload/download/exclusão reais e recusa de download anônimo. Confirmar no painel R2 ausência de acesso público. Nenhum dado real foi alterado nesta sessão.
+
+## RENTAL-003 — Comissão de captação parcelada — em implementação
+
+Regra provisória informada pelo dono: comissão de captação equivalente a um aluguel, parcelamento configurável e confirmação manual ADMIN. A implementação inicial está em `src/finance/`; pagamentos de aluguel e repasses mensais permanecem na sequência. SI9/Imonov, importação e alertas seguem fora do escopo.

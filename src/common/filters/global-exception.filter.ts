@@ -8,6 +8,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     if (status >= 500) this.logger.error('Unhandled exception', exception instanceof Error ? exception.stack : String(exception));
-    response.status(status).json({ statusCode: status, message: exception instanceof HttpException ? exception.getResponse() : 'Erro interno do servidor.' });
+    const payload = exception instanceof HttpException ? exception.getResponse() : 'Erro interno do servidor.';
+    const message = typeof payload === 'string' ? payload : 'message' in payload ? payload.message : 'Não foi possível concluir a solicitação.';
+    response.status(status).json({ statusCode: status, message });
   }
 }

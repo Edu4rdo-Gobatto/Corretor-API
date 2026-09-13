@@ -1,5 +1,21 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-09-13 — Codex — comissão de captação parcelada
+
+Criado `src/finance/` com comissão de captação equivalente ao aluguel do contrato, parcelamento de 1 a 60 parcelas, distribuição decimal exata dos centavos, vencimentos mensais, saldo pago/pendente e confirmação manual de cada parcela. Rotas ADMIN: `GET /admin/finance/commissions/lease/:leaseId`, `POST /admin/finance/commissions` e `PATCH /admin/finance/commissions/installments/:id/paid`. Migration aditiva `1789344000000-create-acquisition-commissions.ts` registrada no data-source. SI9/Imonov não participa.
+
+Verificação: typecheck, lint, build e 18 suítes/190 testes aprovados. A migration não foi aplicada ao Neon e não há integração bancária nesta etapa.
+
+## 2026-09-12 — Codex — primeira entrega de administração de locações
+
+Tarefa: RENTAL-001. Criado o módulo `src/rentals/` com cadastros PF/PJ de proprietários e inquilinos, dados privados cifrados, contratos, regras de datas/valores/partes, documentos em bucket R2 privado e downloads autenticados. Todas as rotas exigem JWT + papel ADMIN; documentos rejeitam tipos/tamanhos/assinaturas inválidos e não expõem `storageKey`, bucket ou URL pública. A migration `1789257600000-create-rental-administration.ts` é aditiva e foi registrada no data-source sem execução automática.
+
+Também foi adicionada busca parcial de imóveis somente no DTO administrativo, impedida a exclusão de imóvel com vínculos e corrigido o formato de mensagens do filtro global para compatibilidade com o cliente. Um contrato antigo pode ser encerrado depois de o imóvel mudar para venda.
+
+Verificação real: `npm run typecheck`, `npm run lint`, `npm test` (18 suítes, 190 testes) e `npm run build` passaram. Testes cobrem regras de domínio, upload compensado, criptografia, permissões, cabeçalhos de download e busca administrativa.
+
+Pendências: backup e aplicação explícita da migration no Neon, provisionamento/configuração do bucket privado e homologação com dados reais. A regra de comissão ainda não foi definida; financeiro, cobranças, repasses e integração SI9/Imonov continuam fora desta entrega.
+
 Registro objetivo, do mais recente para o mais antigo. Cada entrada traz tarefa, alterações,
 testes com resultado real e pendências.
 
@@ -112,3 +128,7 @@ Testes executados: nenhum nesta etapa; análise somente de leitura.
 
 O trabalho anterior a 11/09/2026 está nos commits do Git e no `PLANO-PROJETO-CORRETOR.md`.
 Não havia registro por agente antes desta data.
+
+## 2026-09-13 — Ambiente de teste
+- Criado bucket privado Cloudflare R2 \corretor-documentos-test\ para documentos de locação/proprietários/inquilinos.
+- Vercel e Neon não foram alterados: CLI local retornou sessão desconectada; reconectar antes de criar preview/branch.

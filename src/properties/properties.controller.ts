@@ -3,7 +3,7 @@ import { Request } from 'express';
 import { AgentProfile } from '../agents/dto/agent-profile.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreatePropertyDto } from './dto/create-property.dto';
-import { PropertyQueryDto } from './dto/property-query.dto';
+import { PropertyQueryDto, ManagedPropertyQueryDto } from './dto/property-query.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertiesService } from './properties.service';
 import { ParseSlugPipe } from './pipes/parse-slug.pipe';
@@ -47,7 +47,7 @@ export class ManagedPropertiesController {
   constructor(private readonly properties: PropertiesService) {}
 
   @Get()
-  list(@Query() query: PropertyQueryDto, @Req() request: AuthenticatedRequest) {
+  list(@Query() query: ManagedPropertyQueryDto, @Req() request: AuthenticatedRequest) {
     return this.properties.listManaged(query, request.user);
   }
 

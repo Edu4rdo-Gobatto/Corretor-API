@@ -47,7 +47,9 @@ export class PropertyRepositoryFixture {
           }
           if (expected.type === 'ilike') {
             const actualText = typeof actual === 'string' || typeof actual === 'number' ? String(actual) : '';
-            return actualText.toLowerCase() === String(value).replace(/\\([%_\\])/g, '$1').toLowerCase();
+            const pattern = String(value);
+            if (pattern.startsWith('%') && pattern.endsWith('%')) return actualText.toLowerCase().includes(pattern.slice(1, -1).replace(/\\([%_\\])/g, '$1').toLowerCase());
+            return actualText.toLowerCase() === pattern.replace(/\\([%_\\])/g, '$1').toLowerCase();
           }
           throw new Error(`Unsupported test operator: ${expected.type}`);
         }

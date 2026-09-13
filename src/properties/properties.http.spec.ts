@@ -77,6 +77,15 @@ describe('property HTTP contract (database boundary replaced)', () => {
     expect(JSON.stringify(body)).not.toContain('owner@example.com');
   });
 
+  it('searches managed properties by partial title without changing public query inputs', async () => {
+    await create(owner, { title: 'Sala Centro' });
+    await create(owner, { title: 'Galpão Industrial' });
+    const result = await request('/admin/properties?search=centro', 'GET', undefined, admin);
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ total: 1, items: [{ title: 'Sala Centro' }] });
+    expect((await request('/properties?search=centro')).status).toBe(400);
+  });
+
   it('returns filtered and paginated available properties', async () => {
     await create();
     await create(owner, { title: 'Another warehouse', price: 15000 });
