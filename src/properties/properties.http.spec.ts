@@ -142,6 +142,15 @@ describe('property HTTP contract (database boundary replaced)', () => {
     expect((await request('/admin/properties')).status).toBe(401);
   });
 
+  it('filters the managed list by status without touching the public contract', async () => {
+    await create(owner, { status: 'CONCLUIDO' }); await create(owner, { status: 'RESERVADO' }); await create(owner);
+    expect(await (await request('/admin/properties?status=CONCLUIDO', 'GET', undefined, owner)).json()).toMatchObject({ total: 1 });
+    expect(await (await request('/admin/properties?status=DISPONIVEL', 'GET', undefined, owner)).json()).toMatchObject({ total: 1 });
+    expect(await (await request('/admin/properties', 'GET', undefined, owner)).json()).toMatchObject({ total: 3 });
+    expect((await request('/admin/properties?status=INVALIDO', 'GET', undefined, owner)).status).toBe(400);
+    expect((await request('/properties?status=CONCLUIDO')).status).toBe(400);
+  });
+
   it('lets the owner edit while keeping the slug stable, and delete their property', async () => {
     const created = await create();
     const updated = await request(`/properties/${created.id}`, 'PATCH', { title: 'Novo título', price: 20000, condoFee: null }, owner);

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import { PasswordService } from '../common/security/password.service';
@@ -6,6 +6,8 @@ import { Agent, AgentRole } from './agent.entity';
 import { AgentProfile, toAgentProfile } from './dto/agent-profile.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AgentQueryDto } from './dto/agent-query.dto';
 
 @Injectable()
@@ -90,5 +92,29 @@ export class AgentsService {
       throw new ConflictException('Já existe um administrador. Use o cadastro autenticado.');
     }
     return this.create({ ...dto, role: AgentRole.ADMIN });
+  }
+
+  async updateProfile(id: string, dto: UpdateProfileDto): Promise<AgentProfile> {
+    const agent = await this.agents.findOneBy({ id, active: true });
+    if (!agent) throw new NotFoundException('Corretor não encontrado.');
+    Object.assign(agent, {
+      name: dto.name,
+      whatsappNumber: dto.whatsappNumber,
+      creci: dto.creci ?? null,
+      avatarUrl: dto.avatarUrl ?? null,
+    });
+    return toAgentProfile(await this.agents.save(agent));
+  }
+
+  async changePassword(id: string, dto: ChangePasswordDto): Promise<AgentProfile> {
+    const agent = await this.agents.findOne({
+      where: { id, active: true },
+      select: ['id', 'name', 'email', 'passwordHash', 'whatsappNumber', 'creci', 'role', 'avatarUrl', 'active', 'createdAt'],
+    });
+    if (!agent || !(await this.passwords.verify(agent.passwordHash, dto.currentPassword))) {
+      throw new UnauthorizedException('Senha atual incorreta.');
+    }
+    agent.passwordHash = await this.passwords.hash(dto.newPassword);
+    return toAgentProfile(await this.agents.save(agent));
   }
 }

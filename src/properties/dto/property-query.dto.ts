@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsNumber, IsOptional, IsString, Length, Max, Min } from 'class-validator';
-import { PropertyPurpose, PropertyType } from '../property.entity';
+import { PropertyPurpose, PropertyStatus, PropertyType } from '../property.entity';
 
 export class PropertyQueryDto {
   @Type(() => Number)
@@ -48,4 +48,8 @@ export class ManagedPropertyQueryDto extends PropertyQueryDto {
   @IsString()
   @Length(0, 200)
   search?: string;
+
+  @IsOptional()
+  @IsEnum(PropertyStatus)
+  status?: PropertyStatus;
 }

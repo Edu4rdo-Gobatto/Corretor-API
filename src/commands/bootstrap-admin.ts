@@ -13,7 +13,7 @@ async function bootstrapAdministrator(): Promise<void> {
     const administrator = await application.get(AgentsService).createInitialAdministrator(dto);
     console.log(`Administrador criado: ${administrator.id}`);
   } finally {
-    await application.close();
+    await application.close();  
   }
 }
 

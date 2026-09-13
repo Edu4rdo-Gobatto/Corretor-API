@@ -158,3 +158,8 @@ Regra provisória informada pelo dono: comissão de captação equivalente a um 
 
 ## URL-001 — Padronizar URLs — concluída
 Responsável: Codex. Implementação e publicação no front, contratos da API preservados. Validação e limites registrados em PROJECT_STATUS.md e CHANGELOG_AI.md.
+
+## PROFILE-001 — Perfil próprio, senha e métricas por status — concluída
+Responsável: opencode — concluída em 13/09/2026 (sem commit)
+Objetivo: foto grande e edição dos próprios dados em /admin/perfil, troca da própria senha, reset pelo ADMIN com senha escolhida na hora e métricas por status sem endpoint novo de stats.
+Critérios: PATCH /auth/me com whitelist (e-mail/papel/ativo só ADMIN), PATCH /auth/me/password com verificação da atual, status opcional só no gerenciado, reset reuse PATCH /agents/:id. Typecheck, lint, 18 suítes/195 testes aprovados. Sem revogação de outras sessões (registrado). Deploy no Render pendente.

@@ -1,5 +1,33 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-09-13 — opencode — perfil próprio, senha e filtro de status no gerenciado
+
+Pedido do dono: página `/admin/perfil` no front com foto grande, métricas por status e edição dos próprios
+dados, troca da própria senha no perfil e botão de redefinição de senha pelo ADMIN com a senha escolhida na hora.
+
+Alterações (sem migration, sem mudar contrato público):
+
+- `src/properties/dto/property-query.dto.ts` + `properties.service.ts`: `status?` opcional no
+  `ManagedPropertyQueryDto`, aplicado ao `where` do `listManaged`. O público (`PropertyQueryDto`) rejeita
+  `status` com 400, como antes rejeitava qualquer campo fora da lista.
+- `src/agents/dto/update-profile.dto.ts` (novo): só `name`, `whatsappNumber`, `creci?`, `avatarUrl?`.
+  E-mail, papel, senha e ativo ficam de fora de propósito.
+- `src/agents/dto/change-password.dto.ts` (novo): `currentPassword` + `newPassword` (12–128, sem só-espaço).
+- `src/agents/agents.service.ts`: `updateProfile(id, dto)` (só conta ativa) e `changePassword(id, dto)`
+  (verifica a atual com argon2, `401 'Senha atual incorreta.'` se não confere).
+- `src/auth/auth.controller.ts`: `PATCH /auth/me` e `PATCH /auth/me/password`, só `JwtAuthGuard`, id sempre
+  do próprio `viewer`. O reset pelo ADMIN usa o `PATCH /agents/:id` existente — sem código novo.
+- Testes: filtro por status + 400 para status inválido no público e no gerenciado (`properties.http.spec.ts`);
+  edição própria com 400 para `email`/`role` e 401 sem token, troca com login novo válido e antigo rejeitado,
+  senha atual errada 401 e nova curta 400 (`auth.http.spec.ts`).
+
+Verificação (resultado real): `npm run typecheck` aprovado; `npm run lint` aprovado;
+`npm test` com 18 suítes e 195 testes aprovados.
+
+Risco/pendência: sem commit/push (aguardando confirmação do dono, direto na `main` quando liberado);
+troca/reset de senha não revoga outras sessões — o token atual do alvo segue válido até expirar
+(decisão registrada em `DECISIONS.md`); deploy no Render pendente para o front usar os endpoints novos.
+
 ## 2026-09-13 — Codex — comissão de captação parcelada
 
 Criado `src/finance/` com comissão de captação equivalente ao aluguel do contrato, parcelamento de 1 a 60 parcelas, distribuição decimal exata dos centavos, vencimentos mensais, saldo pago/pendente e confirmação manual de cada parcela. Rotas ADMIN: `GET /admin/finance/commissions/lease/:leaseId`, `POST /admin/finance/commissions` e `PATCH /admin/finance/commissions/installments/:id/paid`. Migration aditiva `1789344000000-create-acquisition-commissions.ts` registrada no data-source. SI9/Imonov não participa.

@@ -111,3 +111,6 @@ Deploy dep-dajfg6gjo6nc73dlrs10 LIVE; health da API HTTP 200. Escrita de objeto 
 
 ## 2026-09-13 — opencode: capa na listagem pública (implementado, sem commit)
 Área assumida: capa some no catálogo (`media: []` na listagem) embora apareça no detalhe. Causa: `PropertiesService.list()` carregava só `agent`, sem `media`. Correção sem migration e sem mudar contrato: segunda query por `propertyId` (`In`, ordenada) anexada antes de `toPropertyResponse`, preservando a paginação. `MediaRepositoryFixture` passou a entender o operador `In`. Typecheck, lint e 18 suítes/191 testes aprovados (inclui teste novo de capa ordenada na listagem). Sem commit/push (aguardando confirmação do dono); deploy no Render pendente para o catálogo publicado refletir a correção.
+
+## 2026-09-13 — opencode: perfil próprio, senha e filtro de status (implementado, sem commit)
+Área assumida: PATCH /auth/me, PATCH /auth/me/password e status? no gerenciado, a pedido do dono (inclui front no repositório irmão). Sem migration e sem mudança no contrato público. Typecheck, lint e 18 suítes/195 testes aprovados. Sem commit/push (aguardando confirmação do dono); deploy no Render pendente. Troca/reset não revoga outras sessões (decisão em DECISIONS.md).

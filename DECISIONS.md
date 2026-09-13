@@ -187,3 +187,45 @@ Não fazer:
 
 - Não voltar a relação `media` para dentro do `findAndCount` com `take`: a paginação volta a contar linhas do join.
 - Não criar campo novo (`coverUrl`) sem necessidade: o contrato `media[]` com `isCover` já atende o front e o SEO.
+
+## 2026-09-13 — Perfil próprio via /auth/me com whitelist (opencode)
+
+Decisão: PATCH /auth/me aceita só 
+ame, whatsappNumber, creci e vatarUrl (UpdateProfileDto);
+PATCH /auth/me/password troca a senha exigindo a atual. O id vem sempre do JWT (iewer.id), nunca do body.
+E-mail, papel e ativo continuam exclusivos do PATCH /agents/:id (só ADMIN).
+
+Motivo: corretor precisa editar foto e dados sem virar ADMIN; liberar o PATCH /agents/:id para não-ADMIN
+abriria elevação de papel e troca de e-mail de outro usuário.
+
+Não fazer:
+
+- Não aceitar email, ole, ctive ou password no PATCH /auth/me: o pipe global (whitelist +
+  orbidNonWhitelisted) já devolve 400, e o DTO nem declara esses campos.
+- Não criar rota de perfil por :id para o próprio usuário: o JWT já identifica o dono.
+
+## 2026-09-13 — Troca/reset de senha sem revogar sessões (opencode)
+
+Decisão: changePassword e o reset via PATCH /agents/:id trocam só o hash (argon2id); as sessões de refresh
+existentes não são revogadas. O aviso no diálogo de reset informa que o acesso atual do alvo segue válido até
+sair ou o token expirar.
+
+Motivo: SessionService só revoga por token individual; revogar "todas menos a atual" exigiria buscar o hash
+da sessão corrente no controller e novo método com suporte no fixture — custo desproporcional ao benefício agora.
+
+Não fazer:
+
+- Não presumir logout remoto após reset: avisar a pessoa e, se preciso, pedir para ela sair e entrar de novo.
+- Não logar senha em lugar nenhum (código, teste, changelog ou docs).
+
+## 2026-09-13 — Filtro status só no gerenciado (opencode)
+
+Decisão: status? existe apenas no ManagedPropertyQueryDto; o PropertyQueryDto público continua sem ele
+(e o pipe global responde 400 a ?status= no público).
+
+Motivo: o painel precisa das métricas por disponível/reservado/concluído; o catálogo público só lista
+DISPONIVEL e o contrato do SSR não muda.
+
+Não fazer:
+
+- Não adicionar status ao DTO público nem ao eadCatalogQuery do front sem decisão nova de SEO/produto.

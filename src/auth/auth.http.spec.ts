@@ -93,6 +93,30 @@ describe('authentication HTTP contract (database boundary replaced)', () => {
     expect(JSON.stringify(body)).not.toContain('password');
   });
 
+  it('lets the account update its own profile but never email, role or status', async () => {
+    const response = await request('/auth/me', 'PATCH', { name: 'Agent Novo', whatsappNumber: '5565911111111', creci: '999', avatarUrl: 'https://example.test/foto.png' }, tokenFor(agent));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: agent.id, name: 'Agent Novo', whatsappNumber: '5565911111111', email: 'agent@example.com', role: 'AGENT' });
+    expect(await (await request('/auth/me', 'GET', undefined, tokenFor(agent))).json()).toMatchObject({ name: 'Agent Novo' });
+    expect((await request('/auth/me', 'PATCH', { name: 'Outro', whatsappNumber: '5565911111111', email: 'novo@example.com' }, tokenFor(agent))).status).toBe(400);
+    expect((await request('/auth/me', 'PATCH', { name: 'Outro', whatsappNumber: '5565911111111', role: 'ADMIN' }, tokenFor(agent))).status).toBe(400);
+    expect((await request('/auth/me', 'PATCH', { name: 'Outro', whatsappNumber: '5565911111111' })).status).toBe(401);
+  });
+
+  it('changes the password after verifying the current one', async () => {
+    const response = await request('/auth/me/password', 'PATCH', { currentPassword: 'correct-test-password', newPassword: 'brand-new-test-password' }, tokenFor(agent));
+    expect(response.status).toBe(200);
+    expect(JSON.stringify(await response.json())).not.toContain('password');
+    expect((await request('/auth/login', 'POST', { email: agent.email, password: 'brand-new-test-password' })).status).toBe(200);
+    expect((await request('/auth/login', 'POST', { email: agent.email, password: 'correct-test-password' })).status).toBe(401);
+  });
+
+  it('rejects a wrong current password and a short new password', async () => {
+    expect((await request('/auth/me/password', 'PATCH', { currentPassword: 'wrong-password', newPassword: 'brand-new-test-password' }, tokenFor(agent))).status).toBe(401);
+    expect((await request('/auth/me/password', 'PATCH', { currentPassword: 'correct-test-password', newPassword: 'short' }, tokenFor(agent))).status).toBe(400);
+    expect((await request('/auth/login', 'POST', { email: agent.email, password: 'correct-test-password' })).status).toBe(200);
+  });
+
   it('rejects missing, altered, expired, malformed and deleted-account tokens', async () => {
     const otherSigner = new JwtService({ secret: 'other-signing-secret' });
     const tokens = [undefined, otherSigner.sign({ sub: agent.id }), tokenFor(agent, { iat: 1 }), tokenFor(agent, { sub: 'invalid-id' })];

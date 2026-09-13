@@ -27,6 +27,7 @@ export class PropertiesService {
   listManaged(query: ManagedPropertyQueryDto, viewer: AgentProfile) {
     const restriction = this.ownerRestriction(viewer);
     if (query.search?.trim()) restriction.title = ILike(`%${query.search.trim().replace(/[\\%_]/g, '\\$&')}%`);
+    if (query.status) restriction.status = query.status;
     return this.list(query, restriction);
   }
 
