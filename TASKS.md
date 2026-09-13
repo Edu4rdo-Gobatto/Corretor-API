@@ -154,3 +154,7 @@ Disponibilizar o .env local pelo fluxo habitual do dono, sem enviá-lo ao chat. 
 ## RENTAL-003 — Comissão de captação parcelada — em implementação
 
 Regra provisória informada pelo dono: comissão de captação equivalente a um aluguel, parcelamento configurável e confirmação manual ADMIN. A implementação inicial está em `src/finance/`; pagamentos de aluguel e repasses mensais permanecem na sequência. SI9/Imonov, importação e alertas seguem fora do escopo.
+
+
+## URL-001 — Padronizar URLs — concluída
+Responsável: Codex. Implementação e publicação no front, contratos da API preservados. Validação e limites registrados em PROJECT_STATUS.md e CHANGELOG_AI.md.

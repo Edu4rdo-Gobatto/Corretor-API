@@ -76,3 +76,17 @@ desde antes desta sessão, por alteração de terceiro — ver Bloqueios.
 ## 2026-09-12 — Codex: administração de locações em implementação
 
 Área assumida: cadastros, contratos e documentos privados (ADMIN). Comissão de captação parcelada iniciada em `src/finance/`, sem SI9/Imonov. Alterações preexistentes preservadas; sem commit/push e sem mudança automática do banco real.
+
+
+## 2026-09-13 — Codex: URLs em português
+Área assumida: rotas do front, compatibilidade e SEO; implementação do plano aprovado em andamento. API sem mudanças de contrato.
+
+
+## 2026-09-13 — Codex: URLs em português concluídas
+Rotas públicas: /imoveis/{tipo}, /imoveis/para-alugar, /imoveis/para-comprar e combinações; query cidade/preco-minimo/preco-maximo/pagina. Painel: /admin/entrar e /admin/contatos. URLs antigas redirecionam 301; navegador usa replace; slugs e APIs preservados.
+Publicação Vercel dpl_Bbf5617bGJdqKv79WJbuDDFJaP1M READY, alias https://corretor-web-test.vercel.app. SITE_URL e SEO_INDEXABLE configuradas em Production conforme autorização. Robots, llms e sitemap respondem 200; raiz index,follow; filtros noindex,follow; painel noindex,nofollow. Sitemap contém início e privacidade (catálogo público sem imóveis no momento).
+Validação: typecheck, lint, build, suíte de 93 testes e teste adicional de navegação aprovado (94 no total coberto); smoke SSR/proxy/discovery aprovado. Navegador: redirecionamento, paginação e detalhe com fixture local; catálogo filtrado publicado confirmado. Login autenticado/logout e fichas reais não exercitados no navegador nesta sessão; permissões existentes cobertas pela suíte. Sem commit/push.
+
+
+## 2026-09-13 — Preparação de commit e push autorizada
+Codex: revisão do diff concluída; typecheck, lint, 21 arquivos/94 testes, build e smoke de SEO aprovados novamente. Front: código e documentação das URLs; API: somente documentação correspondente. Alterações anteriores da API em .env.example e .gitignore excluídas do commit.
