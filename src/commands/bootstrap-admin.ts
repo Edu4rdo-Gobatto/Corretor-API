@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { ConflictException } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AgentsService } from '../agents/agents.service';
+import { CorretoresService } from '../corretores/corretores.service';
 import { parseBootstrapAdministrator } from './bootstrap-admin.config';
 
 async function bootstrapAdministrator(): Promise<void> {
@@ -10,7 +10,7 @@ async function bootstrapAdministrator(): Promise<void> {
   const { AppModule } = await import('../app.module');
   const application = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
-    const administrator = await application.get(AgentsService).createInitialAdministrator(dto);
+    const administrator = await application.get(CorretoresService).criarAdministradorInicial(dto);
     console.log(`Administrador criado: ${administrator.id}`);
   } finally {
     await application.close();  

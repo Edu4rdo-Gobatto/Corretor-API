@@ -202,3 +202,16 @@ Testes executados (resultado real):
 Risco/pendência:
 
 - Conferência com dados reais e redeploy no Render pendentes; sem commit/push (aguardando confirmação do dono).
+
+## 2026-09-14 — Codex: refatoração integral do backend em português
+
+Pedido: implementar o documento integral de 13/09/2026; dono confirmou Drive compartilhado. Arquivos: novos domínios src/autenticacao, corretores, cadastros, imoveis, midias, clientes, locacoes, comissoes, drive, comum, saude; migration 1789516800000 e migração de legado, registro de entidades/migrations, logger seguro, CLI de migrations e bootstrap ADMIN com CPF; atualização app.module/main/config/.env.example/package scripts. Diretórios antigos de negócio substituídos, sem editar migrations históricas. Novos testes de domínio, HTTP e PostgreSQL; documentação/contexto/spec de ambos repos atualizados preservando histórico.
+
+Resultado: auditoria/soft delete, filtros e classificação dinâmica, autorização por domínio, refresh atômico, último ADMIN protegido, partes pesquisáveis sem cifra, contratos com Drive idempotente, comissões com centavos exatos e jobs. Migração mantém o arquivo legado e exige dados reais complementares; CLI não imprime SQL/parâmetros privados. Revisão independente corrigiu vazamento nos logs da CLI antiga e ausência de cliente manual para comissão histórica sem lead; mídia passou a distinguir MP4 de HEIC/AVIF.
+
+Verificações finais reais em 14/09/2026: typecheck PASS; lint PASS; build PASS; Jest local 26 suítes/169 testes PASS, 4 testes integrados opcionais excluídos do comando local; Jest integrado executado separadamente, 1 suíte/4 testes PASS no Neon PostgreSQL 16.15. Total: 173 testes aprovados. Integração cobre migração com dados sintéticos cifrados, IDs/hashes/tags, constraints/FKs/capa/contrato, saúde, login/cookie seguro, catálogo sem dados privados, cadastro manual sem consentimento inventado, parcelas e baixa via HTTP com repos reais. Transação revertida e database homologacao_pt isolada do banco publicado.
+
+Infra de homologação: branch homologacao-backend-portugues-20260913, br-ancient-sound-a5tsf5rf, projeto corretor-db-test; database nova homologacao_pt, conexão direta TLS. Sem aplicação no banco principal, sem R2/Drive reais nesta rodada, sem commit/push/deploy. Não alterado .env. Pendências: frontend/SSR compatível, Drive real, R2 real, complementos/backup e corte coordenado incluindo health /api/v1/saude. Interrupção abrupta entre R2 e commit pode exigir conciliação; simulações cobrem compensação de falhas retornadas.
+## 14/09/2026 — integração do frontend ao contrato português
+
+Frontend irmão integrado às rotas da API, com testes de contrato e filtros de data de clientes adicionados. API segue com typecheck, lint e suíte local/integrada validados. Drive, migração de dados reais e publicação permanecem pendentes de configuração operacional.

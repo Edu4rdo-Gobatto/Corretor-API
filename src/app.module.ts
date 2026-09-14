@@ -1,32 +1,25 @@
-import { RentalsModule } from './rentals/rentals.module';
-import { FinanceModule } from './finance/finance.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AgentsModule } from './agents/agents.module';
-import { AuthModule } from './auth/auth.module';
+import { AutenticacaoModule } from './autenticacao/autenticacao.module';
+import { CorretoresModule } from './corretores/corretores.module';
+import { CadastrosModule } from './cadastros/cadastros.module';
+import { ImoveisModule } from './imoveis/imoveis.module';
+import { MidiasModule } from './midias/midias.module';
+import { ClientesModule } from './clientes/clientes.module';
+import { LocacoesModule } from './locacoes/locacoes.module';
+import { ComissoesModule } from './comissoes/comissoes.module';
+import { SaudeModule } from './saude/saude.module';
 import { createDatabaseOptions } from './config/database.config';
 import { validateEnvironment } from './config/env.validation';
-import { LeadsModule } from './leads/leads.module';
-import { MediaModule } from './media/media.module';
-import { PropertiesModule } from './properties/properties.module';
-import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true, validate: validateEnvironment }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: createDatabaseOptions,
-    }),
-    AuthModule,
-    AgentsModule,
-    PropertiesModule,
-    MediaModule,
-    LeadsModule,
-    HealthModule,
-    RentalsModule,
-    FinanceModule,
+    TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: createDatabaseOptions }),
+    ScheduleModule.forRoot(), AutenticacaoModule, CorretoresModule, CadastrosModule,
+    ImoveisModule, MidiasModule, ClientesModule, LocacoesModule, ComissoesModule, SaudeModule,
   ],
 })
 export class AppModule {}

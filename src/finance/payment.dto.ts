@@ -1,4 +1,0 @@
-import { Transform, Type } from 'class-transformer'; import { IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, MaxLength, Min } from 'class-validator';
-const trim = ({ value }: { value: unknown }): unknown => typeof value === 'string' ? value.trim() : value;
-export class CreatePaymentDto { @IsUUID('4') leaseId!: string; @IsString() @Matches(/^\d{4}-\d{2}-01$/) referenceMonth!: string; @IsString() @Matches(/^\d{1,10}\.\d{2}$/) receivedAmount!: string; @IsOptional() @Transform(trim) @IsString() @MaxLength(1000) paymentNote = ''; }
-export class PaymentQueryDto { @IsOptional() @IsUUID('4') leaseId?: string; @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string; @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string; @IsOptional() @IsIn(['RECEIVED','PAID_OUT']) status?: string; @Type(()=>Number) @IsInt() @Min(1) page=1; @Type(()=>Number) @IsInt() @Min(1) limit=20; }

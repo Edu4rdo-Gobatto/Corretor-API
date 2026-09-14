@@ -130,378 +130,1448 @@
     }
   },
   "database_schema": {
-    "agents": {
-      "table": "agents",
+    "corretores": {
+      "table": "corretores",
       "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
         {
           "name": "id",
           "type": "uuid",
-          "pk": true,
-          "generated": true
+          "nullable": false,
+          "pk": true
         },
         {
-          "name": "name",
-          "type": "text"
+          "name": "nome",
+          "type": "text",
+          "nullable": false,
+          "pk": false
         },
         {
           "name": "email",
           "type": "text",
-          "unique": true
+          "nullable": false,
+          "pk": false
         },
         {
-          "name": "password_hash",
-          "type": "text"
-        },
-        {
-          "name": "whatsapp_number",
+          "name": "senha_hash",
           "type": "text",
-          "note": "formato ex: 5511999999999"
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "nullable": false,
+          "pk": false
         },
         {
           "name": "creci",
           "type": "text",
-          "nullable": true
+          "nullable": true,
+          "pk": false
         },
         {
-          "name": "role",
+          "name": "cargo",
           "type": "enum",
-          "enum_name": "AgentRole",
+          "nullable": false,
+          "pk": false,
           "values": [
             "ADMIN",
-            "AGENT"
-          ],
-          "default": "AGENT"
+            "CORRETOR"
+          ]
         },
         {
-          "name": "avatar_url",
+          "name": "url_foto",
           "type": "text",
-          "nullable": true
+          "nullable": true,
+          "pk": false
         },
         {
-          "name": "active",
+          "name": "ativo",
           "type": "boolean",
-          "default": true
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": []
+    },
+    "sessoes_login": {
+      "table": "sessoes_login",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
         },
         {
-          "name": "created_at",
+          "name": "alterado_em",
           "type": "timestamptz",
-          "generated": "create"
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "token_hash",
+          "type": "text",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "corretor_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "expira_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
         }
       ],
       "relations": [
         {
-          "type": "OneToMany",
-          "target": "properties",
-          "via": "agent_id"
+          "type": "many-to-one",
+          "target": "corretores",
+          "fields": [
+            "corretor_id"
+          ]
         }
       ]
     },
-    "properties": {
-      "table": "properties",
+    "imoveis_midias": {
+      "table": "imoveis_midias",
       "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
         {
           "name": "id",
           "type": "uuid",
-          "pk": true,
-          "generated": true
+          "nullable": false,
+          "pk": true
         },
         {
-          "name": "title",
-          "type": "text"
+          "name": "imovel_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "tipo",
+          "type": "enum",
+          "nullable": false,
+          "pk": false,
+          "values": [
+            "IMAGEM",
+            "VIDEO_EMBED",
+            "VIDEO_ARQUIVO"
+          ]
+        },
+        {
+          "name": "url",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "chave_armazenamento",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "ordem",
+          "type": "integer",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "capa",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": [
+        {
+          "type": "many-to-one",
+          "target": "imoveis",
+          "fields": [
+            "imovel_id"
+          ]
+        }
+      ]
+    },
+    "imoveis": {
+      "table": "imoveis",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "nullable": false,
+          "pk": false
         },
         {
           "name": "slug",
           "type": "text",
-          "unique": true,
-          "indexed": true
+          "nullable": false,
+          "pk": false
         },
         {
-          "name": "type",
+          "name": "tipo_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "finalidade_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "valor",
+          "type": "numeric",
+          "nullable": false,
+          "pk": false,
+          "precision": 12,
+          "scale": 2
+        },
+        {
+          "name": "valor_condominio",
+          "type": "numeric",
+          "nullable": true,
+          "pk": false,
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "name": "valor_iptu",
+          "type": "numeric",
+          "nullable": true,
+          "pk": false,
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "name": "area_util",
+          "type": "numeric",
+          "nullable": false,
+          "pk": false,
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "name": "area_total",
+          "type": "numeric",
+          "nullable": false,
+          "pk": false,
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "name": "cep",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "logradouro",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "numero",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "bairro",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "status",
           "type": "enum",
-          "enum_name": "PropertyType",
+          "nullable": false,
+          "pk": false,
           "values": [
-            "GALPAO",
-            "SALA",
-            "PREDIO",
-            "LOJA",
-            "TERRENO"
+            "DISPONIVEL",
+            "RESERVADO",
+            "CONCLUIDO"
           ]
         },
         {
-          "name": "purpose",
+          "name": "corretor_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": [
+        {
+          "type": "many-to-one",
+          "target": "tipos_imovel",
+          "fields": [
+            "tipo_id"
+          ]
+        },
+        {
+          "type": "many-to-one",
+          "target": "finalidades_imovel",
+          "fields": [
+            "finalidade_id"
+          ]
+        },
+        {
+          "type": "many-to-one",
+          "target": "corretores",
+          "fields": [
+            "corretor_id"
+          ]
+        },
+        {
+          "type": "one-to-many",
+          "target": "imoveis_midias",
+          "fields": []
+        },
+        {
+          "type": "one-to-many",
+          "target": "imoveis_caracteristicas",
+          "fields": []
+        }
+      ]
+    },
+    "tipos_imovel": {
+      "table": "tipos_imovel",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": []
+    },
+    "finalidades_imovel": {
+      "table": "finalidades_imovel",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": []
+    },
+    "caracteristicas": {
+      "table": "caracteristicas",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "icone",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        }
+      ],
+      "relations": []
+    },
+    "imoveis_caracteristicas": {
+      "table": "imoveis_caracteristicas",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "imovel_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "caracteristica_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "valor",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": [
+        {
+          "type": "many-to-one",
+          "target": "imoveis",
+          "fields": [
+            "imovel_id"
+          ]
+        },
+        {
+          "type": "many-to-one",
+          "target": "caracteristicas",
+          "fields": [
+            "caracteristica_id"
+          ]
+        }
+      ]
+    },
+    "clientes": {
+      "table": "clientes",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "imovel_id",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "corretor_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "mensagem",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "origem",
           "type": "enum",
-          "enum_name": "PropertyPurpose",
+          "nullable": false,
+          "pk": false,
+          "values": [
+            "SITE",
+            "MANUAL"
+          ]
+        },
+        {
+          "name": "consentimento",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "consentimento_ip",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "consentimento_em",
+          "type": "timestamptz",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "versao_termos",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": [
+        {
+          "type": "many-to-one",
+          "target": "imoveis",
+          "fields": [
+            "imovel_id"
+          ]
+        },
+        {
+          "type": "many-to-one",
+          "target": "corretores",
+          "fields": [
+            "corretor_id"
+          ]
+        }
+      ]
+    },
+    "partes_locacao": {
+      "table": "partes_locacao",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "papel",
+          "type": "enum",
+          "nullable": false,
+          "pk": false,
+          "values": [
+            "LOCADOR",
+            "LOCATARIO"
+          ]
+        },
+        {
+          "name": "tipo_pessoa",
+          "type": "enum",
+          "nullable": false,
+          "pk": false,
+          "values": [
+            "PF",
+            "PJ"
+          ]
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "cpf_cnpj",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "data_nascimento",
+          "type": "date",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "banco_nome",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "banco_agencia",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "banco_conta",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "chave_pix",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": []
+    },
+    "contrato": {
+      "table": "contrato",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "numero_contrato",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "imovel_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "locador_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "locatario_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "corretor_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "data_fim",
+          "type": "date",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "valor_aluguel",
+          "type": "numeric",
+          "nullable": false,
+          "pk": false,
+          "precision": 12,
+          "scale": 2
+        },
+        {
+          "name": "dia_vencimento",
+          "type": "int",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "taxa_administracao",
+          "type": "numeric",
+          "nullable": false,
+          "pk": false,
+          "precision": 5,
+          "scale": 2
+        },
+        {
+          "name": "garantia_locaticia",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "indice_reajuste",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "cobranca_iptu_condominio",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "url_pasta_drive",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "status_pasta_drive",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "nullable": false,
+          "pk": false,
+          "values": [
+            "ATIVO",
+            "INATIVO"
+          ]
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": [
+        {
+          "type": "many-to-one",
+          "target": "imoveis",
+          "fields": [
+            "imovel_id"
+          ]
+        },
+        {
+          "type": "many-to-one",
+          "target": "partes_locacao",
+          "fields": [
+            "locador_id"
+          ]
+        },
+        {
+          "type": "many-to-one",
+          "target": "partes_locacao",
+          "fields": [
+            "locatario_id"
+          ]
+        },
+        {
+          "type": "many-to-one",
+          "target": "corretores",
+          "fields": [
+            "corretor_id"
+          ]
+        }
+      ]
+    },
+    "parcelas_comissao": {
+      "table": "parcelas_comissao",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "comissao_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "numero_parcela",
+          "type": "int",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "data_vencimento",
+          "type": "date",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "valor",
+          "type": "numeric",
+          "nullable": false,
+          "pk": false,
+          "precision": 12,
+          "scale": 2
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "nullable": false,
+          "pk": false,
+          "values": [
+            "PENDENTE",
+            "PAGO",
+            "ATRASADO"
+          ]
+        },
+        {
+          "name": "pago_em",
+          "type": "timestamptz",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "observacao_pagamento",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
+        }
+      ],
+      "relations": [
+        {
+          "type": "many-to-one",
+          "target": "comissoes",
+          "fields": [
+            "comissao_id"
+          ]
+        }
+      ]
+    },
+    "comissoes": {
+      "table": "comissoes",
+      "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": true
+        },
+        {
+          "name": "tipo_operacao",
+          "type": "enum",
+          "nullable": false,
+          "pk": false,
           "values": [
             "LOCACAO",
             "VENDA"
           ]
         },
         {
-          "name": "price",
-          "type": "numeric(12,2)"
-        },
-        {
-          "name": "condo_fee",
-          "type": "numeric(10,2)",
-          "nullable": true
-        },
-        {
-          "name": "iptu_fee",
-          "type": "numeric(10,2)",
-          "nullable": true
-        },
-        {
-          "name": "usable_area",
-          "type": "numeric(10,2)"
-        },
-        {
-          "name": "total_area",
-          "type": "numeric(10,2)"
-        },
-        {
-          "name": "address_street",
-          "type": "text"
-        },
-        {
-          "name": "address_number",
-          "type": "text"
-        },
-        {
-          "name": "address_city",
-          "type": "text"
-        },
-        {
-          "name": "address_state",
-          "type": "text"
-        },
-        {
-          "name": "neighborhood",
-          "type": "text"
-        },
-        {
-          "name": "description",
-          "type": "text"
-        },
-        {
-          "name": "features",
-          "type": "jsonb",
-          "default": {},
-          "note": "ex: { docas: 4, peDireito: 10, vagas: 12 }"
-        },
-        {
-          "name": "status",
-          "type": "enum",
-          "enum_name": "PropertyStatus",
-          "values": [
-            "DISPONIVEL",
-            "RESERVADO",
-            "CONCLUIDO"
-          ],
-          "default": "DISPONIVEL"
-        },
-        {
-          "name": "agent_id",
+          "name": "contrato_id",
           "type": "uuid",
-          "fk": "agents.id"
+          "nullable": true,
+          "pk": false
         },
         {
-          "name": "created_at",
-          "type": "timestamptz",
-          "generated": "create"
+          "name": "imovel_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
         },
         {
-          "name": "updated_at",
-          "type": "timestamptz",
-          "generated": "update"
+          "name": "cliente_id",
+          "type": "uuid",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "valor_total",
+          "type": "numeric",
+          "nullable": false,
+          "pk": false,
+          "precision": 12,
+          "scale": 2
+        },
+        {
+          "name": "quantidade_parcelas",
+          "type": "int",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "ativo",
+          "type": "boolean",
+          "nullable": false,
+          "pk": false
         }
       ],
       "relations": [
         {
-          "type": "ManyToOne",
-          "target": "agents"
-        },
-        {
-          "type": "OneToMany",
-          "target": "property_media",
-          "via": "property_id"
-        }
-      ]
-    },
-    "property_media": {
-      "table": "property_media",
-      "fields": [
-        {
-          "name": "id",
-          "type": "uuid",
-          "pk": true,
-          "generated": true
-        },
-        {
-          "name": "property_id",
-          "type": "uuid",
-          "fk": "properties.id",
-          "on_delete": "CASCADE"
-        },
-        {
-          "name": "type",
-          "type": "enum",
-          "enum_name": "MediaType",
-          "values": [
-            "IMAGE",
-            "VIDEO_EMBED",
-            "VIDEO_FILE"
+          "type": "many-to-one",
+          "target": "contrato",
+          "fields": [
+            "contrato_id"
           ]
         },
         {
-          "name": "url",
-          "type": "text"
+          "type": "many-to-one",
+          "target": "imoveis",
+          "fields": [
+            "imovel_id"
+          ]
         },
         {
-          "name": "storage_key",
-          "type": "text",
-          "nullable": true,
-          "note": "chave no bucket R2, usada para deletar depois"
+          "type": "many-to-one",
+          "target": "clientes",
+          "fields": [
+            "cliente_id"
+          ]
         },
         {
-          "name": "order_index",
-          "type": "integer",
-          "default": 0
-        },
-        {
-          "name": "is_cover",
-          "type": "boolean",
-          "default": false
+          "type": "one-to-many",
+          "target": "parcelas_comissao",
+          "fields": []
         }
       ]
     },
-    "leads": {
-      "table": "leads",
+    "pastas_drive": {
+      "table": "pastas_drive",
       "fields": [
+        {
+          "name": "criado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "alterado_em",
+          "type": "timestamptz",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "criado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
+        {
+          "name": "alterado_por",
+          "type": "uuid",
+          "nullable": true,
+          "pk": false
+        },
         {
           "name": "id",
           "type": "uuid",
-          "pk": true,
-          "generated": true
+          "nullable": false,
+          "pk": true
         },
         {
-          "name": "property_id",
-          "type": "uuid",
-          "fk": "properties.id",
-          "on_delete": "SET NULL",
-          "nullable": true
-        },
-        {
-          "name": "agent_id",
-          "type": "uuid",
-          "fk": "agents.id"
-        },
-        {
-          "name": "lead_name",
-          "type": "text"
-        },
-        {
-          "name": "lead_phone",
-          "type": "text"
-        },
-        {
-          "name": "lead_email",
+          "name": "chave",
           "type": "text",
-          "nullable": true
+          "nullable": false,
+          "pk": false
         },
         {
-          "name": "message",
+          "name": "id_drive",
           "type": "text",
-          "nullable": true
+          "nullable": false,
+          "pk": false
         },
         {
-          "name": "consent_given",
+          "name": "pasta_pai_id",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "nullable": false,
+          "pk": false
+        },
+        {
+          "name": "ativo",
           "type": "boolean",
-          "note": "OBRIGATORIO true para salvar; rejeitar com 400 se false/ausente"
-        },
-        {
-          "name": "consent_timestamp",
-          "type": "timestamptz"
-        },
-        {
-          "name": "consent_ip",
-          "type": "text"
-        },
-        {
-          "name": "terms_version",
-          "type": "text",
-          "default": "v1.0"
-        },
-        {
-          "name": "created_at",
-          "type": "timestamptz",
-          "generated": "create"
+          "nullable": false,
+          "pk": false
         }
-      ]
+      ],
+      "relations": []
     }
   },
   "auth": {
-    "flow": [
-      "POST /auth/login recebe email + senha",
-      "AuthService busca Agent por email, compara senha com argon2.verify()",
-      "Se valido, gera JWT com payload { sub: agent.id, role: agent.role }",
-      "Frontend guarda token em memoria + refresh via cookie httpOnly (nunca em localStorage puro)",
-      "Rotas protegidas usam JwtAuthGuard + RolesGuard combinados"
-    ],
     "hash_algorithm": "argon2id",
-    "guard_rules": {
-      "public_no_guard": [
-        "listagem publica de imoveis",
-        "detalhe publico de imovel",
-        "criacao de lead"
-      ],
-      "jwt_auth_guard": [
-        "CRUD administrativo de imoveis",
-        "upload/gestao de midia",
-        "listagem de leads no painel"
-      ],
-      "jwt_auth_guard_plus_roles_admin": [
-        "criacao/edicao/remocao de corretores"
-      ]
-    }
+    "login": "POST /autenticacao/entrar {email,senha}",
+    "refresh": "POST /autenticacao/renovar",
+    "logout": "POST /autenticacao/sair",
+    "perfil": "GET/PATCH /autenticacao/eu",
+    "senha": "PATCH /autenticacao/eu/senha",
+    "resposta": [
+      "token_acesso",
+      "tipo_token",
+      "corretor"
+    ],
+    "cargos": [
+      "ADMIN",
+      "CORRETOR"
+    ],
+    "cookie": "corretor_renovacao; HttpOnly; Secure; SameSite=Strict; 30 dias",
+    "token_persistido": "SHA-256; consumo atomico DELETE RETURNING"
   },
   "media_pipeline": {
     "bucket_name": "corretor-midia",
-    "setup_steps": [
-      "Criar bucket no painel Cloudflare",
-      "Gerar API Token com permissao leitura/escrita (Account -> R2 -> Manage API Tokens)",
-      "Anotar Account ID, Access Key ID, Secret Access Key, endpoint https://<account_id>.r2.cloudflarestorage.com",
-      "Ativar acesso publico de leitura via subdominio r2.dev (dominio customizado fica para pos-validacao)"
-    ],
-    "backend_client": "@aws-sdk/client-s3 apontando region=auto, endpoint=R2_ENDPOINT",
-    "frontend_compression": {
-      "package": "browser-image-compression",
-      "rules": "converter para WebP, max 1920x1080, antes do upload"
-    },
-    "video_rules": {
-      "preferred": "link YouTube nao listado ou Vimeo, armazenar apenas URL",
-      "direct_file": "limite 30MB validado no frontend antes do envio ao R2"
-    }
+    "endpoint": "/admin/imoveis/:imovel_id/midias",
+    "campo_multipart": "arquivos",
+    "imagens_max_bytes": 10485760,
+    "videos_max_bytes": 31457280,
+    "lote_max_bytes": 62914560,
+    "storage": "R2 em memoria com compensacao",
+    "exclusao": "fisica R2 e banco; capa passa a primeira imagem restante"
   },
   "leads_flow": {
-    "sequence": [
-      "Visitante preenche formulario (nome, telefone, checkbox LGPD)",
-      "Ao clicar em 'Falar com o corretor': abre wa.me IMEDIATAMENTE (nao bloqueante)",
-      "Em paralelo: fetch assincrono POST /leads (nao trava a navegacao)",
-      "Backend valida consent_given === true obrigatoriamente; rejeita com 400 se ausente/false"
-    ],
-    "whatsapp_url_template": "https://wa.me/{agent.whatsappNumber}?text=Ola {agent.name}, tenho interesse no imovel {property.title} (Ref: {property.id})."
+    "publico": "POST /clientes com imovel_id e consentimento=true",
+    "manual": "POST /admin/clientes sem consentimento web ou imovel obrigatorio",
+    "privacidade": "atendente apenas seus clientes; ADMIN todos",
+    "busca": "nome; filtro imovel_id",
+    "exclusao": "ativo=false"
   },
   "env_vars": {
     "corretor-api": {
-      "PORT": "3000",
-      "NODE_ENV": "development",
-      "DATABASE_URL": "postgresql://usuario:senha@host.neon.tech/corretor-db?sslmode=require",
-      "JWT_SECRET": "chave forte, nunca commitada",
-      "JWT_EXPIRES_IN": "7d",
-      "R2_ENDPOINT": "https://<account_id>.r2.cloudflarestorage.com",
-      "R2_ACCESS_KEY_ID": "",
-      "R2_SECRET_ACCESS_KEY": "",
-      "R2_PUBLIC_URL": "https://<bucket>.r2.dev"
+      "DATABASE_URL": "Neon direto com SSL",
+      "JWT_SECRET": "segredo >=32 caracteres",
+      "JWT_EXPIRES_IN": "15m",
+      "ALLOWED_ORIGINS": "origens HTTPS exatas",
+      "R2_ENDPOINT": "endpoint HTTPS S3 da conta",
+      "R2_ACCESS_KEY_ID": "segredo",
+      "R2_SECRET_ACCESS_KEY": "segredo",
+      "R2_PUBLIC_URL": "origem publica de midia",
+      "GOOGLE_DRIVE_CLIENT_EMAIL": "Service Account",
+      "GOOGLE_DRIVE_PRIVATE_KEY": "segredo RSA",
+      "GOOGLE_DRIVE_ROOT_FOLDER_ID": "pasta privada raiz",
+      "GOOGLE_DRIVE_SHARED_DRIVE_ID": "Drive compartilhado",
+      "MIGRACAO_BACKUP_ARQUIVO": "somente CLI de corte",
+      "MIGRACAO_COMPLEMENTOS_ARQUIVO": "somente CLI de corte",
+      "LEADS_ENCRYPTION_KEY": "somente decifragem do legado",
+      "BOOTSTRAP_ADMIN_CPF": "somente primeiro ADMIN"
     },
     "corretor-web": {
       "VITE_API_URL": "http://localhost:3000"
@@ -667,6 +1737,927 @@
       "private_fields": "encrypted with AES-256-GCM using domain-separated key derived from LEADS_ENCRYPTION_KEY; names searchable",
       "deletion": "archive parties; retain contracts; FK RESTRICT protects property history"
     },
-    "delivery_status": "code implemented; real Neon migration and private R2 provisioning pending environment access"
+    "delivery_status": "Historico substituido por backend_integral_2026_09_13; variacoes anteriores de ambos repos preservadas em historico_especificacoes."
+  },
+  "historico_especificacoes": [
+    {
+      "data": "2026-09-12",
+      "motivo": "Modelo anterior preservado; substituido pelo pedido integral de 13/09/2026.",
+      "database_schema": {
+        "agents": {
+          "table": "agents",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true,
+              "generated": true
+            },
+            {
+              "name": "name",
+              "type": "text"
+            },
+            {
+              "name": "email",
+              "type": "text",
+              "unique": true
+            },
+            {
+              "name": "password_hash",
+              "type": "text"
+            },
+            {
+              "name": "whatsapp_number",
+              "type": "text",
+              "note": "formato ex: 5511999999999"
+            },
+            {
+              "name": "creci",
+              "type": "text",
+              "nullable": true
+            },
+            {
+              "name": "role",
+              "type": "enum",
+              "enum_name": "AgentRole",
+              "values": [
+                "ADMIN",
+                "AGENT"
+              ],
+              "default": "AGENT"
+            },
+            {
+              "name": "avatar_url",
+              "type": "text",
+              "nullable": true
+            },
+            {
+              "name": "active",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "generated": "create"
+            }
+          ],
+          "relations": [
+            {
+              "type": "OneToMany",
+              "target": "properties",
+              "via": "agent_id"
+            }
+          ]
+        },
+        "properties": {
+          "table": "properties",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true,
+              "generated": true
+            },
+            {
+              "name": "title",
+              "type": "text"
+            },
+            {
+              "name": "slug",
+              "type": "text",
+              "unique": true,
+              "indexed": true
+            },
+            {
+              "name": "type",
+              "type": "enum",
+              "enum_name": "PropertyType",
+              "values": [
+                "GALPAO",
+                "SALA",
+                "PREDIO",
+                "LOJA",
+                "TERRENO"
+              ]
+            },
+            {
+              "name": "purpose",
+              "type": "enum",
+              "enum_name": "PropertyPurpose",
+              "values": [
+                "LOCACAO",
+                "VENDA"
+              ]
+            },
+            {
+              "name": "price",
+              "type": "numeric(12,2)"
+            },
+            {
+              "name": "condo_fee",
+              "type": "numeric(10,2)",
+              "nullable": true
+            },
+            {
+              "name": "iptu_fee",
+              "type": "numeric(10,2)",
+              "nullable": true
+            },
+            {
+              "name": "usable_area",
+              "type": "numeric(10,2)"
+            },
+            {
+              "name": "total_area",
+              "type": "numeric(10,2)"
+            },
+            {
+              "name": "address_street",
+              "type": "text"
+            },
+            {
+              "name": "address_number",
+              "type": "text"
+            },
+            {
+              "name": "address_city",
+              "type": "text"
+            },
+            {
+              "name": "address_state",
+              "type": "text"
+            },
+            {
+              "name": "neighborhood",
+              "type": "text"
+            },
+            {
+              "name": "description",
+              "type": "text"
+            },
+            {
+              "name": "features",
+              "type": "jsonb",
+              "default": {},
+              "note": "ex: { docas: 4, peDireito: 10, vagas: 12 }"
+            },
+            {
+              "name": "status",
+              "type": "enum",
+              "enum_name": "PropertyStatus",
+              "values": [
+                "DISPONIVEL",
+                "RESERVADO",
+                "CONCLUIDO"
+              ],
+              "default": "DISPONIVEL"
+            },
+            {
+              "name": "agent_id",
+              "type": "uuid",
+              "fk": "agents.id"
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "generated": "create"
+            },
+            {
+              "name": "updated_at",
+              "type": "timestamptz",
+              "generated": "update"
+            }
+          ],
+          "relations": [
+            {
+              "type": "ManyToOne",
+              "target": "agents"
+            },
+            {
+              "type": "OneToMany",
+              "target": "property_media",
+              "via": "property_id"
+            }
+          ]
+        },
+        "property_media": {
+          "table": "property_media",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true,
+              "generated": true
+            },
+            {
+              "name": "property_id",
+              "type": "uuid",
+              "fk": "properties.id",
+              "on_delete": "CASCADE"
+            },
+            {
+              "name": "type",
+              "type": "enum",
+              "enum_name": "MediaType",
+              "values": [
+                "IMAGE",
+                "VIDEO_EMBED",
+                "VIDEO_FILE"
+              ]
+            },
+            {
+              "name": "url",
+              "type": "text"
+            },
+            {
+              "name": "storage_key",
+              "type": "text",
+              "nullable": true,
+              "note": "chave no bucket R2, usada para deletar depois"
+            },
+            {
+              "name": "order_index",
+              "type": "integer",
+              "default": 0
+            },
+            {
+              "name": "is_cover",
+              "type": "boolean",
+              "default": false
+            }
+          ]
+        },
+        "leads": {
+          "table": "leads",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true,
+              "generated": true
+            },
+            {
+              "name": "property_id",
+              "type": "uuid",
+              "fk": "properties.id",
+              "on_delete": "SET NULL",
+              "nullable": true
+            },
+            {
+              "name": "agent_id",
+              "type": "uuid",
+              "fk": "agents.id"
+            },
+            {
+              "name": "lead_name",
+              "type": "text"
+            },
+            {
+              "name": "lead_phone",
+              "type": "text"
+            },
+            {
+              "name": "lead_email",
+              "type": "text",
+              "nullable": true
+            },
+            {
+              "name": "message",
+              "type": "text",
+              "nullable": true
+            },
+            {
+              "name": "consent_given",
+              "type": "boolean",
+              "note": "OBRIGATORIO true para salvar; rejeitar com 400 se false/ausente"
+            },
+            {
+              "name": "consent_timestamp",
+              "type": "timestamptz"
+            },
+            {
+              "name": "consent_ip",
+              "type": "text"
+            },
+            {
+              "name": "terms_version",
+              "type": "text",
+              "default": "v1.0"
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "generated": "create"
+            }
+          ]
+        }
+      },
+      "auth": {
+        "flow": [
+          "POST /auth/login recebe email + senha",
+          "AuthService busca Agent por email, compara senha com argon2.verify()",
+          "Se valido, gera JWT com payload { sub: agent.id, role: agent.role }",
+          "Frontend guarda token em memoria + refresh via cookie httpOnly (nunca em localStorage puro)",
+          "Rotas protegidas usam JwtAuthGuard + RolesGuard combinados"
+        ],
+        "hash_algorithm": "argon2id",
+        "guard_rules": {
+          "public_no_guard": [
+            "listagem publica de imoveis",
+            "detalhe publico de imovel",
+            "criacao de lead"
+          ],
+          "jwt_auth_guard": [
+            "CRUD administrativo de imoveis",
+            "upload/gestao de midia",
+            "listagem de leads no painel"
+          ],
+          "jwt_auth_guard_plus_roles_admin": [
+            "criacao/edicao/remocao de corretores"
+          ]
+        }
+      },
+      "media_pipeline": {
+        "bucket_name": "corretor-midia",
+        "setup_steps": [
+          "Criar bucket no painel Cloudflare",
+          "Gerar API Token com permissao leitura/escrita (Account -> R2 -> Manage API Tokens)",
+          "Anotar Account ID, Access Key ID, Secret Access Key, endpoint https://<account_id>.r2.cloudflarestorage.com",
+          "Ativar acesso publico de leitura via subdominio r2.dev (dominio customizado fica para pos-validacao)"
+        ],
+        "backend_client": "@aws-sdk/client-s3 apontando region=auto, endpoint=R2_ENDPOINT",
+        "frontend_compression": {
+          "package": "browser-image-compression",
+          "rules": "converter para WebP, max 1920x1080, antes do upload"
+        },
+        "video_rules": {
+          "preferred": "link YouTube nao listado ou Vimeo, armazenar apenas URL",
+          "direct_file": "limite 30MB validado no frontend antes do envio ao R2"
+        }
+      },
+      "leads_flow": {
+        "sequence": [
+          "Visitante preenche formulario (nome, telefone, checkbox LGPD)",
+          "Ao clicar em 'Falar com o corretor': abre wa.me IMEDIATAMENTE (nao bloqueante)",
+          "Em paralelo: fetch assincrono POST /leads (nao trava a navegacao)",
+          "Backend valida consent_given === true obrigatoriamente; rejeita com 400 se ausente/false"
+        ],
+        "whatsapp_url_template": "https://wa.me/{agent.whatsappNumber}?text=Ola {agent.name}, tenho interesse no imovel {property.title} (Ref: {property.id})."
+      },
+      "env_vars": {
+        "corretor-api": {
+          "DATABASE_URL": "Neon direto com SSL",
+          "JWT_SECRET": "segredo >=32 caracteres",
+          "JWT_EXPIRES_IN": "15m",
+          "ALLOWED_ORIGINS": "origens HTTPS exatas",
+          "R2_ENDPOINT": "endpoint HTTPS S3 da conta",
+          "R2_ACCESS_KEY_ID": "segredo",
+          "R2_SECRET_ACCESS_KEY": "segredo",
+          "R2_PUBLIC_URL": "origem publica de midia",
+          "GOOGLE_DRIVE_CLIENT_EMAIL": "Service Account",
+          "GOOGLE_DRIVE_PRIVATE_KEY": "segredo RSA",
+          "GOOGLE_DRIVE_ROOT_FOLDER_ID": "pasta privada raiz",
+          "GOOGLE_DRIVE_SHARED_DRIVE_ID": "Drive compartilhado",
+          "MIGRACAO_BACKUP_ARQUIVO": "somente CLI de corte",
+          "MIGRACAO_COMPLEMENTOS_ARQUIVO": "somente CLI de corte",
+          "LEADS_ENCRYPTION_KEY": "somente decifragem do legado",
+          "BOOTSTRAP_ADMIN_CPF": "somente primeiro ADMIN"
+        },
+        "corretor-web": {
+          "VITE_API_URL": "http://localhost:3000"
+        },
+        "note": "Numero de WhatsApp de cada corretor fica no banco (campo agents.whatsapp_number), nao em variavel de ambiente."
+      },
+      "rental_administration": {
+        "stage": "rental_administration_foundation",
+        "access": "ADMIN only",
+        "approved_scope": [
+          "PF/PJ owner and tenant records",
+          "owner banking details",
+          "one property/owner/tenant per lease",
+          "private documents on party or lease",
+          "manual initial entry",
+          "search, pagination and active flags"
+        ],
+        "deferred": [
+          "commission basis pending owner decision",
+          "charges, receipts, commissions and payouts",
+          "financial reports",
+          "SI9/Imonov integration",
+          "spreadsheet import",
+          "automated alerts"
+        ],
+        "api": {
+          "parties": "/admin/rental-parties",
+          "leases": "/admin/leases",
+          "documents": "/admin/rental-documents"
+        },
+        "rules": {
+          "party_kind_immutable": true,
+          "lease_statuses": [
+            "DRAFT",
+            "ACTIVE",
+            "ENDED"
+          ],
+          "one_active_lease_per_property": true,
+          "rent_format": "positive decimal string with two fraction digits",
+          "dates": "YYYY-MM-DD civil dates",
+          "due_day": "1-31; billing calendar handling deferred",
+          "documents": "PDF/JPEG/PNG, signature checked, max 10 MiB, authenticated attachment download",
+          "document_storage": "private R2_DOCUMENTS_BUCKET separate from public corretor-midia; no public URL",
+          "private_fields": "encrypted with AES-256-GCM using domain-separated key derived from LEADS_ENCRYPTION_KEY; names searchable",
+          "deletion": "archive parties; retain contracts; FK RESTRICT protects property history"
+        },
+        "delivery_status": "code implemented; real Neon migration and private R2 provisioning pending environment access"
+      }
+    },
+    {
+      "data": "2026-09-12",
+      "motivo": "Modelo anterior preservado; substituido pelo pedido integral de 13/09/2026.",
+      "database_schema": {
+        "agents": {
+          "table": "agents",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true,
+              "generated": true
+            },
+            {
+              "name": "name",
+              "type": "text"
+            },
+            {
+              "name": "email",
+              "type": "text",
+              "unique": true
+            },
+            {
+              "name": "password_hash",
+              "type": "text"
+            },
+            {
+              "name": "whatsapp_number",
+              "type": "text",
+              "note": "formato ex: 5511999999999"
+            },
+            {
+              "name": "creci",
+              "type": "text",
+              "nullable": true
+            },
+            {
+              "name": "role",
+              "type": "enum",
+              "enum_name": "AgentRole",
+              "values": [
+                "ADMIN",
+                "AGENT"
+              ],
+              "default": "AGENT"
+            },
+            {
+              "name": "avatar_url",
+              "type": "text",
+              "nullable": true
+            },
+            {
+              "name": "active",
+              "type": "boolean",
+              "default": true
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "generated": "create"
+            }
+          ],
+          "relations": [
+            {
+              "type": "OneToMany",
+              "target": "properties",
+              "via": "agent_id"
+            }
+          ]
+        },
+        "properties": {
+          "table": "properties",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true,
+              "generated": true
+            },
+            {
+              "name": "title",
+              "type": "text"
+            },
+            {
+              "name": "slug",
+              "type": "text",
+              "unique": true,
+              "indexed": true
+            },
+            {
+              "name": "type",
+              "type": "enum",
+              "enum_name": "PropertyType",
+              "values": [
+                "GALPAO",
+                "SALA",
+                "PREDIO",
+                "LOJA",
+                "TERRENO"
+              ]
+            },
+            {
+              "name": "purpose",
+              "type": "enum",
+              "enum_name": "PropertyPurpose",
+              "values": [
+                "LOCACAO",
+                "VENDA"
+              ]
+            },
+            {
+              "name": "price",
+              "type": "numeric(12,2)"
+            },
+            {
+              "name": "condo_fee",
+              "type": "numeric(10,2)",
+              "nullable": true
+            },
+            {
+              "name": "iptu_fee",
+              "type": "numeric(10,2)",
+              "nullable": true
+            },
+            {
+              "name": "usable_area",
+              "type": "numeric(10,2)"
+            },
+            {
+              "name": "total_area",
+              "type": "numeric(10,2)"
+            },
+            {
+              "name": "address_street",
+              "type": "text"
+            },
+            {
+              "name": "address_number",
+              "type": "text"
+            },
+            {
+              "name": "address_city",
+              "type": "text"
+            },
+            {
+              "name": "address_state",
+              "type": "text"
+            },
+            {
+              "name": "neighborhood",
+              "type": "text"
+            },
+            {
+              "name": "description",
+              "type": "text"
+            },
+            {
+              "name": "features",
+              "type": "jsonb",
+              "default": {},
+              "note": "ex: { docas: 4, peDireito: 10, vagas: 12 }"
+            },
+            {
+              "name": "status",
+              "type": "enum",
+              "enum_name": "PropertyStatus",
+              "values": [
+                "DISPONIVEL",
+                "RESERVADO",
+                "CONCLUIDO"
+              ],
+              "default": "DISPONIVEL"
+            },
+            {
+              "name": "agent_id",
+              "type": "uuid",
+              "fk": "agents.id"
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "generated": "create"
+            },
+            {
+              "name": "updated_at",
+              "type": "timestamptz",
+              "generated": "update"
+            }
+          ],
+          "relations": [
+            {
+              "type": "ManyToOne",
+              "target": "agents"
+            },
+            {
+              "type": "OneToMany",
+              "target": "property_media",
+              "via": "property_id"
+            }
+          ]
+        },
+        "property_media": {
+          "table": "property_media",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true,
+              "generated": true
+            },
+            {
+              "name": "property_id",
+              "type": "uuid",
+              "fk": "properties.id",
+              "on_delete": "CASCADE"
+            },
+            {
+              "name": "type",
+              "type": "enum",
+              "enum_name": "MediaType",
+              "values": [
+                "IMAGE",
+                "VIDEO_EMBED",
+                "VIDEO_FILE"
+              ]
+            },
+            {
+              "name": "url",
+              "type": "text"
+            },
+            {
+              "name": "storage_key",
+              "type": "text",
+              "nullable": true,
+              "note": "chave no bucket R2, usada para deletar depois"
+            },
+            {
+              "name": "order_index",
+              "type": "integer",
+              "default": 0
+            },
+            {
+              "name": "is_cover",
+              "type": "boolean",
+              "default": false
+            }
+          ]
+        },
+        "leads": {
+          "table": "leads",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true,
+              "generated": true
+            },
+            {
+              "name": "property_id",
+              "type": "uuid",
+              "fk": "properties.id",
+              "on_delete": "SET NULL",
+              "nullable": true
+            },
+            {
+              "name": "agent_id",
+              "type": "uuid",
+              "fk": "agents.id"
+            },
+            {
+              "name": "lead_name",
+              "type": "text"
+            },
+            {
+              "name": "lead_phone",
+              "type": "text"
+            },
+            {
+              "name": "lead_email",
+              "type": "text",
+              "nullable": true
+            },
+            {
+              "name": "message",
+              "type": "text",
+              "nullable": true
+            },
+            {
+              "name": "consent_given",
+              "type": "boolean",
+              "note": "OBRIGATORIO true para salvar; rejeitar com 400 se false/ausente"
+            },
+            {
+              "name": "consent_timestamp",
+              "type": "timestamptz"
+            },
+            {
+              "name": "consent_ip",
+              "type": "text"
+            },
+            {
+              "name": "terms_version",
+              "type": "text",
+              "default": "v1.0"
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz",
+              "generated": "create"
+            }
+          ]
+        }
+      },
+      "auth": {
+        "flow": [
+          "POST /auth/login recebe email + senha",
+          "AuthService busca Agent por email, compara senha com argon2.verify()",
+          "Se valido, gera JWT com payload { sub: agent.id, role: agent.role }",
+          "Frontend guarda token em memoria + refresh via cookie httpOnly (nunca em localStorage puro)",
+          "Rotas protegidas usam JwtAuthGuard + RolesGuard combinados"
+        ],
+        "hash_algorithm": "argon2id",
+        "guard_rules": {
+          "public_no_guard": [
+            "listagem publica de imoveis",
+            "detalhe publico de imovel",
+            "criacao de lead"
+          ],
+          "jwt_auth_guard": [
+            "CRUD administrativo de imoveis",
+            "upload/gestao de midia",
+            "listagem de leads no painel"
+          ],
+          "jwt_auth_guard_plus_roles_admin": [
+            "criacao/edicao/remocao de corretores"
+          ]
+        }
+      },
+      "media_pipeline": {
+        "bucket_name": "corretor-midia",
+        "setup_steps": [
+          "Criar bucket no painel Cloudflare",
+          "Gerar API Token com permissao leitura/escrita (Account -> R2 -> Manage API Tokens)",
+          "Anotar Account ID, Access Key ID, Secret Access Key, endpoint https://<account_id>.r2.cloudflarestorage.com",
+          "Ativar acesso publico de leitura via subdominio r2.dev (dominio customizado fica para pos-validacao)"
+        ],
+        "backend_client": "@aws-sdk/client-s3 apontando region=auto, endpoint=R2_ENDPOINT",
+        "frontend_compression": {
+          "package": "browser-image-compression",
+          "rules": "converter para WebP, max 1920x1080, antes do upload"
+        },
+        "video_rules": {
+          "preferred": "link YouTube nao listado ou Vimeo, armazenar apenas URL",
+          "direct_file": "limite 30MB validado no frontend antes do envio ao R2"
+        }
+      },
+      "leads_flow": {
+        "sequence": [
+          "Visitante preenche formulario (nome, telefone, checkbox LGPD)",
+          "Ao clicar em 'Falar com o corretor': abre wa.me IMEDIATAMENTE (nao bloqueante)",
+          "Em paralelo: fetch assincrono POST /leads (nao trava a navegacao)",
+          "Backend valida consent_given === true obrigatoriamente; rejeita com 400 se ausente/false"
+        ],
+        "whatsapp_url_template": "https://wa.me/{agent.whatsappNumber}?text=Ola {agent.name}, tenho interesse no imovel {property.title} (Ref: {property.id})."
+      },
+      "env_vars": {
+        "corretor-api": {
+          "DATABASE_URL": "Neon direto com SSL",
+          "JWT_SECRET": "segredo >=32 caracteres",
+          "JWT_EXPIRES_IN": "15m",
+          "ALLOWED_ORIGINS": "origens HTTPS exatas",
+          "R2_ENDPOINT": "endpoint HTTPS S3 da conta",
+          "R2_ACCESS_KEY_ID": "segredo",
+          "R2_SECRET_ACCESS_KEY": "segredo",
+          "R2_PUBLIC_URL": "origem publica de midia",
+          "GOOGLE_DRIVE_CLIENT_EMAIL": "Service Account",
+          "GOOGLE_DRIVE_PRIVATE_KEY": "segredo RSA",
+          "GOOGLE_DRIVE_ROOT_FOLDER_ID": "pasta privada raiz",
+          "GOOGLE_DRIVE_SHARED_DRIVE_ID": "Drive compartilhado",
+          "MIGRACAO_BACKUP_ARQUIVO": "somente CLI de corte",
+          "MIGRACAO_COMPLEMENTOS_ARQUIVO": "somente CLI de corte",
+          "LEADS_ENCRYPTION_KEY": "somente decifragem do legado",
+          "BOOTSTRAP_ADMIN_CPF": "somente primeiro ADMIN"
+        },
+        "corretor-web": {
+          "VITE_API_URL": "http://localhost:3000"
+        },
+        "note": "Numero de WhatsApp de cada corretor fica no banco (campo agents.whatsapp_number), nao em variavel de ambiente."
+      },
+      "rental_administration": {
+        "stage": "rental_administration_foundation",
+        "access": "ADMIN only",
+        "approved_scope": [
+          "PF/PJ owner and tenant records",
+          "owner banking details",
+          "one property/owner/tenant per lease",
+          "private documents on party or lease",
+          "manual initial entry",
+          "search, pagination and active flags"
+        ],
+        "deferred": [
+          "commission basis pending owner decision",
+          "charges, receipts, commissions and payouts",
+          "financial reports",
+          "SI9/Imonov integration",
+          "spreadsheet import",
+          "automated alerts"
+        ],
+        "api": {
+          "parties": "/admin/rental-parties",
+          "leases": "/admin/leases",
+          "documents": "/admin/rental-documents"
+        },
+        "rules": {
+          "party_kind_immutable": true,
+          "lease_statuses": [
+            "DRAFT",
+            "ACTIVE",
+            "ENDED"
+          ],
+          "one_active_lease_per_property": true,
+          "rent_format": "positive decimal string with two fraction digits",
+          "dates": "YYYY-MM-DD civil dates",
+          "due_day": "1-31; billing calendar handling deferred",
+          "documents": "PDF/JPEG/PNG, signature checked, max 10 MiB, authenticated attachment download",
+          "document_storage": "private R2_DOCUMENTS_BUCKET separate from public corretor-midia; no public URL",
+          "private_fields": "encrypted with AES-256-GCM using domain-separated key derived from LEADS_ENCRYPTION_KEY; names searchable",
+          "deletion": "archive parties; retain contracts; FK RESTRICT protects property history"
+        },
+        "delivery_status": "code implemented; real Neon migration and private R2 provisioning pending environment access",
+        "commission_rule_provisional": {
+          "basis": "one contract rent amount",
+          "type": "acquisition commission",
+          "installments": "configurable count and civil due dates",
+          "confirmation": "manual ADMIN confirmation per installment",
+          "display": "total, paid amount and balance",
+          "separate_from": "monthly owner payout",
+          "validation_required": "accounting/business owner before operational use",
+          "excluded": [
+            "percentage assumption",
+            "interest/penalty assumptions",
+            "tax withholding",
+            "SI9/Imonov integration"
+          ]
+        }
+      }
+    }
+  ],
+  "backend_integral_2026_09_13": {
+    "documento_normativo": "docs/specs/2026-09-13-backend-integral.md",
+    "entrega_e_migracao": "docs/handoffs/2026-09-14-backend-portugues.md",
+    "substitui": [
+      "database_schema legado",
+      "rental_administration_2026_09_12",
+      "auth e leads_flow antigos",
+      "restricao ADMIN-only de contratos",
+      "rental_documents e rent_payments operacionais",
+      "criptografia de coluna"
+    ],
+    "nomenclatura": "portugues brasileiro; campos snake_case",
+    "prefixo_http": "/api/v1",
+    "banco": {
+      "plataforma": "Neon",
+      "versao": 16,
+      "migrations": true,
+      "synchronize": false,
+      "migrationsRun": false,
+      "ultima_migration": "1789516800000-modelo-portugues.ts",
+      "arquivo_legado": "legado_20260913"
+    },
+    "regras": {
+      "exclusao": "logica com ativo; midias fisicas; sessoes consumidas/expurgadas",
+      "auditoria": [
+        "criado_em",
+        "alterado_em",
+        "criado_por",
+        "alterado_por"
+      ],
+      "dados_pessoais": "colunas reais sem criptografia de coluna",
+      "contrato_ativo_unico_por_imovel": true,
+      "financeiro": "receita de intermediacao e parcelas; sem repasses de aluguel",
+      "fuso_datas": "America/Cuiaba",
+      "drive": "Service Account em Drive compartilhado privado confirmado pelo dono",
+      "maximo_parcelas": 600
+    },
+    "estado": "implementado; homologacao isolada; sem publicacao",
+    "frontend": "contrato antigo ainda em uso; adaptar antes do deploy conjunto"
   }
 }

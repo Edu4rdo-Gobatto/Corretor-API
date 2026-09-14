@@ -16,9 +16,9 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
-    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
-    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "migration:show": "ts-node src/commands/migracoes.ts listar",
+    "migration:run": "ts-node src/commands/migracoes.ts executar",
+    "migration:revert": "ts-node src/commands/migracoes.ts reverter",
     "bootstrap:admin": "ts-node src/commands/bootstrap-admin.ts"
   },
   "devDependencies": {

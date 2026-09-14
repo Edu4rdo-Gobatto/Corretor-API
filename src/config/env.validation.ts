@@ -1,7 +1,8 @@
 import 'reflect-metadata';
+import { createPrivateKey } from 'node:crypto';
 import { plainToInstance, Type } from 'class-transformer';
 import {
-  IsIn, IsInt, IsString, IsUrl, Matches, Max, Min, MinLength, ValidateIf,
+  IsIn, IsInt, IsString, IsUrl, IsEmail, Matches, Max, Min, MinLength, ValidateIf,
   Validate, ValidatorConstraint, validateSync,
   type ValidatorConstraintInterface,
 } from 'class-validator';
@@ -58,10 +59,6 @@ export class EnvironmentVariables {
   @Matches(/^https?:\/\/[^\s,/]+(,https?:\/\/[^\s,/]+)*$/)
   ALLOWED_ORIGINS = 'http://localhost:5173';
 
-  @ValidateIf((_object, value: unknown) => value !== undefined)
-  @Matches(/^(?!corretor-midia$)[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/)
-  R2_DOCUMENTS_BUCKET?: string;
-
   @IsUrl({ protocols: ['https'], require_protocol: true })
   R2_ENDPOINT!: string;
 
@@ -76,9 +73,21 @@ export class EnvironmentVariables {
   @IsUrl({ protocols: ['https'], require_protocol: true })
   R2_PUBLIC_URL!: string;
 
+  @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
+  @IsEmail()
+  GOOGLE_DRIVE_CLIENT_EMAIL?: string;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
   @IsString()
-  @MinLength(32)
-  LEADS_ENCRYPTION_KEY!: string;
+  GOOGLE_DRIVE_PRIVATE_KEY?: string;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
+  @Matches(/^[A-Za-z0-9_-]+$/)
+  GOOGLE_DRIVE_ROOT_FOLDER_ID?: string;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
+  @Matches(/^[A-Za-z0-9_-]+$/)
+  GOOGLE_DRIVE_SHARED_DRIVE_ID?: string;
 
   @Type(() => Number)
   @IsInt()
@@ -103,6 +112,19 @@ export function validateEnvironment(environment: Record<string, unknown>): Envir
     // Only field names are reported: validator messages may interpolate secrets.
     const fields = errors.map((error) => error.property).join(', ');
     throw new Error(`Configuração de ambiente inválida: ${fields}. Consulte .env.example.`);
+  }
+
+  const camposDrive = ['GOOGLE_DRIVE_CLIENT_EMAIL', 'GOOGLE_DRIVE_PRIVATE_KEY', 'GOOGLE_DRIVE_ROOT_FOLDER_ID', 'GOOGLE_DRIVE_SHARED_DRIVE_ID'] as const;
+  if (camposDrive.some(campo => Boolean(configuration[campo]))) {
+    if (camposDrive.some(campo => !configuration[campo])) {
+      throw new Error(`Configuração de ambiente inválida: configure juntos ${camposDrive.join(', ')}.`);
+    }
+    try {
+      const chave = createPrivateKey(configuration.GOOGLE_DRIVE_PRIVATE_KEY!.replace(/\\n/g, '\n'));
+      if (chave.asymmetricKeyType !== 'rsa' || (chave.asymmetricKeyDetails?.modulusLength ?? 0) < 2048) throw new Error();
+    } catch {
+      throw new Error('Configuração de ambiente inválida: GOOGLE_DRIVE_PRIVATE_KEY deve ser uma chave privada RSA válida.');
+    }
   }
 
   return configuration;

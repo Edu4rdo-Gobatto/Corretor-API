@@ -163,3 +163,13 @@ Responsável: Codex. Implementação e publicação no front, contratos da API p
 Responsável: opencode — concluída em 13/09/2026 (sem commit)
 Objetivo: foto grande e edição dos próprios dados em /admin/perfil, troca da própria senha, reset pelo ADMIN com senha escolhida na hora e métricas por status sem endpoint novo de stats.
 Critérios: PATCH /auth/me com whitelist (e-mail/papel/ativo só ADMIN), PATCH /auth/me/password com verificação da atual, status opcional só no gerenciado, reset reuse PATCH /agents/:id. Typecheck, lint, 18 suítes/195 testes aprovados. Sem revogação de outras sessões (registrado). Deploy no Render pendente.
+
+## BACKEND-PT-001 — Refatoração integral — concluída em código e homologação isolada (14/09/2026)
+
+Responsável: Codex (principal + especialistas por domínio). Pedido integral: docs/specs/2026-09-13-backend-integral.md. Entrega: docs/handoffs/2026-09-14-backend-portugues.md.
+
+Concluído: entidades/DTOs/rotas em português, classificação dinâmica, auditoria/soft delete, clientes públicos/manuais, partes sem cifra de coluna, contratos e Drive compartilhado, comissões/parcelas, jobs, migração preservando legado e CLI com logs sanitizados. Removidos módulos antigos do runtime. Nenhuma dependência nova. Typecheck, lint, build, 169 testes locais e 4 testes PostgreSQL/HTTP reais aprovados.
+
+## BACKEND-PT-002 — Corte de ambiente publicado — pendente
+
+Adaptar frontend/SSR/auth/painel ao contrato novo; configurar Service Account e IDs do Drive compartilhado; homologar pastas e upload R2 reais; preencher CPF/complementos reais; validar backup/restauração; executar migration explícita com escritores antigos parados; publicar os dois repos juntos e ajustar health check do Render para /api/v1/saude. Não publicar backend isoladamente. Nenhum commit/push/deploy autorizado/executado nesta entrega. Regras antigas RENTAL-001/002/003 ficam substituídas pelo pedido integral, sem apagamento do histórico.

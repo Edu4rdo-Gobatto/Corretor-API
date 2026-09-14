@@ -665,3 +665,9 @@ Primeira entrega aprovada: proprietário → inquilino → contrato → document
 Implementação: entidades rental_parties, leases, rental_documents; módulo rentals; rotas administrativas dos dois repositórios. Detalhes em docs/plans/2026-09-12-rental-administration.md e corretor-spec.json. Migration e bucket privado precisam de homologação real antes da operação.
 
 Etapa financeira futura: a regra de comissão está explicitamente pendente. Recebimentos e repasses serão registrados manualmente no primeiro MVP financeiro; integrações bancárias não estão aprovadas. SI9/Imonov permanecem independentes; carga inicial manual. Relatórios, cobranças e alertas não foram implementados nesta primeira entrega.
+
+## 2026-09-14 — Atualização do plano: backend integral
+
+O modelo de 13/09/2026 em docs/specs/2026-09-13-backend-integral.md substitui a arquitetura de negócio anterior: cadastros em português, partes em colunas pesquisáveis, contratos e pastas privadas no Drive compartilhado, receita em comissões parceladas. O texto anterior permanece como histórico; a implementação vigente está descrita em docs/handoffs/2026-09-14-backend-portugues.md e corretor-spec.json.
+
+Sequência de publicação: validar backend isolado → adaptar frontend/SSR/autenticação/classificações/financeiro → homologar Drive e R2 reais → completar CPF/campos reais e verificar backup → migrar banco e publicar API/front em corte coordenado, incluindo health check /api/v1/saude. Não publicar API nova sobre o frontend antigo. Sem commit/deploy nesta entrega.

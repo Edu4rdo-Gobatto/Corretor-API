@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
+import { LoggerSeguro } from '../database/log-seguro';
 
 export function createDatabaseOptions(configuration: ConfigService): TypeOrmModuleOptions {
   return {
@@ -27,6 +28,7 @@ export function createPostgresOptions(databaseUrl: string): PostgresConnectionOp
     installExtensions: false,
     uuidExtension: 'pgcrypto',
     logging: false,
+    logger: new LoggerSeguro(),
     extra: { connectionTimeoutMillis: 10_000 },
   };
 }

@@ -7,10 +7,16 @@ const validEnvironment = {
   R2_ACCESS_KEY_ID: 'test-access-key',
   R2_SECRET_ACCESS_KEY: 'test-storage-secret',
   R2_PUBLIC_URL: 'https://pub-sample.r2.dev',
-  LEADS_ENCRYPTION_KEY: 'test-leads-encryption-key-with-at-least-32-characters',
 };
 
 describe('environment validation', () => {
+  it('starts without legacy column encryption and rejects incomplete Drive configuration without revealing keys', () => {
+    expect(() => validateEnvironment(validEnvironment)).not.toThrow();
+    expect(() => validateEnvironment({ ...validEnvironment, GOOGLE_DRIVE_CLIENT_EMAIL: 'conta@example.test' })).toThrow('GOOGLE_DRIVE');
+    expect(() => validateEnvironment({ ...validEnvironment, GOOGLE_DRIVE_PRIVATE_KEY: 'private-key-never-print' })).toThrow('GOOGLE_DRIVE');
+    try { validateEnvironment({ ...validEnvironment, GOOGLE_DRIVE_PRIVATE_KEY: 'private-key-never-print' }); }
+    catch (erro) { expect((erro as Error).message).not.toContain('private-key-never-print'); }
+  });
   it('accepts valid configuration and applies documented defaults', () => {
     expect(validateEnvironment(validEnvironment)).toMatchObject({
       ...validEnvironment,

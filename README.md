@@ -1,5 +1,7 @@
 # corretor-api
 
+> **Estado vigente — 14/09/2026:** backend integral em português, com cadastros dinâmicos, clientes, contratos/Drive compartilhado e comissões. Consulte a [entrega e migração](docs/handoffs/2026-09-14-backend-portugues.md) e a [especificação aprovada](docs/specs/2026-09-13-backend-integral.md). As seções antigas abaixo permanecem como histórico e não definem o contrato novo. Publicação depende da adaptação do frontend e do corte de banco coordenado.
+
 Fundação da API REST do sistema de corretor imobiliário. Backend separado do `corretor-web`, com NestJS 11, TypeScript, TypeORM e PostgreSQL hospedado no Neon.
 
 ## Estado da entrega

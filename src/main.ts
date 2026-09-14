@@ -1,4 +1,3 @@
-import { allowedOrigins } from './auth/browser-origin.guard';
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
@@ -24,7 +23,7 @@ async function bootstrap(): Promise<void> {
     forbidNonWhitelisted: true,
     transform: true,
   }));
-  application.enableCors({ origin: allowedOrigins(configuration), credentials: true });
+  application.enableCors({ origin: configuration.getOrThrow<string>('ALLOWED_ORIGINS').split(',').map(origem => origem.trim()), credentials: true });
   application.enableShutdownHooks();
   await application.listen(configuration.getOrThrow<number>('PORT'), '0.0.0.0');
 }

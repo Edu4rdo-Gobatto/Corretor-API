@@ -1,5 +1,7 @@
 # Estado atual — corretor-api
 
+> Estado vigente: registro de 14/09/2026 ao final e `docs/handoffs/2026-09-14-backend-portugues.md`. Os registros anteriores são históricos; prevalece o pedido integral de 13/09/2026.
+
 Atualizado em: 2026-09-12
 Agente responsável: Claude (sessão de ambiente de desenvolvimento e limpeza de dados fixos)
 Commit da `main`: `a41f49b` — "crente - task: secure frontend API integration"
@@ -115,3 +117,20 @@ Deploy dep-dajfg6gjo6nc73dlrs10 LIVE; health da API HTTP 200. Escrita de objeto 
 ## 2026-09-13 — opencode: perfil próprio, senha e filtro de status (implementado, sem commit)
 Área assumida: PATCH /auth/me, PATCH /auth/me/password e status? no gerenciado, a pedido do dono (inclui front no repositório irmão). Sem migration e sem mudança no contrato público. Typecheck, lint e 18 suítes/195 testes aprovados. Sem commit/push (aguardando confirmação do dono); deploy no Render pendente. Troca/reset não revoga outras sessões (decisão em DECISIONS.md).
 Commit a6026d3 na main, push c404f6e..a6026d3 main -> main.
+
+## 2026-09-13 — Codex: refatoração integral do backend em andamento
+Área assumida: modelo português, migração, autenticação, catálogo, clientes, contratos/Drive e comissões. Plano: docs/plans/2026-09-13-backend-portugues.md. Agentes divididos por domínio, documentação centralizada no Codex principal. Pedido atual substitui regras conflitantes do MVP anterior. Sem commit/push/deploy ou mutação no Neon nesta implementação.
+
+## 2026-09-14 — Codex: backend integral implementado e validado
+
+Estado: código concluído; homologação isolada concluída; sem commit/push/deploy. Novo domínio: autenticacao, corretores, cadastros, imoveis, midias, clientes, locacoes, comissoes, drive, comum e saude. Migrations históricas preservadas; nova 1789516800000 converte e arquiva legado, sem inventar dados. Logger/CLI impedem exposição de dados decifrados. Retirados runtime/telas API antigas de documentos privados e pagamentos/repasse mensal.
+
+Verificação final: npm run typecheck, npm run lint, npm run build — aprovados. npm test — 26 suítes/169 testes aprovados; 4 testes de integração ficam opcionais no comando local e foram executados separadamente com sucesso (1 suíte) usando HOMOLOGACAO_DATABASE_URL na database vazia homologacao_pt, branch Neon br-ancient-sound-a5tsf5rf, PostgreSQL 16.15/TLS. Conversão de IDs/hashes/cifras/tags, constraints/FKs/índice parcial e HTTP completo de saúde/login/catálogo/clientes/comissões/baixa aprovados; transação revertida ao final.
+
+Revisão independente corrigida: logging forçado da CLI TypeORM (substituída por executor sanitizado) e suporte a clientes manuais para comissões legadas sem lead. Nenhum segredo no Git ou nos registros. Documentação de ambos repositórios atualizada sem apagar histórico.
+
+Pendências externas: credenciais/IDs e homologação real Workspace, upload novo com R2 real, complementos/backup/corte do banco publicado e adaptação frontend/SSR. Banco principal e serviços publicados não alterados. A branch de homologação foi mantida para revisão; definir sua retenção após aceite. Git permanece main; estado inicial sincronizado com origin/main, sem alterações preexistentes de código da API.
+
+## 14/09/2026 — frontend do modelo português em execução
+Codex concluiu API-PT-002 no frontend irmão: painel, serviços, SSR, classificações dinâmicas, mídia, clientes, contratos e comissões integrados ao contrato português. Drive externo será configurado pelo dono. API permanece validada com typecheck, lint e testes.
+

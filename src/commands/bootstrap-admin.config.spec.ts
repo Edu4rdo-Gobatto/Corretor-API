@@ -1,4 +1,4 @@
-import { AgentRole } from '../agents/agent.entity';
+import { CargoCorretor } from '../corretores/corretor.entity';
 import { parseBootstrapAdministrator } from './bootstrap-admin.config';
 
 describe('initial administrator configuration', () => {
@@ -7,12 +7,13 @@ describe('initial administrator configuration', () => {
     BOOTSTRAP_ADMIN_EMAIL: ' ADMIN@EXAMPLE.COM ',
     BOOTSTRAP_ADMIN_PASSWORD: 'local-test-password',
     BOOTSTRAP_ADMIN_WHATSAPP: '5565999999999',
+    BOOTSTRAP_ADMIN_CPF: '52998224725',
   };
 
   it('validates and normalizes a complete administrator without taking a role from the environment', () => {
     expect(parseBootstrapAdministrator({ ...environment, BOOTSTRAP_ADMIN_ROLE: 'AGENT' })).toMatchObject({
-      name: 'First administrator', email: 'admin@example.com', password: 'local-test-password',
-      whatsappNumber: '5565999999999', role: AgentRole.ADMIN,
+      nome: 'First administrator', email: 'admin@example.com', senha: 'local-test-password',
+      whatsapp: '5565999999999', cpf: '52998224725', cargo: CargoCorretor.ADMIN,
     });
   });
 

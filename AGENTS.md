@@ -137,3 +137,9 @@ Endpoints e regras detalhadas estão no `README.md` e, com o estado atual, em `P
 | Vercel (front) | não criado | próximo marco |
 
 Credenciais ficam apenas no `.env` local e, quando houver deploy, no painel de cada serviço.
+
+## 2026-09-14 — Instruções vigentes após refatoração integral
+
+O pedido integral do dono em docs/specs/2026-09-13-backend-integral.md prevalece sobre instruções antigas conflitantes deste arquivo. Contrato e operação atual: docs/handoffs/2026-09-14-backend-portugues.md. Backend em português, auditoria universal, soft delete, dados pessoais em colunas sem cifra; documentos novos no Drive compartilhado privado e receita em comissões. Modelos antigos só permanecem nas migrations/histórico.
+
+Migration 1789516800000 exige complementos reais e backup; use apenas os comandos npm documentados (executor sanitizado). Não editar migrations aplicadas nem imprimir dados privados. A chave antiga é necessária só para decifrar o legado na migração. Nenhuma migration/deploy automático. Cookie Secure exige HTTPS no navegador. Adaptar frontend e health check /api/v1/saude antes da publicação conjunta. main e regra de confirmação antes de commit continuam vigentes.
