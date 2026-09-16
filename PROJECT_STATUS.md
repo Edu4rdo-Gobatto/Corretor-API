@@ -1,5 +1,12 @@
 # Estado atual — corretor-api
 
+## 2026-09-16 — Render recuperado após correção de ALLOWED_ORIGINS
+
+Atualizada no serviço Render `Corretor-API` a variável não secreta `ALLOWED_ORIGINS` para
+`https://corretor-web-test.vercel.app`. O deploy `dep-dal39v2d0e5s738d6vng`, no commit
+`896c39c`, ficou `live`. Verificação externa: `GET /api/v1/saude` respondeu 200 e o
+preflight CORS da origem autorizada respondeu 204 com credenciais.
+
 ## 2026-09-16 — Codex: correção de achados de segurança da auditoria
 
 Área assumida: autorização de cadastros, invalidação de sessões após troca de senha e CORS seguro.

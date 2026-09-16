@@ -216,6 +216,13 @@ Infra de homologação: branch homologacao-backend-portugues-20260913, br-ancien
 
 Frontend irmão integrado às rotas da API, com testes de contrato e filtros de data de clientes adicionados. API segue com typecheck, lint e suíte local/integrada validados. Drive, migração de dados reais e publicação permanecem pendentes de configuração operacional.
 
+## 2026-09-16 — Correção operacional do deploy Render
+
+Após o deploy do commit `896c39c`, o serviço falhou no boot porque `ALLOWED_ORIGINS`
+continha uma origem HTTP em produção. A variável foi corrigida no Render para
+`https://corretor-web-test.vercel.app`, sem alterar código, segredos ou banco. O deploy
+`dep-dal39v2d0e5s738d6vng` ficou `live`; saúde HTTP 200 e preflight CORS 204 confirmados.
+
 ## 2026-09-16 — Correção dos achados confirmados de segurança
 
 Alterados os guards de `src/cadastros/cadastros.controller.ts`, o ciclo de senha/sessões em
