@@ -232,3 +232,13 @@ revoga todos os refresh tokens do usuário; produção rejeita CORS HTTP. Nenhum
 infraestrutura ou segredo foi alterado. Rate limit distribuído e `trust proxy` permanecem
 pendentes de decisão de infraestrutura; restrições de dados de locação já estão aplicadas no
 serviço atual.
+
+
+## 2026-09-16 — Pacote de melhorias do frontend irmão
+
+Codex concluiu melhorias públicas e administrativas em Corretor-web, reutilizando os contratos atuais de
+imóveis/clientes/contratos/comissões. Nenhum código, DTO, dependência, migration ou dado desta API foi alterado.
+Dashboard percorre todas as páginas de comissões; contatos usam imovel_id/criado_desde/criado_ate. Origem é somente
+informativa porque ConsultaClientesDto não aceita esse filtro; ordenação adiada. Duplicação usa POST existente e slug novo.
+Validação frontend e limites de homologação registrados no CHANGELOG_AI.md do Corretor-web; testes desta API não foram
+reexecutados neste corte exclusivamente documental. Sem commit/push/deploy.
