@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { AutenticacaoGuard } from '../autenticacao/autenticacao.guard';
+import { Cargos, CargosGuard } from '../autenticacao/cargos.guard';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { AtualizarCadastroDto, AtualizarCaracteristicaDto, ConsultaCadastrosDto, CriarCadastroDto, CriarCaracteristicaDto } from './cadastros.dto';
 import { CadastrosService, CategoriaCadastro } from './cadastros.service';
@@ -18,7 +19,8 @@ function controladorPublico(categoria: CategoriaCadastro) {
 
 function controladorAdministrativo(categoria: 'tipos-imovel' | 'finalidades-imovel') {
   @Controller(`admin/${categoria}`)
-  @UseGuards(AutenticacaoGuard)
+  @UseGuards(AutenticacaoGuard, CargosGuard)
+  @Cargos('ADMIN')
   class CadastroAdministrativoController {
     constructor(readonly cadastros: CadastrosService) {}
     @Get() listar(@Query() consulta: ConsultaCadastrosDto) { return this.cadastros.listar(categoria, consulta); }
@@ -31,7 +33,8 @@ function controladorAdministrativo(categoria: 'tipos-imovel' | 'finalidades-imov
 }
 
 @Controller('admin/caracteristicas')
-@UseGuards(AutenticacaoGuard)
+@UseGuards(AutenticacaoGuard, CargosGuard)
+@Cargos('ADMIN')
 export class CaracteristicasController {
   constructor(private readonly cadastros: CadastrosService) {}
   @Get() listar(@Query() consulta: ConsultaCadastrosDto) { return this.cadastros.listar('caracteristicas', consulta); }

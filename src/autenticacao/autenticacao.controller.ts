@@ -39,7 +39,7 @@ export class AutenticacaoController {
   atualizarPerfil(@Req() requisicao: RequisicaoAutenticada, @Body() dto: AtualizarPerfilDto) { return this.corretores.atualizarPerfil(requisicao.user.id, dto); }
 
   @Patch('eu/senha') @Header('Cache-Control', 'no-store') @UseGuards(AutenticacaoGuard, OrigemGuard)
-  alterarSenha(@Req() requisicao: RequisicaoAutenticada, @Body() dto: AlterarSenhaDto) { return this.corretores.alterarSenha(requisicao.user.id, dto); }
+  alterarSenha(@Req() requisicao: RequisicaoAutenticada, @Body() dto: AlterarSenhaDto) { return this.autenticacao.alterarSenha(requisicao.user.id, dto); }
 
   private lerCookie(requisicao: Request): string {
     const prefixo = 'corretor_renovacao=';

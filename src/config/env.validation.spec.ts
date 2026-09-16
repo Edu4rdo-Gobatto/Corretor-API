@@ -26,6 +26,11 @@ describe('environment validation', () => {
     });
   });
 
+  it('requires HTTPS origins when running in production', () => {
+    expect(() => validateEnvironment({ ...validEnvironment, NODE_ENV: 'production', ALLOWED_ORIGINS: 'http://localhost:5173' })).toThrow('ALLOWED_ORIGINS');
+    expect(validateEnvironment({ ...validEnvironment, NODE_ENV: 'production', ALLOWED_ORIGINS: 'https://imobiliaria.example' }).ALLOWED_ORIGINS).toBe('https://imobiliaria.example');
+  });
+
   it('converts a configured port without mutating the input', () => {
     const environment = { ...validEnvironment, PORT: '4000' };
     expect(validateEnvironment(environment).PORT).toBe(4000);

@@ -215,3 +215,13 @@ Infra de homologação: branch homologacao-backend-portugues-20260913, br-ancien
 ## 14/09/2026 — integração do frontend ao contrato português
 
 Frontend irmão integrado às rotas da API, com testes de contrato e filtros de data de clientes adicionados. API segue com typecheck, lint e suíte local/integrada validados. Drive, migração de dados reais e publicação permanecem pendentes de configuração operacional.
+
+## 2026-09-16 — Correção dos achados confirmados de segurança
+
+Alterados os guards de `src/cadastros/cadastros.controller.ts`, o ciclo de senha/sessões em
+`src/autenticacao/` e a validação de `ALLOWED_ORIGINS` em `src/config/env.validation.ts`.
+Corretores comuns não podem mais criar, editar ou desativar cadastros globais; troca de senha
+revoga todos os refresh tokens do usuário; produção rejeita CORS HTTP. Nenhum dado, migration,
+infraestrutura ou segredo foi alterado. Rate limit distribuído e `trust proxy` permanecem
+pendentes de decisão de infraestrutura; restrições de dados de locação já estão aplicadas no
+serviço atual.

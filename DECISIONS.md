@@ -243,3 +243,14 @@ Pedido integral de 13/09/2026 e escolha de Drive compartilhado pelo dono substit
 - Comandos de migration agora usam executor com logs sanitizados e MIGRACAO_BACKUP_ARQUIVO para escrita. Não imprimir QueryFailedError, SQL com parâmetros ou detalhes de linhas decifradas.
 - Cookie Secure/Strict/HttpOnly em todos ambientes; desenvolvimento de navegador exige HTTPS. API nova é incompatível com o contrato frontend antigo: adaptar cliente, SSR e painel antes do deploy conjunto. Ajustar health check Render para /api/v1/saude nesse corte.
 - Homologação usa database vazia homologacao_pt na branch Neon br-ancient-sound-a5tsf5rf, PostgreSQL 16.15; testes transacionais são revertidos. Banco/API publicados permanecem intactos. Manter branch de homologação identificada até o dono definir retenção.
+
+## 2026-09-16 — Hardening dos achados confirmados da auditoria
+
+Rotas administrativas de tipos, finalidades e características exigem `AutenticacaoGuard` e
+`CargosGuard` com cargo `ADMIN`; corretores continuam podendo ler o que o produto autoriza,
+mas não alteram a classificação global do catálogo. Após troca de senha, todas as sessões de
+refresh do corretor são revogadas por uma única operação parametrizada no banco. Em produção,
+`ALLOWED_ORIGINS` deve conter somente origens HTTPS.
+
+Não fazer: editar migrations aplicadas, apagar dados de teste sem autorização, ou adicionar
+Redis/alterar `trust proxy` sem decisão de infraestrutura e topologia.

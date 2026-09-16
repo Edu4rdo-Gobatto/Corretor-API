@@ -2,6 +2,7 @@ import { ExecutionContext, INestApplication, UnauthorizedException, ValidationPi
 import { Test } from '@nestjs/testing';
 import { Request } from 'express';
 import { AutenticacaoGuard } from '../autenticacao/autenticacao.guard';
+import { CargosGuard } from '../autenticacao/cargos.guard';
 import { ImoveisController, ImoveisPublicosController } from '../imoveis/imoveis.controller';
 import { ImoveisService } from '../imoveis/imoveis.service';
 import { MidiasController } from '../midias/midias.controller';
@@ -19,11 +20,11 @@ describe('Rotas portuguesas de catálogo, cadastros e mídia (serviços substitu
 
   beforeAll(async () => {
     const modulo = await Test.createTestingModule({ controllers: [...controladoresCadastros, ImoveisController, ImoveisPublicosController, MidiasController], providers: [
-      { provide: CadastrosService, useValue: cadastros }, { provide: ImoveisService, useValue: imoveis }, { provide: MidiasService, useValue: midias },
+      { provide: CadastrosService, useValue: cadastros }, { provide: ImoveisService, useValue: imoveis }, { provide: MidiasService, useValue: midias }, CargosGuard,
     ] }).overrideGuard(AutenticacaoGuard).useValue({ canActivate: (contexto: ExecutionContext) => {
       const requisicao = contexto.switchToHttp().getRequest<Request & { user?: unknown }>();
-      if (requisicao.headers.authorization !== 'Bearer teste') throw new UnauthorizedException();
-      requisicao.user = { id, nome: 'Corretor', email: 'teste@example.test', cargo: 'CORRETOR' };
+      if (!['Bearer teste', 'Bearer admin'].includes(String(requisicao.headers.authorization))) throw new UnauthorizedException();
+      requisicao.user = { id, nome: 'Corretor', email: 'teste@example.test', cargo: String(requisicao.headers.authorization) === 'Bearer admin' ? 'ADMIN' : 'CORRETOR' };
       return true;
     } }).compile();
     aplicacao = modulo.createNestApplication();
@@ -34,19 +35,24 @@ describe('Rotas portuguesas de catálogo, cadastros e mídia (serviços substitu
   });
   afterAll(async () => { await aplicacao?.close(); });
 
-  function requisitar(caminho: string, metodo = 'GET', dados?: unknown, autenticado = true) {
-    return fetch(`${origem}${caminho}`, { method: metodo, headers: { 'Content-Type': 'application/json', ...(autenticado ? { Authorization: 'Bearer teste' } : {}) }, body: dados === undefined ? undefined : JSON.stringify(dados) });
+  function requisitar(caminho: string, metodo = 'GET', dados?: unknown, autenticado = true, admin = false) {
+    return fetch(`${origem}${caminho}`, { method: metodo, headers: { 'Content-Type': 'application/json', ...(autenticado ? { Authorization: admin ? 'Bearer admin' : 'Bearer teste' } : {}) }, body: dados === undefined ? undefined : JSON.stringify(dados) });
   }
 
   it('registra as três categorias públicas e seus CRUDs administrativos independentes', async () => {
     for (const categoria of ['tipos-imovel', 'finalidades-imovel', 'caracteristicas']) {
       expect((await requisitar(`/${categoria}`, 'GET', undefined, false)).status).toBe(200);
       expect(cadastros.listar).toHaveBeenLastCalledWith(categoria, expect.objectContaining({ pagina: 1, limite: 100 }), true);
-      expect((await requisitar(`/admin/${categoria}`, 'POST', { nome: 'Novo cadastro' })).status).toBe(201);
-      expect(cadastros.criar).toHaveBeenLastCalledWith(categoria, expect.objectContaining({ nome: 'Novo cadastro' }), expect.objectContaining({ cargo: 'CORRETOR' }));
-      expect((await requisitar(`/admin/${categoria}/${id}`, 'DELETE')).status).toBe(204);
+      expect((await requisitar(`/admin/${categoria}`, 'POST', { nome: 'Novo cadastro' }, true, true)).status).toBe(201);
+      expect(cadastros.criar).toHaveBeenLastCalledWith(categoria, expect.objectContaining({ nome: 'Novo cadastro' }), expect.objectContaining({ cargo: 'ADMIN' }));
+      expect((await requisitar(`/admin/${categoria}/${id}`, 'DELETE', undefined, true, true)).status).toBe(204);
       expect(cadastros.atualizar).toHaveBeenLastCalledWith(categoria, id, { ativo: false }, expect.objectContaining({ id }));
     }
+  });
+
+  it('bloqueia corretor comum no CRUD global de cadastros', async () => {
+    expect((await requisitar('/admin/tipos-imovel', 'POST', { nome: 'Não permitido' })).status).toBe(403);
+    expect((await requisitar(`/admin/caracteristicas/${id}`, 'PATCH', { nome: 'Não permitido' })).status).toBe(403);
   });
 
   it('exige autenticação em cadastros, imóveis internos e mídia', async () => {
@@ -55,9 +61,9 @@ describe('Rotas portuguesas de catálogo, cadastros e mídia (serviços substitu
   });
 
   it('rejeita campos de auditoria, null e slug em características pelo pipe global', async () => {
-    expect((await requisitar('/admin/tipos-imovel', 'POST', { nome: 'Galpão', criado_por: id })).status).toBe(400);
-    expect((await requisitar('/admin/caracteristicas', 'POST', { nome: 'Garagem', slug: 'garagem' })).status).toBe(400);
-    expect((await requisitar(`/admin/tipos-imovel/${id}`, 'PATCH', { nome: null })).status).toBe(400);
+    expect((await requisitar('/admin/tipos-imovel', 'POST', { nome: 'Galpão', criado_por: id }, true, true)).status).toBe(400);
+    expect((await requisitar('/admin/caracteristicas', 'POST', { nome: 'Garagem', slug: 'garagem' }, true, true)).status).toBe(400);
+    expect((await requisitar(`/admin/tipos-imovel/${id}`, 'PATCH', { nome: null }, true, true)).status).toBe(400);
   });
 
   it('filtros de status são internos; UUID inválido é rejeitado antes do serviço', async () => {

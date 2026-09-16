@@ -1,5 +1,14 @@
 # Estado atual — corretor-api
 
+## 2026-09-16 — Codex: correção de achados de segurança da auditoria
+
+Área assumida: autorização de cadastros, invalidação de sessões após troca de senha e CORS seguro.
+Sem alteração de dados, migrations aplicadas, infraestrutura ou segredos. Validação concluída:
+typecheck, lint, build, 6 suítes/52 testes aprovados (1 suíte/4 testes integrados opcionais
+ignorados) e `git diff --check`. Rate limit distribuído e `trust proxy` exigem infraestrutura/
+topologia; exposição de dados já possui restrições no código atual.
+
+
 > Estado vigente: registro de 14/09/2026 ao final e `docs/handoffs/2026-09-14-backend-portugues.md`. Os registros anteriores são históricos; prevalece o pedido integral de 13/09/2026.
 
 Atualizado em: 2026-09-12

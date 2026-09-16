@@ -114,6 +114,10 @@ export function validateEnvironment(environment: Record<string, unknown>): Envir
     throw new Error(`Configuração de ambiente inválida: ${fields}. Consulte .env.example.`);
   }
 
+  if (configuration.NODE_ENV === 'production' && configuration.ALLOWED_ORIGINS.split(',').some((origem) => !origem.trim().startsWith('https://'))) {
+    throw new Error('Configuração de ambiente inválida: ALLOWED_ORIGINS deve usar HTTPS em produção.');
+  }
+
   const camposDrive = ['GOOGLE_DRIVE_CLIENT_EMAIL', 'GOOGLE_DRIVE_PRIVATE_KEY', 'GOOGLE_DRIVE_ROOT_FOLDER_ID', 'GOOGLE_DRIVE_SHARED_DRIVE_ID'] as const;
   if (camposDrive.some(campo => Boolean(configuration[campo]))) {
     if (camposDrive.some(campo => !configuration[campo])) {

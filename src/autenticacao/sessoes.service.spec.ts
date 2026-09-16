@@ -15,7 +15,7 @@ class RepositorioSessoes {
     let retornando = false;
     const consulta = {
       delete: () => consulta,
-      where: (sql: string, parametros: { hash?: string; agora?: Date }) => { hash = parametros.hash; expiradas = sql.includes('expira_em <='); return consulta; },
+      where: (sql: string, parametros: { hash?: string; agora?: Date; corretor_id?: string }) => { hash = parametros.hash; expiradas = sql.includes('expira_em <='); if (parametros.corretor_id) { for (const [chave, sessao] of this.registros) if (sessao.corretor_id === parametros.corretor_id) this.registros.delete(chave); } return consulta; },
       returning: () => { retornando = true; return consulta; },
       execute: () => {
         const encontradas = [...this.registros.values()].filter(sessao => expiradas ? sessao.expira_em.getTime() <= Date.now() : sessao.token_hash === hash);
@@ -61,6 +61,16 @@ describe('sessões rotativas', () => {
     await servico.revogar(token);
     await expect(servico.consumir(token)).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(servico.consumir(outro)).resolves.toBe('corretor-1');
+  });
+  it('revoga todas as sessões de um corretor', async () => {
+    const primeira = await servico.criar('corretor-1');
+    const segunda = await servico.criar('corretor-1');
+    await servico.criar('outro-corretor');
+    await servico.revogarTodasDoCorretor('corretor-1');
+    await expect(servico.consumir(primeira)).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(servico.consumir(segunda)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(repositorio.registros.size).toBe(1);
+    expect([...repositorio.registros.values()][0].corretor_id).toBe('outro-corretor');
   });
   it('remove sessões expiradas automaticamente a cada hora e encerra timer ao desligar', async () => {
     jest.useFakeTimers();

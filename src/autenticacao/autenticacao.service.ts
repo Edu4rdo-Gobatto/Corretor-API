@@ -6,6 +6,7 @@ import { CorretoresService } from '../corretores/corretores.service';
 import { SenhasService } from '../corretores/senhas.service';
 import { EntrarDto } from './autenticacao.dto';
 import { SessoesService } from './sessoes.service';
+import { AlterarSenhaDto } from '../corretores/corretores.dto';
 
 @Injectable()
 export class AutenticacaoService {
@@ -27,6 +28,12 @@ export class AutenticacaoService {
   }
 
   sair(token: string): Promise<void> { return this.sessoes.revogar(token); }
+
+  async alterarSenha(id: string, dto: AlterarSenhaDto) {
+    const perfil = await this.corretores.alterarSenha(id, dto);
+    await this.sessoes.revogarTodasDoCorretor(id);
+    return perfil;
+  }
 
   private async emitirSessao(corretor: Corretor) {
     const token_acesso = await this.jwt.signAsync({ sub: corretor.id, cargo: corretor.cargo });

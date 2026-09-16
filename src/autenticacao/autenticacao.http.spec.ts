@@ -28,6 +28,8 @@ describe('HTTP da autenticação em português', () => {
     findOneBy: (filtros: FindOptionsWhere<Corretor>) => Promise.resolve([...registros.values()].find(c => Object.entries(filtros).every(([campo, valor]) => c[campo as keyof Corretor] === valor)) ?? null),
     findOne: (opcoes: FindOneOptions<Corretor>) => repositorio.findOneBy(opcoes.where as FindOptionsWhere<Corretor>),
     findAndCount: () => Promise.resolve([[...registros.values()], registros.size]),
+    save: (registro: Corretor) => { registros.set(registro.id, registro); return Promise.resolve(registro); },
+    manager: { transaction: async (operacao: (gerente: { query: () => Promise<void>; getRepository: () => unknown }) => Promise<unknown>) => operacao({ query: () => Promise.resolve(), getRepository: () => repositorio }) },
   };
   const repositorio_sessoes = {
     create: (dados: Partial<SessaoLogin>) => Object.assign(new SessaoLogin(), dados),
@@ -36,7 +38,7 @@ describe('HTTP da autenticação em português', () => {
     createQueryBuilder: () => {
       let token_hash = '';
       const consulta = { delete: () => consulta,
-        where: (_sql: string, parametros: { hash: string }) => { token_hash = parametros.hash; return consulta; },
+        where: (sql: string, parametros: { hash?: string; corretor_id?: string }) => { token_hash = parametros.hash ?? ''; if (sql.includes('corretor_id')) for (const [chave, sessao] of sessoes) if (sessao.corretor_id === parametros.corretor_id) sessoes.delete(chave); return consulta; },
         returning: () => consulta,
         execute: () => { const sessao = sessoes.get(token_hash); sessoes.delete(token_hash); return Promise.resolve({ raw: sessao ? [sessao] : [], affected: sessao ? 1 : 0 }); },
       };
@@ -116,6 +118,14 @@ describe('HTTP da autenticação em português', () => {
   it('recusa campos de privilégio no perfil próprio', async () => {
     const resposta = await requisitar('/autenticacao/eu', { ...json({ cargo: 'ADMIN', ativo: false, email: 'outra@example.com' }, { Authorization: `Bearer ${acesso}` }), method: 'PATCH' });
     expect(resposta.status).toBe(400);
+  });
+  it('revoga todas as sessões ao trocar a senha', async () => {
+    const login = await requisitar('/autenticacao/entrar', json({ email: corretor.email, senha }));
+    const sessaoAnterior = (login.headers.get('set-cookie') ?? '').split(';')[0];
+    const tokenCorretor = await jwt.signAsync({ sub: corretor.id, cargo: CargoCorretor.CORRETOR });
+    const resposta = await requisitar('/autenticacao/eu/senha', { ...json({ senha_atual: senha, nova_senha: 'nova-senha-segura' }), headers: { Authorization: `Bearer ${tokenCorretor}`, Origin: 'https://imobiliaria.example', 'Content-Type': 'application/json' }, method: 'PATCH' });
+    expect(resposta.status).toBe(200);
+    expect((await requisitar('/autenticacao/renovar', json({}, { Cookie: sessaoAnterior }))).status).toBe(401);
   });
   it('saída revoga o cookie e remove a sessão', async () => {
     const login = await requisitar('/autenticacao/entrar', json({ email: admin.email, senha }));

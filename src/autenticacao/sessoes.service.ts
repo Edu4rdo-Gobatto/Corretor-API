@@ -45,6 +45,10 @@ export class SessoesService implements OnModuleInit, OnModuleDestroy {
 
   async revogar(token: string): Promise<void> { await this.sessoes.delete({ token_hash: this.hash(token) }); }
 
+  async revogarTodasDoCorretor(corretor_id: string): Promise<void> {
+    await this.sessoes.createQueryBuilder().delete().where('corretor_id = :corretor_id', { corretor_id }).execute();
+  }
+
   async limparExpiradas(): Promise<number> {
     const resultado = await this.sessoes.createQueryBuilder().delete().where('expira_em <= :agora', { agora: new Date() }).execute();
     return resultado.affected ?? 0;
