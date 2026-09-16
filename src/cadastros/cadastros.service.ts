@@ -28,7 +28,7 @@ export class CadastrosService {
     return { itens: itens.map((item) => this.resposta(item)), total, pagina: consulta.pagina, limite: consulta.limite, total_paginas: Math.ceil(total / consulta.limite) };
   }
 
-  async encontrar(categoria: CategoriaCadastro, id: string) {
+  async encontrar(categoria: CategoriaCadastro, id: number) {
     const item = await this.repositorio(categoria).findOneBy({ id });
     if (!item) throw new NotFoundException('Cadastro não encontrado.');
     return this.resposta(item);
@@ -42,7 +42,7 @@ export class CadastrosService {
     return this.salvar(repositorio, item);
   }
 
-  async atualizar(categoria: CategoriaCadastro, id: string, dados: DadosCadastro, usuario: UsuarioAutenticado) {
+  async atualizar(categoria: CategoriaCadastro, id: number, dados: DadosCadastro, usuario: UsuarioAutenticado) {
     const repositorio = this.repositorio(categoria);
     const item = await repositorio.findOneBy({ id });
     if (!item) throw new NotFoundException('Cadastro não encontrado.');

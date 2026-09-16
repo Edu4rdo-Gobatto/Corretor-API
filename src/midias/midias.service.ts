@@ -20,7 +20,7 @@ export class MidiasService {
   private readonly logger = new Logger(MidiasService.name);
   constructor(@InjectRepository(ImovelMidia) private readonly midias: Repository<ImovelMidia>, @Inject(R2_MIDIAS) private readonly armazenamento: S3Client, private readonly configuracao: ConfigService) {}
 
-  async enviar(imovel_id: string, arquivos: ArquivoMidia[], usuario: UsuarioAutenticado) {
+  async enviar(imovel_id: number, arquivos: ArquivoMidia[], usuario: UsuarioAutenticado) {
     if (!arquivos?.length || arquivos.length > 20) throw new BadRequestException('Envie de 1 a 20 arquivos.');
     const validados = arquivos.map((arquivo) => validar_arquivo(arquivo));
     if (arquivos.reduce((total, arquivo) => total + arquivo.size, 0) > 60 * 1024 * 1024) throw new BadRequestException('O lote de mídia deve ter no máximo 60 MB.');
@@ -58,7 +58,7 @@ export class MidiasService {
     }
   }
 
-  async adicionar_embed(imovel_id: string, dto: CriarVideoEmbedDto, usuario: UsuarioAutenticado) {
+  async adicionar_embed(imovel_id: number, dto: CriarVideoEmbedDto, usuario: UsuarioAutenticado) {
     const url = normalizar_video_embed(dto.url);
     if (!url) throw new BadRequestException('Informe um vídeo válido do YouTube ou Vimeo.');
     const resultado = await this.midias.manager.transaction(async (gerenciador) => {
@@ -71,7 +71,7 @@ export class MidiasService {
     return resposta_midia(resultado);
   }
 
-  async reordenar(imovel_id: string, dto: ReordenarMidiasDto, usuario: UsuarioAutenticado) {
+  async reordenar(imovel_id: number, dto: ReordenarMidiasDto, usuario: UsuarioAutenticado) {
     const resultado = await this.midias.manager.transaction(async (gerenciador) => {
       await this.bloquear_imovel(gerenciador, imovel_id, usuario);
       const repositorio = gerenciador.getRepository(ImovelMidia);
@@ -83,7 +83,7 @@ export class MidiasService {
     return resultado.map(resposta_midia);
   }
 
-  async definir_capa(imovel_id: string, midia_id: string, usuario: UsuarioAutenticado) {
+  async definir_capa(imovel_id: number, midia_id: number, usuario: UsuarioAutenticado) {
     const resultado = await this.midias.manager.transaction(async (gerenciador) => {
       await this.bloquear_imovel(gerenciador, imovel_id, usuario);
       const repositorio = gerenciador.getRepository(ImovelMidia);
@@ -96,7 +96,7 @@ export class MidiasService {
     return resposta_midia(resultado);
   }
 
-  async excluir(imovel_id: string, midia_id: string, usuario: UsuarioAutenticado): Promise<void> {
+  async excluir(imovel_id: number, midia_id: number, usuario: UsuarioAutenticado): Promise<void> {
     let restauracao: { chave: string; conteudo: Buffer; tipo_conteudo: string } | undefined;
     let exclusao_tentada = false;
     try {
@@ -136,9 +136,9 @@ export class MidiasService {
     }
   }
 
-  private listar(repositorio: Repository<ImovelMidia>, imovel_id: string) { return repositorio.find({ where: { imovel_id }, order: { ordem: 'ASC', id: 'ASC' } }); }
+  private listar(repositorio: Repository<ImovelMidia>, imovel_id: number) { return repositorio.find({ where: { imovel_id }, order: { ordem: 'ASC', id: 'ASC' } }); }
 
-  private async bloquear_imovel(gerenciador: EntityManager, id: string, usuario: UsuarioAutenticado) {
+  private async bloquear_imovel(gerenciador: EntityManager, id: number, usuario: UsuarioAutenticado) {
     const imovel = await gerenciador.getRepository(Imovel).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
     if (!imovel) throw new NotFoundException('Imóvel não encontrado.');
     if (usuario.cargo !== 'ADMIN' && imovel.corretor_id !== usuario.id) throw new ForbiddenException('Somente o corretor responsável ou ADMIN pode alterar as mídias.');

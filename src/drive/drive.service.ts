@@ -7,7 +7,7 @@ import { RegistroPastaDrive } from './registro-pasta-drive.entity';
 export class DriveService {
   constructor(private readonly banco: DataSource, private readonly cliente: DriveCliente) {}
 
-  private async garantirPasta(chave: string, nome: string, pai: string, usuario: string): Promise<string> {
+  private async garantirPasta(chave: string, nome: string, pai: string, usuario: number): Promise<string> {
     const registro = await this.banco.transaction(async gerenciador => {
       await gerenciador.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`drive:${chave}`]);
       const repositorio = gerenciador.getRepository(RegistroPastaDrive);
@@ -25,7 +25,7 @@ export class DriveService {
     return this.cliente.criarPasta(registro.id_drive, registro.nome, registro.pasta_pai_id);
   }
 
-  async criarPastaContrato(contrato: { id: string; numero_contrato: string; locatario: string }, usuario: string): Promise<string> {
+  async criarPastaContrato(contrato: { id: number; numero_contrato: string; locatario: string }, usuario: number): Promise<string> {
     try {
       const { raiz } = this.cliente.configuracao();
       await this.cliente.validarPastaPrivada(raiz);

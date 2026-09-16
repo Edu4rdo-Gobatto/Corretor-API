@@ -1,5 +1,4 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import { FindManyOptions, FindOneOptions, FindOperator, FindOptionsWhere, QueryFailedError, Repository } from 'typeorm';
 import { CargoCorretor, Corretor } from './corretor.entity';
 import { ConsultarCorretoresDto } from './corretores.dto';
@@ -7,7 +6,8 @@ import { CorretoresService } from './corretores.service';
 import { SenhasService } from './senhas.service';
 
 class RepositorioCorretores {
-  readonly registros = new Map<string, Corretor>();
+  readonly registros = new Map<number, Corretor>();
+  private sequencia = 0;
   private fila = Promise.resolve();
   readonly manager = {
     transaction: async <T>(executar: (gerente: { query: (sql: string) => Promise<void>; getRepository: () => RepositorioCorretores }) => Promise<T>): Promise<T> => {
@@ -24,7 +24,7 @@ class RepositorioCorretores {
       try { return await executar(gerente); } finally { liberar?.(); }
     },
   };
-  create(dados: Partial<Corretor>): Corretor { return Object.assign(new Corretor(), { id: randomUUID(), criado_em: new Date(), alterado_em: new Date() }, dados); }
+  create(dados: Partial<Corretor>): Corretor { return Object.assign(new Corretor(), { id: ++this.sequencia, criado_em: new Date(), alterado_em: new Date() }, dados); }
   save(corretor: Corretor): Promise<Corretor> {
     if ([...this.registros.values()].some(outro => outro.id !== corretor.id && outro.email === corretor.email)) {
       return Promise.reject(new QueryFailedError('INSERT', [], Object.assign(new Error('E-mail duplicado'), { code: '23505' })));
@@ -55,7 +55,7 @@ class RepositorioCorretores {
 describe('regras e persistência dos corretores', () => {
   let repositorio: RepositorioCorretores;
   let servico: CorretoresService;
-  const usuario = { id: 'a0c186ca-7eb2-46a6-9f38-a93f0f054301', nome: 'Dono', email: 'dono@example.com', cargo: CargoCorretor.ADMIN };
+  const usuario = { id: 99, nome: 'Dono', email: 'dono@example.com', cargo: CargoCorretor.ADMIN };
   const dados = { nome: 'Maria Silva', email: 'maria@example.com', senha: 'senha-segura-123', cpf: '52998224725', whatsapp: '66999999999', cargo: CargoCorretor.CORRETOR };
   beforeEach(() => { repositorio = new RepositorioCorretores(); servico = new CorretoresService(repositorio as unknown as Repository<Corretor>, new SenhasService()); });
 

@@ -1,8 +1,9 @@
 import { CanActivate, ExecutionContext, HttpException, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 
+/** Cinco contatos por minuto por IP no formulário público; memória do processo, suficiente para uma instância. */
 @Injectable()
-export class LimiteClientesGuard implements CanActivate {
+export class LimitePessoasGuard implements CanActivate {
   private readonly tentativas = new Map<string, { quantidade: number; expira: number }>();
   canActivate(contexto: ExecutionContext): boolean {
     const requisicao = contexto.switchToHttp().getRequest<Request>();

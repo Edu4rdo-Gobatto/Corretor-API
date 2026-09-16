@@ -8,8 +8,8 @@ import { MidiasService } from './midias.service';
 import { normalizar_video_embed } from './video-embed';
 
 describe('Mídias: transações, autorização e compensação R2', () => {
-  const usuario: UsuarioAutenticado = { id: 'responsavel', nome: 'Responsável', email: 'teste@example.test', cargo: 'CORRETOR' };
-  const imovel = Object.assign(new Imovel(), { id: 'imovel', corretor_id: usuario.id });
+  const usuario: UsuarioAutenticado = { id: 1, nome: 'Responsável', email: 'teste@example.test', cargo: 'CORRETOR' };
+  const imovel = Object.assign(new Imovel(), { id: 1, corretor_id: usuario.id });
   const jpeg = Buffer.from([255, 216, 255, 224, 0, 0]);
   const arquivo = { buffer: jpeg, size: jpeg.length, mimetype: 'image/jpeg' };
   let registros: ImovelMidia[];
@@ -21,8 +21,8 @@ describe('Mídias: transações, autorização e compensação R2', () => {
   const imoveis = { findOne: jest.fn() };
   const repositorio = {
     find: jest.fn(() => Promise.resolve([...registros].sort((a, b) => a.ordem - b.ordem))),
-    findOneBy: jest.fn(({ id }: { id: string }) => Promise.resolve(registros.find((item) => item.id === id) ?? null)),
-    create: (dados: Partial<ImovelMidia>) => Object.assign(new ImovelMidia(), { id: `midia-${++sequencia}` }, dados),
+    findOneBy: jest.fn(({ id }: { id: number }) => Promise.resolve(registros.find((item) => item.id === id) ?? null)),
+    create: (dados: Partial<ImovelMidia>) => Object.assign(new ImovelMidia(), { id: ++sequencia }, dados),
     save: jest.fn((dados: ImovelMidia | ImovelMidia[]) => {
       if (falha_save) return Promise.reject(new Error('falha banco'));
       const itens = Array.isArray(dados) ? dados : [dados];
@@ -56,7 +56,7 @@ describe('Mídias: transações, autorização e compensação R2', () => {
   });
 
   it('impede alteração por outro corretor antes de escrever no R2', async () => {
-    await expect(servico.enviar(imovel.id, [arquivo], { ...usuario, id: 'outro' })).rejects.toThrow('responsável');
+    await expect(servico.enviar(imovel.id, [arquivo], { ...usuario, id: 2 })).rejects.toThrow('responsável');
     expect(armazenamento.send).not.toHaveBeenCalled();
   });
 

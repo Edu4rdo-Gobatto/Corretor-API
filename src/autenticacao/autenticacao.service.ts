@@ -29,14 +29,14 @@ export class AutenticacaoService {
 
   sair(token: string): Promise<void> { return this.sessoes.revogar(token); }
 
-  async alterarSenha(id: string, dto: AlterarSenhaDto) {
+  async alterarSenha(id: number, dto: AlterarSenhaDto) {
     const perfil = await this.corretores.alterarSenha(id, dto);
     await this.sessoes.revogarTodasDoCorretor(id);
     return perfil;
   }
 
   private async emitirSessao(corretor: Corretor) {
-    const token_acesso = await this.jwt.signAsync({ sub: corretor.id, cargo: corretor.cargo });
+    const token_acesso = await this.jwt.signAsync({ sub: String(corretor.id), cargo: corretor.cargo });
     const token_renovacao = await this.sessoes.criar(corretor.id);
     return { token_acesso, token_renovacao, tipo_token: 'Bearer' as const, corretor: perfilCorretor(corretor) };
   }

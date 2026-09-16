@@ -3,7 +3,7 @@ import { Auditoria } from '../comum/auditoria.entity';
 
 @Entity('pastas_drive')
 export class RegistroPastaDrive extends Auditoria {
-  @PrimaryGeneratedColumn('uuid') id!: string;
+  @PrimaryGeneratedColumn() id!: number;
   @Column({ type: 'text', unique: true }) chave!: string;
   @Column({ type: 'text', unique: true }) id_drive!: string;
   @Column({ type: 'text' }) pasta_pai_id!: string;

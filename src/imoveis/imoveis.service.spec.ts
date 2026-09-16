@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { ImovelCaracteristica } from '../cadastros/cadastros.entity';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
@@ -6,55 +6,78 @@ import { Corretor } from '../corretores/corretor.entity';
 import { ImovelMidia, TipoMidia } from '../midias/imovel-midia.entity';
 import { ConsultaImoveisDto, ConsultaInternaImoveisDto } from './imoveis.dto';
 import { Imovel, StatusImovel } from './imovel.entity';
-import { resposta_imovel } from './imoveis.resposta';
+import { resposta_imovel, resposta_imovel_publico } from './imoveis.resposta';
 import { ImoveisService } from './imoveis.service';
 
 describe('Catálogo e gestão de imóveis', () => {
-  const usuario: UsuarioAutenticado = { id: 'corretor-1', nome: 'Responsável', email: 'privado@example.test', cargo: 'CORRETOR' };
-  const imovel = Object.assign(new Imovel(), { id: 'imovel-1', corretor_id: usuario.id, status: StatusImovel.DISPONIVEL, ativo: true });
-  const repositorio = { findAndCount: jest.fn(), findOne: jest.fn() };
+  const usuario: UsuarioAutenticado = { id: 1, nome: 'Responsável', email: 'privado@example.test', cargo: 'CORRETOR' };
+  const imovel = Object.assign(new Imovel(), { id: 42, corretor_id: usuario.id, status: StatusImovel.DISPONIVEL, ativo: true, slug: 'galpao-centro-42' });
+  const consulta = { innerJoin: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), clone: jest.fn().mockReturnThis(), getCount: jest.fn(), select: jest.fn().mockReturnThis(), orderBy: jest.fn().mockReturnThis(), addOrderBy: jest.fn().mockReturnThis(), offset: jest.fn().mockReturnThis(), limit: jest.fn().mockReturnThis(), getRawMany: jest.fn() };
+  const finalidades = { findOneBy: jest.fn() };
+  const repositorio = { createQueryBuilder: jest.fn(() => consulta), find: jest.fn(), findOne: jest.fn(), manager: { getRepository: () => finalidades } };
   const midias = { find: jest.fn() };
   const caracteristicas = { find: jest.fn() };
   const servico = new ImoveisService(repositorio as unknown as Repository<Imovel>, midias as unknown as Repository<ImovelMidia>, caracteristicas as unknown as Repository<ImovelCaracteristica>);
 
-  beforeEach(() => { repositorio.findAndCount.mockResolvedValue([[], 0]); midias.find.mockResolvedValue([]); caracteristicas.find.mockResolvedValue([]); });
+  beforeEach(() => { consulta.getCount.mockResolvedValue(0); consulta.getRawMany.mockResolvedValue([]); repositorio.find.mockResolvedValue([]); midias.find.mockResolvedValue([]); caracteristicas.find.mockResolvedValue([]); });
 
-  it('catálogo público exige imóvel ativo/disponível e corretor ativo', async () => {
+  it('catálogo público exige imóvel ativo/disponível e corretor ativo; o interno não restringe', async () => {
     await servico.listar_publicos(new ConsultaImoveisDto());
-    expect(repositorio.findAndCount).toHaveBeenCalledWith(expect.objectContaining({ where: { ativo: true, status: 'DISPONIVEL', corretor: { ativo: true } } }));
-  });
-
-  it('leitura interna inclui imóveis de toda a imobiliária sem restringir ao responsável', async () => {
+    expect(consulta.andWhere).toHaveBeenCalledWith(expect.stringContaining('imovel.status = :disponivel'), { disponivel: 'DISPONIVEL' });
+    consulta.andWhere.mockClear();
     await servico.listar_internos(new ConsultaInternaImoveisDto());
-    expect(repositorio.findAndCount).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
-    repositorio.findOne.mockResolvedValue(imovel);
-    await expect(servico.encontrar_interno(imovel.id)).resolves.toMatchObject({ id: imovel.id });
+    expect(consulta.andWhere).not.toHaveBeenCalled();
   });
 
-  it('carrega mídias separadamente para manter paginação de imóveis e remove dados privados', async () => {
-    repositorio.findAndCount.mockResolvedValue([[imovel], 1]);
-    midias.find.mockResolvedValue([Object.assign(new ImovelMidia(), { id: 'foto-1', imovel_id: imovel.id, chave_armazenamento: 'segredo', tipo: TipoMidia.IMAGEM })]);
+  it('ordena pelo preço da finalidade, filtra por bairro/área e busca por id com #', async () => {
+    finalidades.findOneBy.mockResolvedValue({ id: 2, slug: 'locacao' });
+    await servico.listar_publicos(Object.assign(new ConsultaImoveisDto(), { finalidade_id: 2, ordenar: 'valor_asc', bairro: 'Centro', area_min: '50', busca: '#42' }));
+    expect(consulta.orderBy).toHaveBeenCalledWith('imovel.valor_locacao', 'ASC', 'NULLS LAST');
+    expect(consulta.andWhere).toHaveBeenCalledWith('imovel.bairro ILIKE :bairro', { bairro: '%Centro%' });
+    expect(consulta.andWhere).toHaveBeenCalledWith('imovel.area_util >= :area_min', { area_min: '50' });
+    expect(consulta.andWhere).toHaveBeenCalledWith('imovel.id = :busca_id', { busca_id: 42 });
+    finalidades.findOneBy.mockResolvedValue(null);
+    await servico.listar_publicos(Object.assign(new ConsultaImoveisDto(), { ordenar: 'valor_desc', busca: 'galpão' }));
+    expect(consulta.orderBy).toHaveBeenCalledWith('COALESCE(imovel.valor_venda, imovel.valor_locacao)', 'DESC', 'NULLS LAST');
+    expect(consulta.andWhere).toHaveBeenCalledWith(expect.stringContaining('imovel.descricao ILIKE :termo'), { termo: '%galpão%' });
+  });
+
+  it('carrega mídias separadamente, preserva a ordem da consulta e remove dados privados', async () => {
+    const outro = Object.assign(new Imovel(), imovel, { id: 7 });
+    consulta.getCount.mockResolvedValue(2); consulta.getRawMany.mockResolvedValue([{ id: '42' }, { id: 7 }]);
+    repositorio.find.mockResolvedValue([outro, imovel]);
+    midias.find.mockResolvedValue([Object.assign(new ImovelMidia(), { id: 1, imovel_id: imovel.id, chave_armazenamento: 'segredo', tipo: TipoMidia.IMAGEM })]);
     const resultado = await servico.listar_publicos(new ConsultaImoveisDto());
+    expect(resultado).toMatchObject({ total: 2, total_paginas: 1 });
+    expect(resultado.itens.map((item) => item.id)).toEqual([42, 7]);
     expect(resultado.itens[0].midias).toHaveLength(1);
-    expect(JSON.stringify(resultado)).not.toContain('chave_armazenamento');
-    expect(repositorio.findAndCount).toHaveBeenCalledWith(expect.objectContaining({ relations: { corretor: true, tipo: true, finalidade: true } }));
+    expect(JSON.stringify(resultado)).not.toMatch(/chave_armazenamento|proprietario|matricula|observacoes_internas/);
+    expect(repositorio.find).toHaveBeenCalledWith(expect.objectContaining({ relations: { corretor: true, tipo: true, finalidade: true, proprietario: false } }));
+  });
+
+  it('detalhe público localiza pelo id no fim do slug e recusa slug sem id', async () => {
+    repositorio.findOne.mockResolvedValue(imovel);
+    await expect(servico.encontrar_publico('galpao-renomeado-42')).resolves.toMatchObject({ id: 42, slug: 'galpao-centro-42' });
+    expect(repositorio.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 42, ativo: true, status: 'DISPONIVEL', corretor: { ativo: true } } }));
+    await expect(servico.encontrar_publico('galpao-sem-id')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('impede edição por outro corretor e permite responsável ou ADMIN', () => {
-    expect(() => servico.verificar_edicao(imovel, { ...usuario, id: 'outro' })).toThrow(ForbiddenException);
+    expect(() => servico.verificar_edicao(imovel, { ...usuario, id: 2 })).toThrow(ForbiddenException);
     expect(() => servico.verificar_edicao(imovel, usuario)).not.toThrow();
-    expect(() => servico.verificar_edicao(imovel, { ...usuario, id: 'admin', cargo: 'ADMIN' })).not.toThrow();
+    expect(() => servico.verificar_edicao(imovel, { ...usuario, id: 3, cargo: 'ADMIN' })).not.toThrow();
   });
 
-  it('não expõe email, CPF, cargo ou senha do corretor no imóvel', () => {
-    const objeto = Object.assign(new Imovel(), imovel, { corretor: Object.assign(new Corretor(), { nome: 'Responsável', cpf: 'privado', email: 'privado', cargo: 'ADMIN', senha_hash: 'privado' }) });
-    expect(JSON.stringify(resposta_imovel(objeto))).not.toMatch(/privado|senha_hash|"cargo"|"cpf"|"email"/);
+  it('não expõe email, CPF, cargo ou senha do corretor; ficha interna traz proprietário e anotações', () => {
+    const objeto = Object.assign(new Imovel(), imovel, { corretor: Object.assign(new Corretor(), { nome: 'Responsável', cpf: 'privado', email: 'privado', cargo: 'ADMIN', senha_hash: 'privado' }), chaves: 'Com o zelador', proprietario_id: 3 });
+    expect(JSON.stringify(resposta_imovel_publico(objeto))).not.toMatch(/privado|senha_hash|"cargo"|"cpf"|"email"|chaves|proprietario/);
+    expect(resposta_imovel(objeto)).toMatchObject({ chaves: 'Com o zelador', proprietario_id: 3, proprietario: null });
   });
 
-  it('rejeita intervalo de preço invertido antes da consulta', async () => {
-    const consulta = Object.assign(new ConsultaImoveisDto(), { valor_min: '200', valor_max: '100' });
-    await expect(servico.listar_publicos(consulta)).rejects.toThrow('valor_min');
-    expect(repositorio.findAndCount).not.toHaveBeenCalled();
+  it('rejeita intervalos invertidos de preço e área antes da consulta', async () => {
+    await expect(servico.listar_publicos(Object.assign(new ConsultaImoveisDto(), { valor_min: '200', valor_max: '100' }))).rejects.toThrow('valor_min');
+    await expect(servico.listar_publicos(Object.assign(new ConsultaImoveisDto(), { area_min: '90', area_max: '10' }))).rejects.toThrow('area_min');
+    expect(repositorio.createQueryBuilder).not.toHaveBeenCalled();
   });
 
   it('DELETE desativa e preserva o imóvel', async () => {

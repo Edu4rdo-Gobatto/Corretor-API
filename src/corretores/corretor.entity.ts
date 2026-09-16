@@ -5,7 +5,7 @@ export { CargoCorretor } from './corretores.dto';
 
 @Entity('corretores')
 export class Corretor extends Auditoria {
-  @PrimaryGeneratedColumn('uuid') id!: string;
+  @PrimaryGeneratedColumn() id!: number;
   @Column({ type: 'text' }) nome!: string;
   @Column({ type: 'text', unique: true }) email!: string;
   @Column({ type: 'text', select: false }) senha_hash!: string;

@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { randomUUID } from 'node:crypto';
 import { Server } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { FindOneOptions, FindOptionsWhere } from 'typeorm';
@@ -19,7 +18,7 @@ describe('HTTP da autenticação em português', () => {
   let corretor: Corretor;
   let acesso: string;
   let cookie: string;
-  const registros = new Map<string, Corretor>();
+  const registros = new Map<number, Corretor>();
   const sessoes = new Map<string, SessaoLogin>();
   const segredo = 'segredo-de-testes-com-no-minimo-32-caracteres';
   const senha = 'senha-segura-de-teste';
@@ -38,7 +37,7 @@ describe('HTTP da autenticação em português', () => {
     createQueryBuilder: () => {
       let token_hash = '';
       const consulta = { delete: () => consulta,
-        where: (sql: string, parametros: { hash?: string; corretor_id?: string }) => { token_hash = parametros.hash ?? ''; if (sql.includes('corretor_id')) for (const [chave, sessao] of sessoes) if (sessao.corretor_id === parametros.corretor_id) sessoes.delete(chave); return consulta; },
+        where: (sql: string, parametros: { hash?: string; corretor_id?: number }) => { token_hash = parametros.hash ?? ''; if (sql.includes('corretor_id')) for (const [chave, sessao] of sessoes) if (sessao.corretor_id === parametros.corretor_id) sessoes.delete(chave); return consulta; },
         returning: () => consulta,
         execute: () => { const sessao = sessoes.get(token_hash); sessoes.delete(token_hash); return Promise.resolve({ raw: sessao ? [sessao] : [], affected: sessao ? 1 : 0 }); },
       };
@@ -52,8 +51,8 @@ describe('HTTP da autenticação em português', () => {
   beforeAll(async () => {
     const senha_hash = await new SenhasService().gerarHash(senha);
     const base = { nome: 'Maria Silva', cpf: '52998224725', whatsapp: '66999999999', senha_hash, creci: null, url_foto: null, ativo: true, criado_em: new Date(), alterado_em: new Date(), criado_por: null, alterado_por: null };
-    admin = Object.assign(new Corretor(), base, { id: randomUUID(), email: 'admin@example.com', cargo: CargoCorretor.ADMIN });
-    corretor = Object.assign(new Corretor(), base, { id: randomUUID(), email: 'corretor@example.com', cargo: CargoCorretor.CORRETOR });
+    admin = Object.assign(new Corretor(), base, { id: 1, email: 'admin@example.com', cargo: CargoCorretor.ADMIN });
+    corretor = Object.assign(new Corretor(), base, { id: 2, email: 'corretor@example.com', cargo: CargoCorretor.CORRETOR });
     registros.set(admin.id, admin); registros.set(corretor.id, corretor);
     const modulo = await Test.createTestingModule({ imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, skipProcessEnv: true, load: [() => ({ JWT_SECRET: segredo, JWT_EXPIRES_IN: '15m', ALLOWED_ORIGINS: 'https://imobiliaria.example' })] }), AutenticacaoModule] })
       .overrideProvider(getRepositoryToken(Corretor)).useValue(repositorio)
@@ -63,7 +62,7 @@ describe('HTTP da autenticação em português', () => {
     await app.listen(0, '127.0.0.1');
     const servidor = app.getHttpServer() as Server;
     origem = `http://127.0.0.1:${(servidor.address() as AddressInfo).port}`;
-    acesso = await jwt.signAsync({ sub: admin.id, cargo: CargoCorretor.ADMIN });
+    acesso = await jwt.signAsync({ sub: String(admin.id), cargo: CargoCorretor.ADMIN });
   });
   afterAll(async () => { await app?.close(); });
 
@@ -94,7 +93,7 @@ describe('HTTP da autenticação em português', () => {
     expect(await resposta.json()).toMatchObject({ id: admin.id, nome: 'Maria Silva' });
   });
   it('cargo ADMIN adulterado no payload não concede acesso à gestão', async () => {
-    const adulterado = await jwt.signAsync({ sub: corretor.id, cargo: CargoCorretor.ADMIN });
+    const adulterado = await jwt.signAsync({ sub: String(corretor.id), cargo: CargoCorretor.ADMIN });
     expect((await requisitar('/admin/corretores', { headers: { Authorization: `Bearer ${adulterado}` } })).status).toBe(403);
     expect((await requisitar('/admin/corretores', { headers: { Authorization: `Bearer ${acesso}` } })).status).toBe(200);
   });
@@ -122,7 +121,7 @@ describe('HTTP da autenticação em português', () => {
   it('revoga todas as sessões ao trocar a senha', async () => {
     const login = await requisitar('/autenticacao/entrar', json({ email: corretor.email, senha }));
     const sessaoAnterior = (login.headers.get('set-cookie') ?? '').split(';')[0];
-    const tokenCorretor = await jwt.signAsync({ sub: corretor.id, cargo: CargoCorretor.CORRETOR });
+    const tokenCorretor = await jwt.signAsync({ sub: String(corretor.id), cargo: CargoCorretor.CORRETOR });
     const resposta = await requisitar('/autenticacao/eu/senha', { ...json({ senha_atual: senha, nova_senha: 'nova-senha-segura' }), headers: { Authorization: `Bearer ${tokenCorretor}`, Origin: 'https://imobiliaria.example', 'Content-Type': 'application/json' }, method: 'PATCH' });
     expect(resposta.status).toBe(200);
     expect((await requisitar('/autenticacao/renovar', json({}, { Cookie: sessaoAnterior }))).status).toBe(401);

@@ -1,5 +1,15 @@
 # Estado atual — corretor-api
 
+## 2026-09-16 — Claude: ids inteiros, pessoas unificadas e ficha do imóvel
+
+Área assumida: contrato v2 descrito em `../Corretor-web/docs/specs/2026-09-16-ids-inteiros-pessoas.md`.
+Todas as tabelas passam a id inteiro; `clientes` e `partes_locacao` viram `pessoas`; imóvel ganha
+dois valores, proprietário, exclusividade, captação, chaves, destaque e status final; catálogo ganha
+bairro, área, ordenação e busca por id. Migration nova aditiva; nenhuma migration aplicada é editada;
+nenhuma execução automática. Regras de locação e comissão preservadas. Código concluído e validado
+(typecheck, lint, 175 testes; integração da migration em PostgreSQL 16 via Docker aprovada). Aguarda o front v2
+e o corte coordenado. Sem commit/push.
+
 ## 2026-09-16 — Render recuperado após correção de ALLOWED_ORIGINS
 
 Atualizada no serviço Render `Corretor-API` a variável não secreta `ALLOWED_ORIGINS` para

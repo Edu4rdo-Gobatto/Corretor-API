@@ -15,7 +15,7 @@ class RepositorioSessoes {
     let retornando = false;
     const consulta = {
       delete: () => consulta,
-      where: (sql: string, parametros: { hash?: string; agora?: Date; corretor_id?: string }) => { hash = parametros.hash; expiradas = sql.includes('expira_em <='); if (parametros.corretor_id) { for (const [chave, sessao] of this.registros) if (sessao.corretor_id === parametros.corretor_id) this.registros.delete(chave); } return consulta; },
+      where: (sql: string, parametros: { hash?: string; agora?: Date; corretor_id?: number }) => { hash = parametros.hash; expiradas = sql.includes('expira_em <='); if (parametros.corretor_id) { for (const [chave, sessao] of this.registros) if (sessao.corretor_id === parametros.corretor_id) this.registros.delete(chave); } return consulta; },
       returning: () => { retornando = true; return consulta; },
       execute: () => {
         const encontradas = [...this.registros.values()].filter(sessao => expiradas ? sessao.expira_em.getTime() <= Date.now() : sessao.token_hash === hash);
@@ -35,51 +35,51 @@ describe('sessões rotativas', () => {
 
   it('persiste só SHA-256 com validade de 30 dias e autoria', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-09-13T12:00:00Z'));
-    const token = await servico.criar('corretor-1');
+    const token = await servico.criar(1);
     const sessao = [...repositorio.registros.values()][0];
     expect(token).toMatch(/^[A-Za-z0-9_-]{64}$/);
     expect(sessao.token_hash).toBe(createHash('sha256').update(token).digest('hex'));
     expect(sessao.expira_em.toISOString()).toBe('2026-10-13T12:00:00.000Z');
-    expect(sessao.criado_por).toBe('corretor-1');
+    expect(sessao.criado_por).toBe(1);
     expect(JSON.stringify(sessao)).not.toContain(token);
   });
   it('consome o token uma única vez em chamadas concorrentes', async () => {
-    const token = await servico.criar('corretor-1');
+    const token = await servico.criar(1);
     const resultados = await Promise.allSettled([servico.consumir(token), servico.consumir(token)]);
-    expect(resultados.filter(r => r.status === 'fulfilled')).toEqual([{ status: 'fulfilled', value: 'corretor-1' }]);
+    expect(resultados.filter(r => r.status === 'fulfilled')).toEqual([{ status: 'fulfilled', value: 1 }]);
     expect(repositorio.registros.size).toBe(0);
   });
   it('rejeita token expirado ou malformado', async () => {
-    const token = await servico.criar('corretor-1');
+    const token = await servico.criar(1);
     [...repositorio.registros.values()][0].expira_em = new Date(0);
     await expect(servico.consumir(token)).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(servico.consumir('invalido')).rejects.toBeInstanceOf(UnauthorizedException);
   });
   it('revoga apenas a sessão apresentada', async () => {
-    const token = await servico.criar('corretor-1');
-    const outro = await servico.criar('corretor-1');
+    const token = await servico.criar(1);
+    const outro = await servico.criar(1);
     await servico.revogar(token);
     await expect(servico.consumir(token)).rejects.toBeInstanceOf(UnauthorizedException);
-    await expect(servico.consumir(outro)).resolves.toBe('corretor-1');
+    await expect(servico.consumir(outro)).resolves.toBe(1);
   });
   it('revoga todas as sessões de um corretor', async () => {
-    const primeira = await servico.criar('corretor-1');
-    const segunda = await servico.criar('corretor-1');
-    await servico.criar('outro-corretor');
-    await servico.revogarTodasDoCorretor('corretor-1');
+    const primeira = await servico.criar(1);
+    const segunda = await servico.criar(1);
+    await servico.criar(2);
+    await servico.revogarTodasDoCorretor(1);
     await expect(servico.consumir(primeira)).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(servico.consumir(segunda)).rejects.toBeInstanceOf(UnauthorizedException);
     expect(repositorio.registros.size).toBe(1);
-    expect([...repositorio.registros.values()][0].corretor_id).toBe('outro-corretor');
+    expect([...repositorio.registros.values()][0].corretor_id).toBe(2);
   });
   it('remove sessões expiradas automaticamente a cada hora e encerra timer ao desligar', async () => {
     jest.useFakeTimers();
-    await servico.criar('expirado');
+    await servico.criar(3);
     [...repositorio.registros.values()][0].expira_em = new Date(0);
-    await servico.criar('valido');
+    await servico.criar(4);
     servico.onModuleInit();
     await jest.advanceTimersByTimeAsync(60 * 60 * 1000);
-    expect([...repositorio.registros.values()].map(s => s.corretor_id)).toEqual(['valido']);
+    expect([...repositorio.registros.values()].map(s => s.corretor_id)).toEqual([4]);
     servico.onModuleDestroy();
     expect(jest.getTimerCount()).toBe(0);
   });

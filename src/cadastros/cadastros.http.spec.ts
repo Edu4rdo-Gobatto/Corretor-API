@@ -13,7 +13,7 @@ import { CadastrosService } from './cadastros.service';
 describe('Rotas portuguesas de catálogo, cadastros e mídia (serviços substituídos)', () => {
   let aplicacao: INestApplication;
   let origem: string;
-  const id = '86e8e2b2-7611-4a2d-8d08-c4d0aabf11d3';
+  const id = 7;
   const cadastros = { listar: jest.fn().mockResolvedValue({ itens: [] }), criar: jest.fn().mockResolvedValue({ id }), atualizar: jest.fn().mockResolvedValue({ id }), encontrar: jest.fn().mockResolvedValue({ id }) };
   const imoveis = { listar_publicos: jest.fn().mockResolvedValue({ itens: [] }), listar_internos: jest.fn().mockResolvedValue({ itens: [] }), encontrar_interno: jest.fn().mockResolvedValue({ id }) };
   const midias = { enviar: jest.fn().mockResolvedValue([{ id }]), adicionar_embed: jest.fn().mockResolvedValue({ id }) };
@@ -66,10 +66,10 @@ describe('Rotas portuguesas de catálogo, cadastros e mídia (serviços substitu
     expect((await requisitar(`/admin/tipos-imovel/${id}`, 'PATCH', { nome: null }, true, true)).status).toBe(400);
   });
 
-  it('filtros de status são internos; UUID inválido é rejeitado antes do serviço', async () => {
+  it('filtros de status são internos; id não numérico é rejeitado antes do serviço', async () => {
     expect((await requisitar('/imoveis?status=CONCLUIDO', 'GET', undefined, false)).status).toBe(400);
-    expect((await requisitar('/admin/imoveis?status=CONCLUIDO&ativo=false')).status).toBe(200);
-    expect(imoveis.listar_internos).toHaveBeenCalledWith(expect.objectContaining({ status: 'CONCLUIDO', ativo: false }));
+    expect((await requisitar('/admin/imoveis?status=VENDIDO&ativo=false')).status).toBe(200);
+    expect(imoveis.listar_internos).toHaveBeenCalledWith(expect.objectContaining({ status: 'VENDIDO', ativo: false }));
     expect((await requisitar('/admin/imoveis/invalido')).status).toBe(400);
   });
 

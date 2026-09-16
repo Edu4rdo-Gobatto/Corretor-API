@@ -10,9 +10,9 @@ export enum TipoMidia { IMAGEM = 'IMAGEM', VIDEO_EMBED = 'VIDEO_EMBED', VIDEO_AR
 @Check('chk_imoveis_midias_capa', "NOT capa OR tipo = 'IMAGEM'")
 @Check('chk_imoveis_midias_ordem', 'ordem >= 0')
 export class ImovelMidia extends Auditoria {
-  @Column({ type: 'uuid', nullable: false }) declare criado_por: string;
-  @PrimaryGeneratedColumn('uuid') id!: string;
-  @Column('uuid') imovel_id!: string;
+  @Column({ type: 'integer', nullable: false }) declare criado_por: number;
+  @PrimaryGeneratedColumn() id!: number;
+  @Column({ type: 'integer' }) imovel_id!: number;
   @ManyToOne(() => Imovel, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'imovel_id' }) imovel!: Relation<Imovel>;
   @Column({ type: 'enum', enum: TipoMidia, enumName: 'tipo_midia' }) tipo!: TipoMidia;

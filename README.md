@@ -1,6 +1,8 @@
 # corretor-api
 
-> **Estado vigente — 14/09/2026:** backend integral em português, com cadastros dinâmicos, clientes, contratos/Drive compartilhado e comissões. Consulte a [entrega e migração](docs/handoffs/2026-09-14-backend-portugues.md) e a [especificação aprovada](docs/specs/2026-09-13-backend-integral.md). As seções antigas abaixo permanecem como histórico e não definem o contrato novo. Publicação depende da adaptação do frontend e do corte de banco coordenado.
+> **Estado vigente — 16/09/2026:** contrato v2 com ids inteiros, cadastro único de `pessoas` e ficha do imóvel ampliada; ver [docs/handoffs/2026-09-16-ids-inteiros-pessoas.md](docs/handoffs/2026-09-16-ids-inteiros-pessoas.md). Rotas `/clientes` e `/admin/partes-locacao` não existem mais.
+>
+> **Estado anterior — 14/09/2026:** backend integral em português, com cadastros dinâmicos, clientes, contratos/Drive compartilhado e comissões. Consulte a [entrega e migração](docs/handoffs/2026-09-14-backend-portugues.md) e a [especificação aprovada](docs/specs/2026-09-13-backend-integral.md). As seções antigas abaixo permanecem como histórico e não definem o contrato novo. Publicação depende da adaptação do frontend e do corte de banco coordenado.
 
 Fundação da API REST do sistema de corretor imobiliário. Backend separado do `corretor-web`, com NestJS 11, TypeScript, TypeORM e PostgreSQL hospedado no Neon.
 

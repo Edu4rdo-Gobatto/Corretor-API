@@ -6,6 +6,58 @@ Tarefas do front ficam em `../Corretor-web/TASKS.md`.
 
 ---
 
+## BACKEND-V2-001 — Ids inteiros, pessoas unificadas e ficha do imóvel
+
+Status: em revisão
+Responsável: Claude — implementado em 16/09/2026
+Revisor: —
+
+Objetivo: aplicar o contrato v2 (`docs/handoffs/2026-09-16-ids-inteiros-pessoas.md`).
+
+Critérios de conclusão:
+
+- Entidades, DTOs, serviços e controladores com ids inteiros; rotas `/pessoas` e `/admin/pessoas`;
+  `/clientes` e `/admin/partes-locacao` removidas. Feito.
+- Migration aditiva validada em PostgreSQL 16 real com dados legados sintéticos. Feito (teste de integração).
+- Typecheck, lint e suíte aprovados. Feito: 26 suítes/175 testes + 4 de integração local.
+- Publicação coordenada com o front (BACKEND-PT-002) e migração do banco publicado com backup. Pendente.
+
+---
+
+## NOTIFY-001 — Avisar o corretor de novo contato
+
+Status: aberta (dono pediu para debater antes de implementar)
+Responsável: —
+
+Objetivo: ao receber `POST /pessoas` do site, avisar o corretor responsável (e-mail transacional ou outro
+canal) para o contato não ficar parado até alguém abrir o painel. Decidir canal, provedor e variáveis de
+ambiente; registrar em `DECISIONS.md`.
+
+---
+
+## RENTAL-004 — Definir regras de acesso e fluxo de locações e comissões
+
+Status: aberta (dono pediu conversa dedicada)
+Responsável: —
+
+Objetivo: a decisão de 12/09 dizia "somente ADMIN"; o código deixa corretor criar contratos e comissões
+próprias. Definir com o dono como o módulo deve funcionar (papéis, fluxo, relatórios) antes de qualquer
+mudança. Nada foi alterado nas regras em 16/09 além de apontar para `pessoas`.
+
+---
+
+## DOC-003 — Alinhar documentação da API ao contrato v2
+
+Status: aberta
+Responsável: —
+
+Objetivo: `README.md`, `docs/ENTENDENDO-O-BACKEND.md` e `docs/specs/2026-09-13-backend-integral.md`
+ainda descrevem rotas de clientes/partes e UUIDs. Atualizar ou marcar como histórico, apontando para
+`docs/handoffs/2026-09-16-ids-inteiros-pessoas.md`. A migration `1789084805000-hardening.ts` continua fora
+do registro e deve ser removida ou documentada.
+
+---
+
 ## SEC-001 — Recuperar o commit `accd5d9` ("segurança e operações")
 
 Status: bloqueada

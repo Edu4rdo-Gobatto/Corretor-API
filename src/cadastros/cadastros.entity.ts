@@ -3,7 +3,7 @@ import { Auditoria } from '../comum/auditoria.entity';
 import { Imovel } from '../imoveis/imovel.entity';
 
 abstract class CadastroNomeado extends Auditoria {
-  @PrimaryGeneratedColumn('uuid') id!: string;
+  @PrimaryGeneratedColumn() id!: number;
   @Column({ type: 'text', unique: true }) nome!: string;
   @Column({ type: 'boolean', default: true }) ativo!: boolean;
 }
@@ -25,8 +25,8 @@ export class Caracteristica extends CadastroNomeado {
 
 @Entity('imoveis_caracteristicas')
 export class ImovelCaracteristica extends Auditoria {
-  @PrimaryColumn('uuid') imovel_id!: string;
-  @PrimaryColumn('uuid') caracteristica_id!: string;
+  @PrimaryColumn({ type: 'integer' }) imovel_id!: number;
+  @PrimaryColumn({ type: 'integer' }) caracteristica_id!: number;
   @Column({ type: 'text', nullable: true }) valor!: string | null;
   @Column({ type: 'boolean', default: true }) ativo!: boolean;
   @ManyToOne(() => Imovel, { onDelete: 'CASCADE', nullable: false })

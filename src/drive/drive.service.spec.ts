@@ -34,10 +34,10 @@ describe('reserva durável de pastas no Drive', () => {
       },
     };
     const servico = new DriveService(banco as unknown as DataSource, cliente as unknown as DriveCliente);
-    const contrato = { id: 'contrato', numero_contrato: 'LOC-001', locatario: 'Empresa Teste' };
-    await expect(servico.criarPastaContrato(contrato, 'admin')).rejects.toThrow('Tente novamente');
+    const contrato = { id: 1, numero_contrato: 'LOC-001', locatario: 'Empresa Teste' };
+    await expect(servico.criarPastaContrato(contrato, 1)).rejects.toThrow('Tente novamente');
     falhar = false;
-    await expect(servico.criarPastaContrato(contrato, 'admin')).resolves.toBe('https://drive.google.com/drive/folders/pasta3');
+    await expect(servico.criarPastaContrato(contrato, 1)).resolves.toBe('https://drive.google.com/drive/folders/pasta3');
     expect(registros.size).toBe(3); expect(criados.size).toBe(3); expect(sequencia).toBe(3);
   });
 });

@@ -5,8 +5,8 @@ import { Comissao } from './comissao.entity';
 @Entity('parcelas_comissao')
 @Unique(['comissao_id', 'numero_parcela'])
 export class ParcelaComissao extends Auditoria {
-  @PrimaryGeneratedColumn('uuid') id!: string;
-  @Column({ type: 'uuid' }) comissao_id!: string;
+  @PrimaryGeneratedColumn() id!: number;
+  @Column({ type: 'integer' }) comissao_id!: number;
   @ManyToOne(() => Comissao, comissao => comissao.parcelas, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'comissao_id' }) comissao!: Comissao;
   @Column({ type: 'int' }) numero_parcela!: number;
   @Column({ type: 'date' }) data_vencimento!: string;

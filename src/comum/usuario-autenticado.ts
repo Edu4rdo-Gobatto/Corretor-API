@@ -1,5 +1,5 @@
 export interface UsuarioAutenticado {
-  id: string;
+  id: number;
   nome: string;
   email: string;
   cargo: 'ADMIN' | 'CORRETOR';

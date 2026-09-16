@@ -1,5 +1,48 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-09-16 — Claude — ids inteiros, pessoas unificadas e ficha do imóvel (contrato v2)
+
+Pedido do dono: abandonar UUID em favor de id inteiro com autoincremento, unificar o cadastro de pessoas
+(lead, cliente, proprietário e inquilino são a mesma pessoa), ampliar a ficha do imóvel com campos opcionais
+e dar filtros/ordenação ao catálogo. Contrato: `docs/handoffs/2026-09-16-ids-inteiros-pessoas.md`.
+
+Alterações:
+
+- `src/comum/`: `auditoria.entity.ts` e `usuario-autenticado.ts` com ids inteiros; `dto.ts` (novo) com
+  `IdRegistro` e transformações compartilhadas; `datas.ts` (novo) com `DATA_ATUAL_SQL`/`hojeCivil`.
+- `src/pessoas/` (novo módulo) substitui `src/clientes/` e `parte-locacao.entity.ts`: entidade `Pessoa`
+  com `status_contato`, dados bancários e documento opcionais; rotas `POST /pessoas` (público) e
+  `/admin/pessoas`; visibilidade por responsável ou contrato intermediado; IP do consentimento fora da resposta.
+- `src/imoveis/`: entidade com `valor_venda`/`valor_locacao`, status `VENDIDO|ALUGADO|RETIRADO`,
+  `destaque` e ficha interna; DTOs com `bairro`, `area_min/max`, `destaque`, `ordenar`, `id`; serviço com
+  QueryBuilder (busca por id com `#`, preço pela finalidade, ordenação com nulos por último), slug com id
+  recalculado ao renomear, detalhe público pelo id do slug; resposta pública separada da interna.
+- `src/locacoes/`: contratos apontam para `pessoas`; controlador de partes removido; resposta inclui
+  `imovel_titulo`, `locador_nome`, `locatario_nome`; filtro `pessoa_id`; `DELETE` 204.
+- `src/comissoes/`: `cliente_id` → `pessoa_id`; `total_paginas` na listagem; `DELETE` 204.
+- `src/autenticacao/`, `src/corretores/`, `src/cadastros/`, `src/midias/`, `src/drive/`: ids inteiros,
+  `ParseIntPipe`, `sub` do JWT como texto numérico.
+- `src/database/migrations/1789603200000-ids-inteiros-pessoas.ts` (nova) e `registros.ts`;
+  `migracao-legado.ts` ganhou DTO próprio do legado no lugar do `ClienteManualDto` removido.
+- Testes: specs de pessoas (novos), imóveis, locações, comissões, autenticação, cadastros, mídia, drive e
+  corretores atualizados; `modelo-portugues.integracao.spec.ts` agora roda também a migration nova e aceita
+  `TESTE_LOCAL_DATABASE_URL` (PostgreSQL local sem TLS, por exemplo Docker) além de `HOMOLOGACAO_DATABASE_URL`.
+
+Testes executados (resultado real):
+
+- `npm run typecheck`: sem erros. `npm run lint`: sem erros.
+- `npm test`: 26 suítes, 175 testes aprovados; 1 suíte (4 testes) de integração ignorada sem banco.
+- Integração com Docker `postgres:16` (`TESTE_LOCAL_DATABASE_URL=postgresql://teste:teste@127.0.0.1:55432/corretor_teste
+  npx jest src/database/modelo-portugues.integracao.spec.ts`): 4 testes aprovados — migrations legadas +
+  1789516800000 + 1789603200000 com dados sintéticos cifrados, constraints, schema legado e fluxo HTTP
+  (login, catálogo ordenado, pessoas, ficha do imóvel, slug renomeado, comissão e baixa de parcela).
+- Não executado: `npm run build` desta rodada; homologação em Neon; deploy.
+
+Pendências e riscos: publicação exige o front v2 (a API nova quebra o contrato antigo); migração do banco
+publicado só com backup e corte coordenado; documentação antiga (README, ENTENDENDO-O-BACKEND, spec de
+13/09) ainda cita clientes/partes/UUID (DOC-003); aviso de novo contato (NOTIFY-001) e regras de locação
+(RENTAL-004) ficaram para conversa com o dono. Sem commit/push.
+
 ## 2026-09-13 — opencode — perfil próprio, senha e filtro de status no gerenciado
 
 Pedido do dono: página `/admin/perfil` no front com foto grande, métricas por status e edição dos próprios

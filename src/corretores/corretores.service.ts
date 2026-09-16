@@ -15,9 +15,9 @@ export class CorretoresService {
     return this.corretores.findOne({ where: { email: email.trim().toLowerCase() }, select: this.camposComSenha() });
   }
 
-  buscarAtivoPorId(id: string): Promise<Corretor | null> { return this.corretores.findOneBy({ id, ativo: true }); }
+  buscarAtivoPorId(id: number): Promise<Corretor | null> { return this.corretores.findOneBy({ id, ativo: true }); }
 
-  async buscarPorId(id: string) {
+  async buscarPorId(id: number) {
     const corretor = await this.corretores.findOneBy({ id });
     if (!corretor) throw new NotFoundException('Corretor não encontrado.');
     return perfilCorretor(corretor);
@@ -45,7 +45,7 @@ export class CorretoresService {
     });
   }
 
-  async atualizar(id: string, dto: AtualizarCorretorDto, usuario: UsuarioAutenticado) {
+  async atualizar(id: number, dto: AtualizarCorretorDto, usuario: UsuarioAutenticado) {
     const senha_hash = dto.senha === undefined ? undefined : await this.senhas.gerarHash(dto.senha);
     return this.corretores.manager.transaction(async gerente => {
       // A trava antecede a leitura e a contagem para serializar rebaixamentos entre instâncias.
@@ -65,15 +65,15 @@ export class CorretoresService {
     });
   }
 
-  desativar(id: string, usuario: UsuarioAutenticado) { return this.atualizar(id, { ativo: false }, usuario); }
+  desativar(id: number, usuario: UsuarioAutenticado) { return this.atualizar(id, { ativo: false }, usuario); }
 
-  async atualizarPerfil(id: string, dto: AtualizarPerfilDto) {
+  async atualizarPerfil(id: number, dto: AtualizarPerfilDto) {
     const corretor = await this.buscarAtivoPorId(id);
     if (!corretor) throw new UnauthorizedException('Sessão inválida.');
     return this.atualizar(id, { nome: dto.nome, whatsapp: dto.whatsapp, creci: dto.creci, url_foto: dto.url_foto }, corretor);
   }
 
-  async alterarSenha(id: string, dto: AlterarSenhaDto) {
+  async alterarSenha(id: number, dto: AlterarSenhaDto) {
     return this.corretores.manager.transaction(async gerente => {
       await gerente.query('SELECT pg_advisory_xact_lock(741901)');
       const repositorio = gerente.getRepository(Corretor);
@@ -85,7 +85,7 @@ export class CorretoresService {
     });
   }
 
-  private async salvarNovo(repositorio: Repository<Corretor>, dto: CriarCorretorDto, senha_hash: string, autor: string | null) {
+  private async salvarNovo(repositorio: Repository<Corretor>, dto: CriarCorretorDto, senha_hash: string, autor: number | null) {
     const email = dto.email.trim().toLowerCase();
     if (await repositorio.existsBy({ email })) throw new ConflictException('Já existe um corretor com esse e-mail.');
     return this.salvar(repositorio, repositorio.create({

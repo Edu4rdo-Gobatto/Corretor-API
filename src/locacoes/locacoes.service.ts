@@ -3,25 +3,22 @@ import { Cron } from '@nestjs/schedule';
 import { DataSource, EntityManager } from 'typeorm';
 import { Corretor } from '../corretores/corretor.entity';
 import { Imovel } from '../imoveis/imovel.entity';
+import { Pessoa } from '../pessoas/pessoa.entity';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
-import { dataCivilValida, decimalEmCentavos, documentoValido, escaparBusca } from '../comum/validacao';
+import { DATA_ATUAL_SQL, hojeCivil } from '../comum/datas';
+import { dataCivilValida, decimalEmCentavos, escaparBusca } from '../comum/validacao';
 import { DriveService } from '../drive/drive.service';
 import { Comissao } from '../comissoes/comissao.entity';
-import { Contrato } from './contrato.entity';
-import { ParteLocacao } from './parte-locacao.entity';
-import { AlterarContratoDto, AlterarParteLocacaoDto, ConsultaContratosDto, ConsultaPartesDto, CriarContratoDto, CriarParteLocacaoDto } from './locacoes.dto';
+import { Contrato, resposta_contrato } from './contrato.entity';
+import { AlterarContratoDto, ConsultaContratosDto, CriarContratoDto } from './locacoes.dto';
 
-export const DATA_ATUAL_SQL = "(CURRENT_TIMESTAMP AT TIME ZONE 'America/Cuiaba')::date";
-export const hojeCivil = (): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Cuiaba', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const RELACOES = { imovel: true, locador: true, locatario: true } as const;
 
 @Injectable()
 export class LocacoesService {
   private readonly logger = new Logger(LocacoesService.name);
   constructor(private readonly banco: DataSource, private readonly drive: DriveService) {}
 
-  private administrador(usuario: UsuarioAutenticado): void {
-    if (usuario.cargo !== 'ADMIN') throw new ForbiddenException('Somente ADMIN pode alterar partes de locação.');
-  }
   private autorizar(contrato: Contrato, usuario: UsuarioAutenticado): void {
     if (usuario.cargo !== 'ADMIN' && contrato.corretor_id !== usuario.id) throw new NotFoundException('Contrato não encontrado.');
   }
@@ -45,100 +42,57 @@ export class LocacoesService {
     try { await this.expirar(); } catch { this.logger.error('Falha ao atualizar contratos vencidos.'); }
   }
 
-  async listarPartes(consulta: ConsultaPartesDto, usuario: UsuarioAutenticado) {
-    const busca = this.banco.getRepository(ParteLocacao).createQueryBuilder('parte');
-    if (usuario.cargo !== 'ADMIN') busca.andWhere('EXISTS (SELECT 1 FROM contrato c WHERE c.corretor_id = :usuario AND (c.locador_id = parte.id OR c.locatario_id = parte.id))', { usuario: usuario.id });
-    busca.andWhere('parte.ativo = :ativo', { ativo: consulta.ativo ?? true });
-    if (consulta.papel) busca.andWhere('parte.papel = :papel', { papel: consulta.papel });
-    if (consulta.cpf_cnpj) busca.andWhere('parte.cpf_cnpj LIKE :documento', { documento: `${consulta.cpf_cnpj}%` });
-    if (consulta.busca) busca.andWhere('parte.nome ILIKE :busca', { busca: `%${escaparBusca(consulta.busca)}%` });
-    const [itens, total] = await busca.orderBy('parte.nome', 'ASC').addOrderBy('parte.id', 'ASC').skip((consulta.pagina - 1) * consulta.limite).take(consulta.limite).getManyAndCount();
-    return { itens, total, pagina: consulta.pagina, limite: consulta.limite };
-  }
-
-  async obterParte(id: string, usuario: UsuarioAutenticado): Promise<ParteLocacao> {
-    const busca = this.banco.getRepository(ParteLocacao).createQueryBuilder('parte').where('parte.id = :id', { id });
-    if (usuario.cargo !== 'ADMIN') busca.andWhere('EXISTS (SELECT 1 FROM contrato c WHERE c.corretor_id = :usuario AND (c.locador_id = parte.id OR c.locatario_id = parte.id))', { usuario: usuario.id });
-    const parte = await busca.getOne();
-    if (!parte) throw new NotFoundException('Parte de locação não encontrada.');
-    return parte;
-  }
-
-  private validarParte(parte: Pick<ParteLocacao, 'tipo_pessoa' | 'cpf_cnpj' | 'data_nascimento'>): void {
-    if (!documentoValido(parte.cpf_cnpj) || parte.cpf_cnpj.length !== (parte.tipo_pessoa === 'PF' ? 11 : 14)) throw new BadRequestException('CPF/CNPJ incompatível com o tipo de pessoa.');
-    if (parte.data_nascimento && (parte.tipo_pessoa !== 'PF' || !dataCivilValida(parte.data_nascimento) || parte.data_nascimento > hojeCivil())) throw new BadRequestException('Data de nascimento inválida para a pessoa.');
-  }
-
-  async criarParte(dto: CriarParteLocacaoDto, usuario: UsuarioAutenticado): Promise<ParteLocacao> {
-    this.administrador(usuario);
-    const repositorio = this.banco.getRepository(ParteLocacao);
-    const parte = repositorio.create({ ...dto, ativo: true, criado_por: usuario.id, alterado_por: usuario.id });
-    this.validarParte(parte);
-    return repositorio.save(parte);
-  }
-
-  async alterarParte(id: string, dto: AlterarParteLocacaoDto, usuario: UsuarioAutenticado): Promise<ParteLocacao> {
-    this.administrador(usuario);
-    return this.transacao(async gerenciador => {
-      const parte = await gerenciador.findOne(ParteLocacao, { where: { id }, lock: { mode: 'pessimistic_write' } });
-      if (!parte) throw new NotFoundException('Parte de locação não encontrada.');
-      const atualizada = Object.assign(new ParteLocacao(), parte, dto, { alterado_por: usuario.id });
-      this.validarParte(atualizada);
-      if (dto.ativo === false && await gerenciador.count(Contrato, { where: [{ locador_id: id, status: 'ATIVO' }, { locatario_id: id, status: 'ATIVO' }] })) throw new ConflictException('Parte vinculada a contrato ativo não pode ser desativada.');
-      if (dto.papel && dto.papel !== parte.papel && await gerenciador.count(Contrato, { where: [{ locador_id: id }, { locatario_id: id }] })) throw new ConflictException('O papel de parte vinculada a contrato não pode ser alterado.');
-      return gerenciador.save(atualizada);
-    });
-  }
-
   async listarContratos(consulta: ConsultaContratosDto, usuario: UsuarioAutenticado) {
     await this.expirar();
-    const busca = this.banco.getRepository(Contrato).createQueryBuilder('contrato');
+    const busca = this.banco.getRepository(Contrato).createQueryBuilder('contrato')
+      .leftJoinAndSelect('contrato.imovel', 'imovel').leftJoinAndSelect('contrato.locador', 'locador').leftJoinAndSelect('contrato.locatario', 'locatario');
     if (usuario.cargo !== 'ADMIN') busca.andWhere('contrato.corretor_id = :usuario', { usuario: usuario.id });
     busca.andWhere('contrato.ativo = :ativo', { ativo: consulta.ativo ?? true });
     if (consulta.status) busca.andWhere('contrato.status = :status', { status: consulta.status });
     if (consulta.imovel_id) busca.andWhere('contrato.imovel_id = :imovel', { imovel: consulta.imovel_id });
     if (consulta.corretor_id) busca.andWhere('contrato.corretor_id = :corretor', { corretor: consulta.corretor_id });
-    if (consulta.busca) busca.andWhere('contrato.numero_contrato ILIKE :busca', { busca: `%${escaparBusca(consulta.busca)}%` });
+    if (consulta.pessoa_id) busca.andWhere('(contrato.locador_id = :pessoa OR contrato.locatario_id = :pessoa)', { pessoa: consulta.pessoa_id });
+    if (consulta.busca) busca.andWhere('(contrato.numero_contrato ILIKE :busca OR imovel.titulo ILIKE :busca OR locatario.nome ILIKE :busca)', { busca: `%${escaparBusca(consulta.busca)}%` });
     const [itens, total] = await busca.orderBy('contrato.criado_em', 'DESC').addOrderBy('contrato.id', 'ASC').skip((consulta.pagina - 1) * consulta.limite).take(consulta.limite).getManyAndCount();
-    return { itens, total, pagina: consulta.pagina, limite: consulta.limite };
+    return { itens: itens.map(resposta_contrato), total, pagina: consulta.pagina, limite: consulta.limite, total_paginas: Math.ceil(total / consulta.limite) };
   }
 
-  async obterContrato(id: string, usuario: UsuarioAutenticado): Promise<Contrato> {
+  async obterContrato(id: number, usuario: UsuarioAutenticado) {
     await this.expirar();
-    const contrato = await this.banco.getRepository(Contrato).findOneBy({ id });
+    const contrato = await this.banco.getRepository(Contrato).findOne({ where: { id }, relations: RELACOES });
     if (!contrato) throw new NotFoundException('Contrato não encontrado.');
     this.autorizar(contrato, usuario);
-    return contrato;
+    return resposta_contrato(contrato);
   }
 
   private async validarContrato(contrato: Contrato, gerenciador: EntityManager): Promise<void> {
     if (!dataCivilValida(contrato.data_inicio) || !dataCivilValida(contrato.data_fim) || contrato.data_fim < contrato.data_inicio) throw new BadRequestException('Datas do contrato inválidas.');
     if (decimalEmCentavos(contrato.valor_aluguel) <= 0n || decimalEmCentavos(contrato.taxa_administracao) > 10000n) throw new BadRequestException('Valores do contrato inválidos.');
     if (!contrato.ativo || contrato.data_fim < hojeCivil()) contrato.status = 'INATIVO';
-    if (contrato.locador_id === contrato.locatario_id) throw new BadRequestException('Locador e locatário devem ser partes distintas.');
+    if (contrato.locador_id === contrato.locatario_id) throw new BadRequestException('Locador e locatário devem ser pessoas distintas.');
     const imovel = await gerenciador.findOne(Imovel, { where: { id: contrato.imovel_id }, lock: { mode: 'pessimistic_write' } });
     const corretor = await gerenciador.findOne(Corretor, { where: { id: contrato.corretor_id }, lock: { mode: 'pessimistic_write' } });
-    const partes = new Map<string, ParteLocacao>();
-    for (const id of [contrato.locador_id, contrato.locatario_id].sort()) {
-      const parte = await gerenciador.findOne(ParteLocacao, { where: { id }, lock: { mode: 'pessimistic_write' } });
-      if (parte) partes.set(id, parte);
+    const pessoas = new Map<number, Pessoa>();
+    for (const id of [contrato.locador_id, contrato.locatario_id].sort((a, b) => a - b)) {
+      const pessoa = await gerenciador.findOne(Pessoa, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (pessoa) pessoas.set(id, pessoa);
     }
-    const locador = partes.get(contrato.locador_id); const locatario = partes.get(contrato.locatario_id);
-    if (!imovel || !corretor || !locador || !locatario || locador.papel !== 'LOCADOR' || locatario.papel !== 'LOCATARIO') throw new BadRequestException('Imóvel, corretor ou partes do contrato inválidos.');
-    if (contrato.status === 'ATIVO' && (!imovel.ativo || !corretor.ativo || !locador.ativo || !locatario.ativo)) throw new BadRequestException('Contrato ativo exige imóvel, corretor e partes ativos.');
+    const locador = pessoas.get(contrato.locador_id); const locatario = pessoas.get(contrato.locatario_id);
+    if (!imovel || !corretor || !locador || !locatario) throw new BadRequestException('Imóvel, corretor ou pessoas do contrato inválidos.');
+    if (contrato.status === 'ATIVO' && (!imovel.ativo || !corretor.ativo || !locador.ativo || !locatario.ativo)) throw new BadRequestException('Contrato ativo exige imóvel, corretor e pessoas ativos.');
   }
 
-  async criarContrato(dto: CriarContratoDto, usuario: UsuarioAutenticado): Promise<Contrato> {
+  async criarContrato(dto: CriarContratoDto, usuario: UsuarioAutenticado) {
     if (usuario.cargo !== 'ADMIN' && dto.corretor_id !== usuario.id) throw new ForbiddenException('Corretor só pode criar contratos sob sua intermediação.');
     const contrato = await this.transacao(async gerenciador => {
       const novo = gerenciador.create(Contrato, { ...dto, ativo: true, status: dto.status ?? 'ATIVO', url_pasta_drive: null, status_pasta_drive: 'PENDENTE', criado_por: usuario.id, alterado_por: usuario.id });
       await this.validarContrato(novo, gerenciador);
       return gerenciador.save(novo);
     });
-    return contrato.status === 'ATIVO' ? this.prepararPasta(contrato, usuario) : contrato;
+    return this.concluir(contrato.status === 'ATIVO' ? await this.prepararPasta(contrato, usuario) : contrato);
   }
 
-  async alterarContrato(id: string, dto: AlterarContratoDto, usuario: UsuarioAutenticado): Promise<Contrato> {
+  async alterarContrato(id: number, dto: AlterarContratoDto, usuario: UsuarioAutenticado) {
     const contrato = await this.transacao(async gerenciador => {
       const existente = await gerenciador.findOne(Contrato, { where: { id }, lock: { mode: 'pessimistic_write' } });
       if (!existente) throw new NotFoundException('Contrato não encontrado.');
@@ -150,7 +104,13 @@ export class LocacoesService {
       await this.validarContrato(atualizado, gerenciador);
       return gerenciador.save(atualizado);
     });
-    return contrato.status === 'ATIVO' ? this.prepararPasta(contrato, usuario) : contrato;
+    return this.concluir(contrato.status === 'ATIVO' ? await this.prepararPasta(contrato, usuario) : contrato);
+  }
+
+  /** Recarrega o contrato com imóvel e pessoas para a resposta. */
+  private async concluir(contrato: Contrato) {
+    const completo = await this.banco.getRepository(Contrato).findOne({ where: { id: contrato.id }, relations: RELACOES });
+    return resposta_contrato(completo ?? contrato);
   }
 
   private async prepararPasta(contrato: Contrato, usuario: UsuarioAutenticado): Promise<Contrato> {
@@ -159,7 +119,7 @@ export class LocacoesService {
     const versao = { id: contrato.id, numero_contrato: contrato.numero_contrato, locatario_id: contrato.locatario_id };
     await repositorio.update(versao, { status_pasta_drive: 'PENDENTE', alterado_por: usuario.id });
     try {
-      const locatario = await this.banco.getRepository(ParteLocacao).findOneBy({ id: contrato.locatario_id });
+      const locatario = await this.banco.getRepository(Pessoa).findOneBy({ id: contrato.locatario_id });
       if (!locatario) throw new NotFoundException('Locatário não encontrado.');
       contrato.url_pasta_drive = await this.drive.criarPastaContrato({ id: contrato.id, numero_contrato: contrato.numero_contrato, locatario: locatario.nome }, usuario.id);
       contrato.status_pasta_drive = 'CRIADA';
@@ -176,9 +136,12 @@ export class LocacoesService {
     return await repositorio.findOneBy({ id: contrato.id }) ?? contrato;
   }
 
-  async repetirPasta(id: string, usuario: UsuarioAutenticado): Promise<Contrato> {
-    const contrato = await this.obterContrato(id, usuario);
+  async repetirPasta(id: number, usuario: UsuarioAutenticado) {
+    await this.expirar();
+    const contrato = await this.banco.getRepository(Contrato).findOneBy({ id });
+    if (!contrato) throw new NotFoundException('Contrato não encontrado.');
+    this.autorizar(contrato, usuario);
     if (!contrato.ativo || contrato.status !== 'ATIVO') throw new ConflictException('Somente contrato ativo pode preparar pasta no Drive.');
-    return this.prepararPasta(contrato, usuario);
+    return this.concluir(await this.prepararPasta(contrato, usuario));
   }
 }

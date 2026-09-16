@@ -1,19 +1,20 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IdRegistro } from '../comum/dto';
 import { DataCivilValida } from '../comum/validacao';
 import { ConsultaLocacoesDto } from '../locacoes/locacoes.dto';
 
 export class ConsultaComissoesDto extends ConsultaLocacoesDto {
-  @IsOptional() @IsUUID() imovel_id?: string;
-  @IsOptional() @IsUUID() cliente_id?: string;
-  @IsOptional() @IsUUID() contrato_id?: string;
+  @IsOptional() @IdRegistro() imovel_id?: number;
+  @IsOptional() @IdRegistro() pessoa_id?: number;
+  @IsOptional() @IdRegistro() contrato_id?: number;
   @IsOptional() @IsIn(['LOCACAO', 'VENDA']) tipo_operacao?: 'LOCACAO' | 'VENDA';
 }
 export class CriarComissaoDto {
   @IsIn(['LOCACAO', 'VENDA']) tipo_operacao!: 'LOCACAO' | 'VENDA';
-  @IsOptional() @IsUUID() contrato_id?: string | null;
-  @IsUUID() imovel_id!: string;
-  @IsUUID() cliente_id!: string;
+  @IsOptional() @IdRegistro() contrato_id?: number | null;
+  @IdRegistro() imovel_id!: number;
+  @IdRegistro() pessoa_id!: number;
   @Matches(/^(?:0|[1-9]\d{0,9})\.\d{2}$/) valor_total!: string;
   @IsInt() @Min(1) @Max(600) quantidade_parcelas!: number;
   @DataCivilValida() primeiro_vencimento!: string;

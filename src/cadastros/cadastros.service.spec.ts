@@ -6,8 +6,8 @@ import { ConsultaCadastrosDto } from './cadastros.dto';
 import { CadastrosService } from './cadastros.service';
 
 describe('Cadastros dinâmicos', () => {
-  const usuario: UsuarioAutenticado = { id: 'responsavel', nome: 'Responsável', email: 'teste@example.test', cargo: 'CORRETOR' };
-  const registro = Object.assign(new TipoImovel(), { id: 'tipo', nome: 'Galpão', slug: 'galpao', ativo: true });
+  const usuario: UsuarioAutenticado = { id: 1, nome: 'Responsável', email: 'teste@example.test', cargo: 'CORRETOR' };
+  const registro = Object.assign(new TipoImovel(), { id: 1, nome: 'Galpão', slug: 'galpao', ativo: true });
   const tipos = { findAndCount: jest.fn(), findOneBy: jest.fn(), create: jest.fn((dados: Partial<TipoImovel>) => Object.assign(new TipoImovel(), dados)), save: jest.fn((dados: TipoImovel) => Promise.resolve(dados)) };
   const caracteristicas = { create: jest.fn((dados: Partial<Caracteristica>) => Object.assign(new Caracteristica(), dados)), save: jest.fn((dados: Caracteristica) => Promise.resolve(dados)) };
   const servico = new CadastrosService(tipos as unknown as Repository<TipoImovel>, tipos as unknown as Repository<FinalidadeImovel>, caracteristicas as unknown as Repository<Caracteristica>);

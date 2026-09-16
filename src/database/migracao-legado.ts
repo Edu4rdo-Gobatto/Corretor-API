@@ -1,17 +1,26 @@
 import { createDecipheriv, createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { QueryRunner } from 'typeorm';
-import { plainToInstance } from 'class-transformer';
-import { isUUID, validateSync } from 'class-validator';
-import { ClienteManualDto } from '../clientes/clientes.dto';
-import { documentoValido } from '../comum/validacao';
+import { plainToInstance, Transform } from 'class-transformer';
+import { IsEmail, IsString, IsUUID, Length, MaxLength, ValidateIf, isUUID, validateSync } from 'class-validator';
+import { documentoValido, TelefoneValido } from '../comum/validacao';
+
+/** Cliente manual do modelo de 13/09 (ainda com UUID), usado só para complementar comissões legadas. */
+export class ClienteManualLegadoDto {
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value) @IsString() @Length(2, 200) nome!: string;
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value) @TelefoneValido() telefone!: string;
+  @ValidateIf((_objeto, valor: unknown) => valor !== undefined && valor !== null) @IsEmail() @MaxLength(254) email?: string | null;
+  @ValidateIf((_objeto, valor: unknown) => valor !== undefined && valor !== null) @IsString() @MaxLength(5000) mensagem?: string | null;
+  @ValidateIf((_objeto, valor: unknown) => valor !== undefined && valor !== null) @IsUUID('4') imovel_id?: string | null;
+  @ValidateIf((_objeto, valor: unknown) => valor !== undefined) @IsUUID('4') corretor_id?: string;
+}
 
 type Registro = Record<string, unknown>;
 export interface ComplementosLegado {
   corretores: Record<string, { cpf: string }>;
   contratos: Record<string, Registro>;
   comissoes: Record<string, Registro>;
-  clientes_manuais: Record<string, ClienteManualDto>;
+  clientes_manuais: Record<string, ClienteManualLegadoDto>;
   responsavel_migracao?: string;
 }
 
@@ -35,7 +44,7 @@ export function validarComplementos(entrada: unknown, corretores: string[]): Com
   }
   if (typeof dados.responsavel_migracao === 'string') resultado.responsavel_migracao = dados.responsavel_migracao;
   for (const [id, valor] of Object.entries(registro(dados.clientes_manuais))) {
-    const cliente = plainToInstance(ClienteManualDto, registro(valor));
+    const cliente = plainToInstance(ClienteManualLegadoDto, registro(valor));
     if (!isUUID(id, '4') || !cliente.corretor_id || validateSync(cliente, { whitelist: true, forbidNonWhitelisted: true, validationError: { target: false, value: false } }).length) {
       throw new Error('Migração interrompida: complemento de cliente manual inválido; informe ID, atendente, nome e telefone reais, sem campos de consentimento.');
     }
