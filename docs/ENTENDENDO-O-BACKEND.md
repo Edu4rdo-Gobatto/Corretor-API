@@ -1,13 +1,14 @@
 # Entendendo o backend — corretor-api
 
-> Material didático sobre o código da API. Escrito para quem sabe programar mas não
+> Referência técnica do código da API, módulo por módulo. Escrita para quem sabe programar mas não
 > conhece NestJS e TypeORM a fundo.
 >
-> **A fonte de verdade é o código.** Este documento foi produzido lendo os 60 arquivos
-> de `src/` um a um, e cada afirmação passou por um revisor que tentou refutá-la abrindo
-> o arquivo. Onde o texto e o código discordarem, o código ganha.
+> Reescrita em 17/09/2026 sobre o código da `main` no contrato v2: ids inteiros, cadastro único de pessoas,
+> nomes em português. A versão anterior, de 12/09, descrevia o modelo em inglês (`agents`, `properties`,
+> `leads`, UUID) e está no histórico do Git.
 >
-> Gerado em 12/09/2026, sobre o commit `38b0565`.
+> **A fonte de verdade é o código.** Onde o texto e o código discordarem, o código ganha.
+> Para estudo guiado, com plano e exercícios, use o [guia de estudo](GUIA-DE-ESTUDO.md).
 
 ---
 
@@ -15,22 +16,25 @@
 
 | # | Capítulo | Para quê |
 |---|---|---|
-| 0 | [O que é este sistema](#0-o-que-é-este-sistema) | produto, atores, serviços externos, os 22 endpoints |
-| 1 | [Inicialização e configuração](#1-inicialização-e-configuração) | como o processo sobe — e os conceitos de NestJS |
-| 2 | [O banco: 5 tabelas, 5 migrations](#2-o-banco-5-tabelas-5-migrations) | a forma dos dados, antes de qualquer módulo |
-| 3 | [Vocabulário de segurança](#3-vocabulário-de-segurança) | hash, JWT, Bearer, cookie, CSRF, XSS |
-| 4 | [Corretores (`agents`)](#4-corretores-agents) | a raiz do grafo |
-| 5 | [Autenticação (`auth`)](#5-autenticação-auth) | login, refresh rotativo, guards |
-| 6 | [O `AgentProfile`](#6-o-agentprofile-o-eixo-invisível) | o eixo que costura o sistema inteiro |
-| 7 | [Imóveis (`properties`)](#7-imóveis-properties) | o núcleo do produto |
-| 8 | [Mídia (`media`)](#8-mídia-media) | upload para o Cloudflare R2 |
-| 9 | [Leads (`leads`)](#9-leads-leads) | contato público e LGPD |
-| 10 | [Suporte](#10-suporte-senha-e-bootstrap) | senha e o comando de bootstrap |
-| 11 | [Como este projeto se testa](#11-como-este-projeto-se-testa) | o terço do código que ninguém mostra |
-| 12 | [Travessia: o ciclo de uma requisição](#12-travessia-o-ciclo-de-uma-requisição) | a ordem que ninguém enxerga |
-| 13 | [Travessia: o que acontece quando você apaga](#13-travessia-o-que-acontece-quando-você-apaga) | CASCADE, RESTRICT, SET NULL |
-| 14 | [Travessia: a corrente de segurança](#14-travessia-a-corrente-de-segurança) | releitura do sistema sob uma lente |
-| 15 | [Receitas](#15-receitas) | como mexer sem quebrar |
+| 0 | O que é este sistema | produto, atores, serviços externos, as 60 rotas |
+| 1 | Inicialização e configuração | como o processo sobe, e os conceitos de NestJS |
+| 2 | O banco | tabelas, migrations e padrões de modelagem |
+| 3 | Vocabulário de segurança | hash, JWT, Bearer, cookie, CSRF, XSS, IDOR |
+| 4 | Corretores | a raiz do grafo |
+| 5 | Autenticação | login, renovação rotativa, guards |
+| 6 | O usuário autenticado | o eixo que costura a autorização |
+| 7 | Cadastros | tipos, finalidades e características |
+| 8 | Imóveis | o núcleo do produto |
+| 9 | Mídias | upload para o Cloudflare R2 |
+| 10 | Pessoas | contato do site, LGPD e cadastro único |
+| 11 | Locações e Google Drive | contratos e pastas de documentos |
+| 12 | Comissões | receita e parcelas |
+| 13 | Suporte | comum, CLI de migrations, bootstrap, logger |
+| 14 | Como o projeto se testa | a arquitetura de teste |
+| 15 | Travessia: o ciclo de uma requisição | a ordem de execução |
+| 16 | Travessia: o que acontece quando você apaga | exclusão lógica e física |
+| 17 | Travessia: a corrente de segurança | as camadas e as fragilidades |
+| 18 | Receitas | como mexer sem quebrar |
 
 ---
 
@@ -38,1034 +42,937 @@
 
 ### O produto
 
-Um **catálogo de imóveis comerciais** — salas, lojas, galpões, prédios e terrenos. Duas metades:
+Sistema de uma imobiliária de **imóveis comerciais**: salas, lojas, galpões, prédios e terrenos.
 
-- **A vitrine pública.** Qualquer visitante, sem login, navega o catálogo, abre um imóvel e manda
-  uma mensagem de interesse.
-- **O painel do corretor.** Quem tem conta cadastra imóveis, sobe fotos e vídeos, e lê os contatos recebidos.
+- **O site público.** O visitante navega o catálogo, filtra, abre um imóvel e envia um contato com consentimento LGPD.
+- **O painel.** Corretores cadastram imóveis, fotos e vídeos, atendem pessoas, registram contratos de locação e
+  controlam as comissões da imobiliária.
 
-### Os três atores
+### Os atores
 
 | Ator | Como se identifica | O que pode |
 |---|---|---|
-| **Visitante** | não se identifica | ver imóveis disponíveis, criar um lead |
-| **AGENT** (corretor) | e-mail + senha | tudo do visitante, mais gerenciar **os seus** imóveis, mídia e leads |
-| **ADMIN** | e-mail + senha | tudo do AGENT, em **qualquer** registro, mais criar e editar corretores |
+| Visitante | não se identifica | ver imóveis disponíveis e enviar contato |
+| CORRETOR | e-mail e senha | ler todos os imóveis; alterar os seus; ver as pessoas que atende; contratos e comissões próprias |
+| ADMIN | e-mail e senha | tudo, em qualquer registro, mais gerenciar corretores e classificações |
 
-Não existe cadastro público. A primeira conta nasce por linha de comando (`npm run bootstrap:admin`);
-daí em diante só um ADMIN cria contas.
+Não existe cadastro público. O primeiro ADMIN nasce por `npm run bootstrap:admin`; depois, só um ADMIN cria contas.
 
 ### A pilha
 
-**NestJS 11** sobre Express, **TypeScript estrito**, **TypeORM 0.3**, **PostgreSQL 16**. Node `>=24 <25`.
-São **2.272 linhas** de código em 60 arquivos, mais **1.054 linhas** de teste em 13. É pequeno:
-dá para entender inteiro numa tarde.
+NestJS 11 sobre Express, TypeScript estrito, TypeORM 0.3, PostgreSQL 16. Node `>=24 <25`.
+São 88 arquivos de produção, cerca de 3.600 linhas, e 27 arquivos de teste, cerca de 1.660 linhas.
 
-### Os serviços externos, um parágrafo cada
+### Os serviços externos
 
-**Neon** é um PostgreSQL 16 gerenciado na nuvem, que só aceita conexão por TLS. Este projeto não
-tem "modo banco local": a validação de ambiente exige literalmente um host terminado em `.neon.tech`.
-Isso é incomum e deliberado — voltaremos a isso no capítulo 1.
+**Neon** é PostgreSQL 16 gerenciado, região São Paulo, acessado por TLS com conexão direta. A validação do
+ambiente exige host terminado em `.neon.tech`: não existe modo com banco local.
 
-**Cloudflare R2** é armazenamento de objetos compatível com a API do Amazon S3. É por isso que o
-projeto usa `@aws-sdk/client-s3` apontando para um endpoint que não é da Amazon, com `region: 'auto'`.
-Um "bucket" é um balde de arquivos; um "objeto" é um arquivo dentro dele. **Bucket não tem pastas
-de verdade**: `properties/abc-123/foto.jpg` é um nome de chave inteiro, com barras dentro. Essa
-sutileza importa no capítulo 13.
+**Cloudflare R2** é armazenamento de objetos compatível com o Amazon S3. Por isso o projeto usa
+`@aws-sdk/client-s3` com `region: 'auto'` e endpoint da Cloudflare. Bucket fixo: `corretor-midia`.
+Bucket não tem pastas de verdade: `imoveis/42/abc.jpg` é o nome inteiro de um objeto.
 
-**Render** (API) e **Vercel** (front) são os destinos de publicação planejados. **Nenhum dos dois
-existe ainda** — o código já está preparado para eles (escutar em `0.0.0.0`, não gravar em disco),
-mas não há deploy no ar. Se o texto falar de "produção", leia como "quando houver".
+**Google Drive** guarda os documentos dos contratos num Drive compartilhado privado, acessado por uma Service
+Account. A integração é opcional no boot.
+
+**Render** (API) e **Vercel** (front) são os destinos de publicação. O Render roda hoje um commit com o contrato
+anterior, incompatível com o banco atual.
 
 ### O repositório irmão
 
-Existe um front React + Vite em `../Corretor-web`, e ele não é um detalhe: o access token é assinado
-com `audience: 'corretor-web'`, o `ALLOWED_ORIGINS` tem default `http://localhost:5173` (porta padrão
-do Vite) e o CORS usa `credentials: true`. Essas três coisas existem **exclusivamente** por causa dele.
+O front React + Vite fica em `../Corretor-web`. Ele explica três escolhas da API: o JWT com
+`audience: 'corretor-web'`, o CORS com `credentials: true` e a lista `ALLOWED_ORIGINS`. O SSR do front chama a
+API por um proxy `/api` que remove o prefixo; por isso a API aceita as rotas com e sem `/api/v1`.
 
-### Os 22 endpoints
+### As 60 rotas
 
-Esta tabela não existe em nenhum outro lugar do projeto. Vale marcar a página.
+Todas sob `/api/v1`. "JWT" significa `AutenticacaoGuard`.
 
 | Método | Rota | Proteção | O que faz |
 |---|---|---|---|
-| POST | `/auth/login` | origem + rate limit | e-mail e senha → par de tokens |
-| POST | `/auth/refresh` | origem | cookie → par de tokens novo |
-| POST | `/auth/logout` | origem | revoga a sessão no servidor |
-| GET | `/auth/me` | JWT | quem sou eu |
-| GET | `/agents` | JWT + **ADMIN** | lista corretores |
-| POST | `/agents` | JWT + **ADMIN** | cria corretor |
-| PATCH | `/agents/:id` | JWT + **ADMIN** | edita corretor |
-| GET | `/properties` | **pública** | catálogo, com filtros e paginação |
-| GET | `/properties/:slug` | **pública** | um imóvel pelo slug |
-| POST | `/properties` | JWT | cria imóvel |
-| PATCH | `/properties/:id` | JWT | edita imóvel |
-| DELETE | `/properties/:id` | JWT | apaga imóvel |
-| GET | `/admin/properties` | JWT | meus imóveis (ADMIN vê todos) |
-| GET | `/admin/properties/:id` | JWT | meu imóvel por id |
-| POST | `/properties/:propertyId/media` | JWT | sobe até 20 arquivos |
-| POST | `/properties/:propertyId/media/embed` | JWT | adiciona YouTube/Vimeo |
-| PATCH | `/properties/:propertyId/media/reorder` | JWT | reordena a galeria |
-| PATCH | `/properties/:propertyId/media/:mediaId/cover` | JWT | define a capa |
-| DELETE | `/properties/:propertyId/media/:mediaId` | JWT | apaga uma mídia |
-| POST | `/leads` | **pública** | registra um interessado |
-| GET | `/admin/leads` | JWT | meus leads (ADMIN vê todos) |
-| DELETE | `/admin/leads/:id` | JWT | apaga um lead |
+| GET | `/saude` | pública | testa o banco com `SELECT 1` |
+| POST | `/autenticacao/entrar` | origem + limite | e-mail e senha viram par de tokens |
+| POST | `/autenticacao/renovar` | origem | cookie vira par de tokens novo |
+| POST | `/autenticacao/sair` | origem | revoga a sessão; 204 |
+| GET | `/autenticacao/eu` | JWT | perfil atual |
+| PATCH | `/autenticacao/eu` | JWT + origem | altera nome, WhatsApp, CRECI e foto |
+| PATCH | `/autenticacao/eu/senha` | JWT + origem | troca a própria senha e revoga as sessões |
+| GET, POST | `/admin/corretores` | JWT + ADMIN | lista e cria corretores |
+| GET, PATCH, DELETE | `/admin/corretores/:id` | JWT + ADMIN | lê, altera e desativa |
+| GET | `/tipos-imovel`, `/finalidades-imovel`, `/caracteristicas` | pública | classificações ativas |
+| GET, POST | `/admin/tipos-imovel`, `/admin/finalidades-imovel`, `/admin/caracteristicas` | JWT + ADMIN | lista todas e cria |
+| GET, PATCH, DELETE | as mesmas, com `/:id` | JWT + ADMIN | lê, altera e desativa; 204 no DELETE |
+| GET | `/imoveis` | pública | catálogo com filtros, ordenação e paginação |
+| GET | `/imoveis/:slug` | pública | detalhe pelo id no fim do slug |
+| GET, POST | `/admin/imoveis` | JWT | lista interna e criação |
+| GET, PATCH, DELETE | `/admin/imoveis/:id` | JWT | ficha completa, alteração e desativação; 204 |
+| POST | `/admin/imoveis/:imovel_id/midias` | JWT | até 20 arquivos no campo `arquivos` |
+| POST | `/admin/imoveis/:imovel_id/midias/video-embed` | JWT | vídeo do YouTube ou Vimeo |
+| PATCH | `/admin/imoveis/:imovel_id/midias/ordem` | JWT | nova ordem completa |
+| PATCH | `/admin/imoveis/:imovel_id/midias/:midia_id/capa` | JWT | define a capa |
+| DELETE | `/admin/imoveis/:imovel_id/midias/:midia_id` | JWT | exclusão física; 204 |
+| POST | `/pessoas` | limite por IP | contato do site; responde `{ id }` |
+| GET, POST | `/admin/pessoas` | JWT | lista e cadastro manual |
+| GET, PATCH, DELETE | `/admin/pessoas/:id` | JWT | lê, altera e desativa; 204 |
+| GET, POST | `/admin/contratos` | JWT | lista e cria contrato |
+| GET, PATCH, DELETE | `/admin/contratos/:id` | JWT | lê, altera e desativa; 204 |
+| POST | `/admin/contratos/:id/pasta-drive` | JWT | nova tentativa de criar a pasta no Drive |
+| GET, POST | `/admin/comissoes` | JWT | lista e cria comissão com parcelas |
+| GET, PATCH, DELETE | `/admin/comissoes/:id` | JWT | lê, altera observações ou `ativo`, desativa; 204 |
+| PATCH | `/admin/comissoes/parcelas/:id/pagamento` | JWT | baixa manual de parcela |
 
 Três coisas para notar já:
 
-1. **Não há prefixo global.** Não existe `/api/v1`. O caminho é literalmente o que o `@Controller` diz.
-2. **`/agents` não segue o padrão `/admin/*`.** As rotas `/admin/properties` e `/admin/leads` aceitam
-   **qualquer autenticado** e filtram por dono lá dentro; `/agents` exige papel ADMIN de verdade.
-   A nomenclatura sugere o contrário do que acontece. É a inconsistência mais confusa da API.
-3. **Não existe `GET` de mídia.** O subsistema de mídia só **escreve**. A galeria chega ao cliente
-   pelas rotas de imóveis, que carregam a relação. Procurar um `GET /media` é procurar o que não existe.
+1. **O prefixo `/admin` não significa cargo ADMIN.** Só corretores, classificações e a escrita delas exigem ADMIN.
+   Nas outras rotas `/admin`, qualquer corretor autenticado entra e o service filtra o que ele pode ver ou alterar.
+2. **Não existe `GET` de mídia.** A galeria chega pelas rotas de imóvel.
+3. **`DELETE` de corretor responde 200 com o perfil**, enquanto os outros `DELETE` respondem 204.
 
 ---
 
 ## 1. Inicialização e configuração
 
-Este é o capítulo onde os conceitos de framework são explicados. Daqui em diante eles só serão citados.
+### Os conceitos de NestJS que você precisa
 
-### Os seis conceitos de NestJS que você precisa
+**Módulo (`@Module`)** declara `imports` (outros módulos), `controllers` (quem atende HTTP), `providers`
+(classes injetáveis) e `exports` (o que outros módulos podem usar). Não tem lógica.
 
-**Módulo (`@Module`)** — uma caixa que declara o que existe dentro dela: `imports` (outras caixas de
-que preciso), `controllers` (quem atende HTTP), `providers` (as classes de serviço) e `exports` (o que
-deixo outras caixas usarem). Um módulo não tem lógica; é planta baixa.
+**Provider e injeção de dependência.** `constructor(private readonly imoveis: ImoveisService) {}` não instancia
+nada: o Nest lê o tipo do parâmetro e entrega a instância pronta. É o que permite aos testes trocarem o repositório
+real por um falso.
 
-**Provider e injeção de dependência** — quando você escreve
-`constructor(private readonly properties: PropertiesService) {}`, você **não** instancia nada. O Nest lê
-o tipo, procura quem oferece aquilo e entrega pronto. Isso é injeção de dependência, e é o que permite
-os testes trocarem o repositório real por um falso sem tocar no service.
+**Controller** mapeia URL para método. Aqui eles são finos: recebem, delegam ao service, devolvem.
 
-**Controller** — a classe que mapeia URL para método. `@Controller('properties')` + `@Get()` = `GET /properties`.
-Neste projeto os controllers são **finos de propósito**: recebem, delegam ao service, devolvem.
+**Guard** decide se a requisição pode entrar. Roda **antes** da validação do corpo.
 
-**Guard** — responde a uma pergunta: *pode entrar nesta rota?* Devolve `true`, `false` (vira **403**) ou
-lança exceção. Guards rodam **antes** de qualquer validação de corpo — guarde isso, é a fonte de metade
-das confusões deste projeto.
+**Pipe** transforma e valida a entrada. O `ValidationPipe` global é o principal; `ParseIntPipe` converte ids da URL.
 
-**Pipe** — transforma e valida o que entra. O `ValidationPipe` global é o pipe deste projeto.
+**DTO** é a classe que descreve o formato aceito, com decorators de `class-validator` e `class-transformer`.
+Campo fora do DTO não entra.
 
-**DTO** (*Data Transfer Object*) — uma classe que descreve o formato aceito numa requisição, com
-decorators de validação. Se o campo não está no DTO, ele não entra. Literalmente.
+**Entity** mapeia uma tabela e **não cria nada no banco**. **Repository** consulta e grava. **Migration** é o SQL
+que de fato cria e altera o schema.
 
-### E dois do TypeORM
-
-**Entity** — uma classe anotada que mapeia uma tabela. **Ela não cria nada no banco.**
-**Repository** — o objeto que executa consultas sobre uma entidade (`find`, `save`, `remove`).
-**Migration** — um arquivo com o SQL que efetivamente cria ou altera o schema. É a migration que cria
-tabela, não a entity. Em `properties/property.entity.ts` existe um `@Check(...)`; esse decorator
-**não criou** a constraint — quem criou foi a migration. O decorator só informa o TypeORM.
-
-### Os arquivos
-
-#### `src/main.ts` — o ponto de entrada
-
-23 linhas, e cada uma compra alguma coisa:
+### `src/main.ts`
 
 ```ts
 const application = await NestFactory.create(AppModule);
-const configuration = application.get(ConfigService);
-const httpServer = application.getHttpAdapter().getInstance();
+application.use(helmet());
+application.useGlobalFilters(new GlobalExceptionFilter());
+application.setGlobalPrefix('api/v1');
+application.use((request, _response, next) => {
+  if (!request.url.startsWith('/api/v1')) request.url = `/api/v1${request.url}`;
+  next();
+});
 httpServer.set('trust proxy', 1);
 application.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
-application.enableCors({ origin: allowedOrigins(configuration), credentials: true });
+application.enableCors({ origin: ALLOWED_ORIGINS.split(','), credentials: true });
 application.enableShutdownHooks();
-await application.listen(configuration.getOrThrow<number>('PORT'), '0.0.0.0');
+await application.listen(PORT, '0.0.0.0');
 ```
 
-- **`trust proxy 1`** diz ao Express para confiar em **um** salto de proxy ao calcular `request.ip` a
-  partir do header `X-Forwarded-For`. O `1` importa: confiar em todos deixaria qualquer cliente forjar
-  o próprio IP. Essa única linha sustenta duas coisas em módulos distantes — a chave do rate limit de
-  login e o `consentIp` gravado como prova de LGPD no lead.
-- **`ValidationPipe` global** com três flags: `whitelist` remove campo que não está no DTO,
-  `forbidNonWhitelisted` transforma essa remoção em **400**, e `transform` faz o DTO chegar como
-  instância de classe de verdade (é o que habilita `@Type` e `@Transform`).
-- **`enableCors`** usa `allowedOrigins`, função que mora em `src/auth/browser-origin.guard.ts`.
-  Uma lista, dois consumidores — não existe o cenário de o CORS liberar o que o guard bloqueia.
+- **`helmet()`** acrescenta headers de segurança: HSTS, `X-Content-Type-Options`, proteção contra clickjacking.
+- **`GlobalExceptionFilter`** transforma qualquer erro em `{ statusCode, message }`. Erro que não é `HttpException`
+  vira 500 genérico e só um código de falha vai ao log.
+- **O middleware de reescrita** acrescenta `/api/v1` a URLs que chegam sem ele, para o proxy do front.
+- **`trust proxy 1`** confia em um salto de proxy para calcular `request.ip` pelo `X-Forwarded-For`. Sustenta os
+  limites por IP e o IP gravado no consentimento. Confiar em todos os saltos deixaria o cliente forjar o IP.
+- **`ValidationPipe`**: `whitelist` remove campo desconhecido, `forbidNonWhitelisted` transforma isso em 400,
+  `transform` entrega o DTO como instância de classe e ativa `@Transform` e `@Type`.
+- **`enableShutdownHooks`** faz os métodos `onModuleDestroy` rodarem quando o processo recebe sinal de parada.
 - **`listen(PORT, '0.0.0.0')`** escuta em todas as interfaces, exigência de container.
 
-**O que não existe aqui é tão informativo quanto o que existe:** não há `setGlobalPrefix`, nem
-versionamento, nem `useGlobalGuards`, nem filtro de exceção customizado, nem `helmet`, nem
-`cookie-parser`. Consequência direta: **toda proteção de rota é declarada à mão** com `@UseGuards`, e
-**qualquer erro que não seja uma `HttpException` vira 500**.
+Não há guard global. Toda proteção é declarada com `@UseGuards`.
 
-> **Correção de um mito:** o `import 'reflect-metadata'` está na **linha 2** do `main.ts`, depois do
-> import do guard de origem. Não é o primeiro import do arquivo. Funciona porque o pacote é idempotente
-> e outras bibliotecas também o importam.
+### `src/app.module.ts`
 
-#### `src/app.module.ts` — o módulo raiz
+Importa `ConfigModule.forRoot({ isGlobal, cache, validate })`, `TypeOrmModule.forRootAsync(...)`,
+`ScheduleModule.forRoot()` e os módulos de domínio: autenticação, corretores, cadastros, imóveis, mídias,
+pessoas, locações, comissões e saúde. O módulo do Drive entra pelo de locações.
 
-Classe de corpo vazio; tudo está no decorator. Importa, nesta ordem: `ConfigModule.forRoot({ isGlobal, cache, validate })`,
-`TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: createDatabaseOptions })` e os
-cinco módulos de domínio. Não tem `controllers` nem `providers` próprios — é composição pura.
+`forRootAsync` existe porque as opções do banco dependem do `ConfigService` já validado.
 
-O `forRootAsync` existe porque as opções do banco dependem de algo que só existe em tempo de execução
-(o `ConfigService` já validado). O `inject` é a lista de dependências que o Nest passa para a factory.
+### `src/config/env.validation.ts`
 
-#### `src/config/env.validation.ts` — o contrato do ambiente
+Trata o ambiente como entrada não confiável, com os mesmos decorators dos DTOs.
 
-Trata o `.env` como entrada não confiável, com os mesmos decorators dos DTOs de requisição. Declara
-**10 variáveis**, mas atenção à distinção que quase ninguém faz:
+| Obrigatórias | Com padrão | Opcionais em grupo |
+|---|---|---|
+| `DATABASE_URL` | `PORT` = 3000 | as quatro `GOOGLE_DRIVE_*` |
+| `JWT_SECRET` (32 ou mais) | `NODE_ENV` = development | |
+| `R2_ENDPOINT` | `JWT_EXPIRES_IN` = 15m | |
+| `R2_ACCESS_KEY_ID` | `ALLOWED_ORIGINS` = http://localhost:5173 | |
+| `R2_SECRET_ACCESS_KEY` | `R2_REQUEST_TIMEOUT_MS` = 30000 | |
+| `R2_PUBLIC_URL` | `R2_CONNECTION_TIMEOUT_MS` = 5000 | |
 
-| Obrigatórias (6) | Com valor padrão (4) |
-|---|---|
-| `DATABASE_URL` | `PORT` = 3000 |
-| `JWT_SECRET` (mínimo 32 caracteres) | `NODE_ENV` = development |
-| `R2_ENDPOINT` | `JWT_EXPIRES_IN` = 15m |
-| `R2_ACCESS_KEY_ID` | `ALLOWED_ORIGINS` = http://localhost:5173 |
-| `R2_SECRET_ACCESS_KEY` | |
-| `R2_PUBLIC_URL` | |
+O validador `NeonDatabaseUrl` exige protocolo `postgres:` ou `postgresql:`, host `.neon.tech`, usuário, senha,
+banco e `sslmode` seguro, e **rejeita qualquer outro parâmetro de query**: no driver `pg`, parâmetros da URL
+podem sobrescrever o host e até desligar o TLS.
 
-Faltar uma das quatro da direita **não** derruba nada.
+Validações adicionais depois dos decorators:
 
-A peça mais opinativa é o validador customizado `NeonDatabaseUrl`. Ele exige protocolo `postgres:`
-ou `postgresql:`, host terminando em `.neon.tech`, usuário, senha, um banco no caminho, e `sslmode`
-entre `require`, `verify-ca` e `verify-full`. E vai além: **rejeita qualquer parâmetro de query que
-não seja `sslmode` ou `channel_binding`**, cada um aparecendo uma única vez. O motivo está no
-comentário do código — parâmetros de query do driver `pg` conseguem sobrescrever a autoridade da
-conexão e até desligar o TLS.
+- Em produção, `ALLOWED_ORIGINS` só aceita `https://`.
+- As quatro variáveis do Drive vêm juntas ou nenhuma, e a chave privada precisa ser RSA de 2048 bits ou mais.
 
-Quando algo falha, a mensagem cita **só nomes de campo**, nunca valores:
-`Configuração de ambiente inválida: <campos>. Consulte .env.example.` O comentário explica: mensagens
-de validador podem interpolar o valor, e o valor aqui é segredo.
+A mensagem de erro cita **só nomes de campo**. Mensagens de validador podem interpolar o valor, e o valor é segredo.
 
-> **Correção importante:** é tentador concluir que uma variável não declarada nessa classe fica
-> invisível. **Não fica.** O `ConfigService.get()` tem fallback para `process.env`. A prova está no
-> próprio repositório: `bootstrap-admin.config.ts` lê as quatro `BOOTSTRAP_ADMIN_*`, que não existem
-> em `EnvironmentVariables`. O que a classe controla é o **boot** (variável inválida mata o processo)
-> e a camada tipada — não a visibilidade das outras.
+Uma variável não declarada nessa classe continua acessível pelo `ConfigService`, que recorre ao `process.env`.
+A classe controla o boot e a tipagem, não a visibilidade.
 
-#### `src/config/database.config.ts` — a conexão
+### `src/config/database.config.ts`
 
-Duas funções. `createPostgresOptions(url)` é o núcleo: reabre a URL, **apaga** `sslmode`, `sslcert`,
-`sslkey` e `sslrootcert`, e só então monta `ssl: { rejectUnauthorized: true }`. Por que apagar se a
-validação já conferiu? Porque no driver `pg` os parâmetros da URL têm **precedência** sobre o objeto
-`ssl` — validar não bastava, era preciso remover. Também fixa `synchronize: false`, `migrationsRun: false`
-e `installExtensions: false` (o Postgres 16 já traz `gen_random_uuid()`, então o boot não precisa
-executar `CREATE EXTENSION`).
+`createPostgresOptions(url)` apaga `sslmode`, `sslcert`, `sslkey` e `sslrootcert` da URL e só então define
+`ssl: { rejectUnauthorized: true }`, porque no `pg` os parâmetros da URL vencem o objeto `ssl`. Fixa
+`synchronize: false`, `migrationsRun: false`, `installExtensions: false`, `logging: false`, o `LoggerSeguro` e
+timeout de conexão de 10 segundos.
 
-A segunda, `createDatabaseOptions(config)`, é a usada pelo Nest: lê a URL, delega, e acrescenta
-`autoLoadEntities: true`.
+`createDatabaseOptions(config)` é a versão usada pelo Nest e acrescenta `autoLoadEntities: true` e `retryAttempts: 1`.
 
-#### `package.json`, `nest-cli.json`, `tsconfig.json`
+### `tsconfig.json`, `eslint.config.mjs`, `package.json`
 
-O `package.json` fixa `engines: { node: ">=24 <25", npm: ">=11" }` — e o `.nvmrc` com `24` é o par
-disso, para o nvm escolher a versão certa. As dependências de produção são 19, e a lista é uma
-declaração de princípios: um ORM (TypeORM), um validador (class-validator), um hasher (argon2). O
-`tsconfig.json` liga `strict` e, crucialmente, `emitDecoratorMetadata` — sem ele o `ValidationPipe`
-não descobriria o tipo dos parâmetros e nada disso funcionaria. O `tsconfig.build.json` faz uma coisa
-só: estende o anterior e redefine `exclude` (`node_modules`, `dist`, `**/*.spec.ts`, `src/testing`).
-É a razão de as fixtures de teste nunca irem para produção.
-
-Não citado em lugar nenhum mas importante: **`eslint.config.mjs`** usa `tseslint.configs.recommendedTypeChecked`
-com `parserOptions.project`. É lint **com informação de tipo** — mais lento, e com regras que só
-existem por saber o tipo (`no-floating-promises`, `no-unsafe-assignment`). É isso, e não só o `strict`,
-que sustenta a regra "não use `any`" do projeto.
+- `strict: true` e `emitDecoratorMetadata: true`. Sem este último, o Nest não descobre os tipos dos parâmetros e
+  a injeção de dependência não funciona. O `import 'reflect-metadata'` no `main.ts` é o par dele.
+- `tsconfig.build.json` exclui `*.spec.ts` e `src/testing` do build de produção.
+- O ESLint usa `recommendedTypeChecked`, lint com informação de tipo. Regras como `no-floating-promises` e
+  `no-unsafe-assignment` sustentam a proibição de `any`.
+- O `package.json` fixa `engines` e força `multer` 2.3.0 por `overrides`, para corrigir alertas de segurança da versão
+  trazida pelo adaptador Express.
 
 ---
 
-## 2. O banco: 5 tabelas, 5 migrations
+## 2. O banco
 
-### Antes de tudo: quem manda no schema
+### Quem manda no schema
 
-`synchronize: false` e `migrationsRun: false`. O TypeORM **nunca** altera o banco sozinho — nem no
-boot, nem quando você muda uma entidade. As entidades são o mapa que o ORM usa para montar SQL; quem
-cria coluna, chave e índice são as migrations, e **as cinco já foram aplicadas no Neon em 11/09/2026**.
+`synchronize: false` e `migrationsRun: false`: o TypeORM nunca altera o banco sozinho. Entity sem migration
+compila e quebra em execução.
 
-Duas consequências práticas, e elas mordem:
+### As migrations
 
-1. Se entidade e migration discordarem, quem manda é a migration — e o código simplesmente não
-   enxerga o que está no banco.
-2. Um decorator novo numa entidade **não tem efeito nenhum** até virar migration. O erro aparece em
-   tempo de execução, não de compilação.
+Registradas em `src/database/registros.ts`, nesta ordem:
 
-### Conceitos de banco que o código usa
+| Migration | O que faz |
+|---|---|
+| `1789084800000` a `1789084804000` | modelo original em inglês: `agents`, `properties`, `property_media`, `leads`, `refresh_sessions` |
+| `1789257600000`, `1789344000000`, `1789430400000` | locações, comissões de captação e pagamentos de aluguel do modelo intermediário |
+| `1789516800000-modelo-portugues` | recria tudo em português com UUID e move o anterior para `legado_20260913` |
+| `1789603200000-ids-inteiros-pessoas` | troca UUID por inteiro, funde clientes e partes em `pessoas`, move o anterior para `legado_20260916` |
 
-- **`timestamptz`** — todas as colunas de data são assim. Significa armazenamento normalizado em UTC.
-  Importa para `consentTimestamp`, para os filtros de data dos leads e para `expires_at`.
-- **`numeric` vs `float`** — dinheiro e área usam `numeric`, que é exato. `float` erraria centavos.
-  O preço disso: o driver devolve `numeric` como **string**, para não perder precisão.
-- **`jsonb`** — coluna que guarda JSON e o banco sabe indexar. Usada em `features`.
-- **enum nativo** — `CREATE TYPE ... AS ENUM`. O Postgres recusa valor fora da lista.
-- **Índice composto e a regra do prefixo mais à esquerda** — um índice em `(status, created_at)`
-  serve consultas que filtram por `status`, ou por `status` **e** `created_at`. **Não** serve uma que
-  filtre só por `created_at`. É por isso que a ordem das colunas não é arbitrária, e é a regra que
-  permite você criar o próximo índice sem decorar os existentes.
-- **Transação** — um bloco de operações que acontece inteiro ou não acontece. **Condição de corrida**
-  é quando duas requisições simultâneas leem o mesmo estado e ambas decidem errado.
+- A migration de 13/09 lê um arquivo de complementos (`MIGRACAO_COMPLEMENTOS_ARQUIVO`) para dados que o modelo
+  antigo não tinha, como CPF de corretores, e decifra dados legados com `LEADS_ENCRYPTION_KEY`. Com banco vazio,
+  as cópias percorrem zero linhas e nada disso é necessário.
+- A migration de 16/09 cria uma tabela temporária `mapa` que traduz cada UUID antigo para o inteiro novo, na
+  ordem de criação, e ajusta as sequências de id no fim.
+- As duas recusam reversão automática: o `down` lança erro.
+- `1789084805000-hardening.ts` está no disco e fora do registro. Nunca roda.
 
-### `agents` — a raiz de tudo
+Em 17/09/2026 o banco foi zerado e as 10 migrations rodaram do zero. Os schemas `legado_*` existem e estão vazios,
+sem acesso pela API.
 
-Única tabela sem chave estrangeira. Todo o resto pendura nela.
+### As tabelas atuais
 
-- `id uuid PK DEFAULT gen_random_uuid()`
-- `email text` com unique **e** `CHECK ("email" = lower(btrim("email")))`. O banco recusa e-mail com
-  maiúscula ou espaço nas pontas. Não é capricho: sem isso, `Joao@x.com` e `joao@x.com` seriam duas
-  linhas e o login viraria loteria.
-- `password_hash text NOT NULL`, mapeado com **`select: false`** — nenhum `find` traz o hash por
-  padrão. Só `AgentsService.findForAuthentication` o pede explicitamente.
-- `role` do enum `AgentRole ('ADMIN','AGENT')`, default `AGENT`
-- `active boolean DEFAULT true`, `whatsapp_number`, `creci` (nulo), `avatar_url` (nulo), `created_at`
+**`corretores`** — raiz do grafo. `email` único com `CHECK (email = lower(btrim(email)))`; `senha_hash` com
+`select: false` na entity; `cpf` com 11 dígitos; `cargo` do enum `cargo_corretor` (`ADMIN`, `CORRETOR`);
+`url_foto`, `creci`, `whatsapp`, `ativo`.
 
-**O que não existe:** `updated_at`, `deleted_at`, e **nenhuma rota DELETE**. Corretor não se apaga.
+**`sessoes_login`** — a chave primária é o próprio `token_hash` (SHA-256 em hexadecimal, checado por regex no banco).
+`corretor_id` com `ON DELETE CASCADE`; `expira_em`.
 
-### `properties` — o catálogo
+**`tipos_imovel`, `finalidades_imovel`** — `nome` e `slug` únicos, `ativo`. Seeds: Galpão, Sala Comercial, Prédio,
+Loja, Terreno; Locação, Venda, Locação e Venda.
 
-Três enums (`PropertyType`, `PropertyPurpose`, `PropertyStatus`) e a tabela.
+**`caracteristicas`** — `nome` único, `icone`, `ativo`.
 
-- `slug text` único, gerado no service como `${títuloEmSlug}-${uuid}`. Como o sufixo é o UUID,
-  colisão é improvável por construção. E o slug é **estável**: `CreatePropertyDto` não tem campo
-  `slug`, então mudar o título **não** muda a URL pública e nenhum link quebra.
-- `price numeric(12,2)`; `condo_fee`, `iptu_fee`, `usable_area` e `total_area` são `numeric(10,2)`.
-  (Não é "dinheiro 12,2 / área 10,2" — só o preço tem a precisão maior.)
-- `features jsonb NOT NULL DEFAULT '{}'` — campo livre, sem schema em lugar nenhum.
-- Dois CHECKs: áreas (`usable_area > 0 AND total_area >= usable_area`) e preços não negativos.
-- `agent_id uuid NOT NULL` com **ON DELETE RESTRICT**.
-- Dois índices: `(agent_id)` e `(status, created_at)` — o segundo é exatamente a forma da consulta pública.
+**`imoveis_caracteristicas`** — chave composta `(imovel_id, caracteristica_id)`, `valor` livre (por exemplo "4 vagas")
+e `ativo`. Imóvel com `CASCADE`, característica com `RESTRICT`.
 
-### `property_media` — filhas descartáveis
+**`imoveis`** — `titulo`, `slug` único, `tipo_id`, `finalidade_id`, `valor_venda` e `valor_locacao` opcionais,
+`valor_condominio`, `valor_iptu`, `area_util`, `area_total`, endereço completo, `descricao` até 20.000 caracteres,
+`status` (`DISPONIVEL`, `RESERVADO`, `VENDIDO`, `ALUGADO`, `RETIRADO`), `destaque`, `corretor_id`, `ativo`, e a
+ficha interna: `proprietario_id`, `exclusividade`, `exclusividade_ate`, `data_captacao`, `chaves`, `matricula`,
+`inscricao_municipal`, `observacoes_internas`, `motivo_baixa`. CHECKs de áreas e de valores não negativos.
 
-- `property_id` com **ON DELETE CASCADE** — a única CASCADE do domínio.
-- `url text NOT NULL` e `storage_key text` **nulo**. A nulidade distingue os dois tipos: upload para o
-  R2 grava uma chave; embed de YouTube grava `null`.
-- `order_index integer DEFAULT 0`, `is_cover boolean DEFAULT false`.
-- Índice em `(property_id, order_index)`.
+**`imoveis_midias`** — `tipo` (`IMAGEM`, `VIDEO_EMBED`, `VIDEO_ARQUIVO`), `url`, `chave_armazenamento` com
+`select: false`, `ordem`, `capa`. `CHECK (NOT capa OR tipo = 'IMAGEM')` e índice único parcial
+`uq_imoveis_midias_capa ... WHERE capa = true`: no máximo uma capa por imóvel, garantida pelo banco.
+`criado_por` é obrigatório.
 
-**Não existe constraint nenhuma sobre `is_cover` nem sobre `order_index`.** Capa única e ordem
-contínua são garantidas só pelo código. Voltaremos a isso.
+**`pessoas`** — cadastro único. Contato (`nome`, `telefone`, `email`, `mensagem`), documento (`tipo_pessoa`,
+`cpf_cnpj`, `data_nascimento`), `endereco`, dados bancários e `chave_pix`, `observacoes`, `imovel_id` com
+`ON DELETE SET NULL`, `corretor_id` responsável, `origem` (`SITE`, `MANUAL`), `status_contato` (`PENDENTE`,
+`RESPONDIDO`, `FINALIZADO`), bloco LGPD (`consentimento`, `consentimento_ip` com `select: false`,
+`consentimento_em`, `versao_termos`) e `ativo`. Dois CHECKs:
+`consentimento_site` (origem SITE exige consentimento e data) e `documento_coerente` (11 dígitos para PF, 14 para PJ).
 
-### `leads` — memória que sobrevive
+**`contrato`** — `numero_contrato` único, `imovel_id`, `locador_id` e `locatario_id` apontando para `pessoas`,
+`corretor_id` intermediador, datas, `valor_aluguel`, `dia_vencimento`, `taxa_administracao`, `garantia_locaticia`,
+`indice_reajuste`, `cobranca_iptu_condominio`, `url_pasta_drive`, `status_pasta_drive`, `status` (`ATIVO`, `INATIVO`),
+`observacoes`, `ativo`. CHECKs: partes distintas, fim depois do início, contrato desativado precisa estar INATIVO.
+Índice único parcial `unico_contrato_ativo_imovel ... WHERE status = 'ATIVO'`.
 
-A tabela com o desenho mais interessante, porque as duas FKs têm comportamentos **opostos**:
+**`comissoes`** — `tipo_operacao` (`LOCACAO`, `VENDA`), `contrato_id`, `imovel_id`, `pessoa_id`, `valor_total`,
+`quantidade_parcelas` entre 1 e 600, `observacoes`, `ativo`. CHECK: locação exige contrato e venda não tem.
 
-- `property_id` **nulo**, com **ON DELETE SET NULL**
-- `agent_id NOT NULL`, com **ON DELETE RESTRICT**
-- Bloco LGPD: `consent_given`, `consent_timestamp`, `consent_ip`, `terms_version DEFAULT 'v1.0'`
-- Três índices: `(agent_id, created_at)`, `(property_id, created_at)` e `(created_at)` — os três
-  correspondem a caminhos reais da listagem.
+**`parcelas_comissao`** — `numero_parcela` único por comissão, `data_vencimento`, `valor`, `status` (`PENDENTE`,
+`PAGO`, `ATRASADO`), `pago_em`, `observacao_pagamento`, `ativo`. CHECK: `PAGO` se e somente se `pago_em` preenchido.
 
-`consent_given` é `NOT NULL` mas **não tem CHECK exigindo `true`**. A garantia está só no código.
+**`pastas_drive`** — `chave` lógica única (por exemplo `contrato:7`), `id_drive` único, `pasta_pai_id`, `nome`, `ativo`.
 
-### `refresh_sessions` — a exceção
+### Padrões que atravessam todas as tabelas
 
-```sql
-CREATE TABLE refresh_sessions (
-  token_hash text PRIMARY KEY,
-  agent_id uuid NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-  expires_at timestamptz NOT NULL
-)
-```
+- **Auditoria.** Toda entity herda de `Auditoria`: `criado_em`, `alterado_em`, `criado_por`, `alterado_por`.
+  Os dois últimos apontam para `corretores` com `RESTRICT`.
+- **Ids inteiros** com `GENERATED BY DEFAULT AS IDENTITY`.
+- **Exclusão lógica** com `ativo`. Só mídias e sessões são apagadas de verdade.
+- **`numeric` volta como string** do driver, para não perder precisão. O projeto mantém texto de ponta a ponta e
+  calcula em centavos com `BigInt`.
+- **Colunas `date`** circulam como `"2026-09-17"`. O "hoje" de negócio é calculado no fuso `America/Cuiaba`.
+- **Busca textual** com a extensão `pg_trgm` e índices GIN em nome de corretor, título, cidade e bairro de imóvel,
+  nome, telefone e documento de pessoa.
+- **Índices compostos** seguem os caminhos reais de consulta, como `(ativo, status, criado_em)` no catálogo público.
+  Lembre da regra do prefixo mais à esquerda: esse índice não serve a uma consulta que filtra só por `criado_em`.
 
-Foge do padrão em três pontos: **não há coluna `id`** (a PK é o próprio hash do token), a FK é escrita
-inline sem nome, e a classe da migration é a única que não declara `name`.
+### `src/database/data-source.ts` e `registros.ts`
 
-E a diferença que mais importa: a entidade `RefreshSession` tem só `@PrimaryColumn` e dois `@Column`.
-**Não há `@ManyToOne` para `Agent`.** A FK existe no banco e é invisível para o ORM. Quem ler só a
-entidade conclui, errado, que não há relação com `agents`.
-
-> Duas das cinco migrations não criam enum nenhum: a de `leads` e a de `refresh_sessions`.
-
-### `src/database/data-source.ts`
-
-Um `DataSource` usado **exclusivamente** pelo CLI (`migration:show`, `migration:run`, `migration:revert`).
-Lista as 5 entidades e as 5 migrations explicitamente, com `migrationsTableName: 'typeorm_migrations'`.
-Compare com o runtime, que usa `autoLoadEntities: true`.
-
-> O arquivo usa `export default`, mas **não por exigência do CLI** — o TypeORM varre todas as chaves
-> exportadas e aceita a única que for um `DataSource`.
+O `DataSource` do CLI valida o ambiente, usa as mesmas opções de conexão e lista **explicitamente** entidades e
+migrations a partir de `registros.ts`, com `migrationsTableName: 'typeorm_migrations'`. O runtime do Nest usa
+`autoLoadEntities`. Entidade nova precisa entrar nos dois lugares: num `forFeature` e na lista `entidades`.
 
 ---
 
 ## 3. Vocabulário de segurança
 
-Duas páginas que destravam os dois capítulos seguintes.
+**Hash** é função de mão única. O banco guarda `senha_hash` e ninguém recupera a senha a partir dele. **Salt** é um
+valor aleatório misturado antes, para que senhas iguais gerem hashes diferentes. **Argon2id** é lento de propósito,
+contra quem testa milhões de senhas.
 
-**Hash** é uma função de mão única: da senha você chega no hash, do hash você não volta. É por isso
-que o banco guarda `password_hash` e ninguém — nem o dono do sistema — consegue ler a senha de volta.
-**Salt** é um valor aleatório misturado antes de hashear, para que duas pessoas com a mesma senha
-gerem hashes diferentes. **Ataque de dicionário** é testar milhões de senhas comuns contra um hash
-vazado; é contra isso que existem hashes deliberadamente **lentos**, como o Argon2id.
+**JWT** tem três partes: cabeçalho, conteúdo e assinatura. As duas primeiras são legíveis por qualquer um; o
+conteúdo não é segredo, só é inviolável. **HS256** usa o mesmo `JWT_SECRET` para assinar e conferir: quem descobre o
+segredo emite tokens de ADMIN.
 
-**JWT** (*JSON Web Token*) são três partes separadas por ponto: `cabeçalho.payload.assinatura`. As
-duas primeiras são **base64url — legíveis por qualquer um**. Isso significa que o `role` que viaja
-dentro do token **não é segredo**; ele só é **inviolável**, porque alterá-lo quebra a assinatura.
-**HS256** é simétrico: o mesmo `JWT_SECRET` assina e verifica. Guarde a consequência: quem descobre
-o segredo emite tokens de ADMIN à vontade — daí o mínimo de 32 caracteres.
+**Bearer** é o esquema `Authorization: Bearer <token>`. O navegador **não** envia esse header sozinho.
 
-**Bearer** é o esquema do header `Authorization: Bearer <token>`: "quem portar isto, é". O navegador
-**não** envia esse header automaticamente.
+**Cookie HttpOnly** não pode ser lido pelo JavaScript da página, e o navegador o envia sozinho.
 
-**Cookie `httpOnly`** é um cookie que o JavaScript da página **não consegue ler**. O navegador o envia
-sozinho a cada requisição para aquele domínio.
+**XSS** é código malicioso rodando na página; lê tudo que o JavaScript lê. **CSRF** é outro site fazendo o seu
+navegador disparar requisição autenticada, porque cookies vão sozinhos. O que protege de um expõe ao outro: por isso
+o cookie vem acompanhado de `SameSite=Strict` e do `OrigemGuard`.
 
-**XSS** é código malicioso rodando dentro da sua página; ele lê tudo que o JavaScript lê — daí o
-`httpOnly`. **CSRF** é outro site fazendo o **seu** navegador disparar uma requisição autenticada
-sem você saber; funciona justamente porque cookies vão sozinhos — daí o `sameSite: 'strict'` e o
-guard de origem.
-
-Note a simetria: o que protege de XSS (cookie ilegível por JS) é o que cria a exposição a CSRF
-(cookie enviado sozinho). O projeto usa os dois mecanismos em pares por isso.
+**IDOR** é acessar registro alheio trocando o id na URL. Aqui a proteção é filtrar pelo dono no `WHERE`.
 
 ---
 
-## 4. Corretores (`agents`)
-
-> Este capítulo vem **antes** de auth de propósito. `AuthService.login` depende de
-> `AgentsService.findForAuthentication`, a estratégia JWT depende de `findActiveById`, e o objeto que
-> sai de tudo isso é o `AgentProfile`, definido aqui. Ler auth primeiro obriga a aceitar três
-> dependências no escuro.
+## 4. Corretores
 
 | Arquivo | O que faz |
 |---|---|
-| `agent.entity.ts` | mapeia a tabela `agents` e define o enum `AgentRole` |
-| `agents.module.ts` | registra o repositório, o controller e o service — e **exporta** o service |
-| `agents.controller.ts` | as três rotas de `/agents`, todas exigindo login **e** papel ADMIN |
-| `agents.service.ts` | toda a regra: busca para login, listagem, criação, edição protegida |
-| `dto/create-agent.dto.ts` | valida o corpo de `POST /agents`, normalizando nome e e-mail |
-| `dto/update-agent.dto.ts` | versão parcial, com `active` e o default de `role` neutralizado |
-| `dto/agent-query.dto.ts` | paginação da query string |
-| `dto/agent-profile.dto.ts` | **o formato de saída** — a única porta entre a entidade e o HTTP |
+| `corretor.entity.ts` | mapeia `corretores` e exporta `perfilCorretor()`, o formato de saída |
+| `corretores.module.ts` | registra repositório, controller e services; exporta `CorretoresService`, `SenhasService` e o `TypeOrmModule` |
+| `corretores.controller.ts` | as cinco rotas de `/admin/corretores`, todas com `AutenticacaoGuard`, `CargosGuard` e `@Cargos('ADMIN')` na classe |
+| `corretores.service.ts` | busca para login, listagem, criação, alteração protegida, perfil e senha |
+| `corretores.dto.ts` | `CriarCorretorDto`, `AtualizarCorretorDto`, `AtualizarPerfilDto`, `AlterarSenhaDto`, `ConsultarCorretoresDto` e o enum `CargoCorretor` |
+| `senhas.service.ts` | único ponto que gera e confere hash, com Argon2id |
 
-### O que vale parar para ler
+Pontos que valem parar:
 
-**`agents.module.ts` exporta o `AgentsService`.** É isso que permite `PropertiesModule` e `AuthModule`
-injetarem esse service. Sem o `exports`, a injeção falharia no boot.
+**A proteção do último administrador.** `atualizar` abre transação e executa `SELECT pg_advisory_xact_lock(741901)`
+**antes** de ler e contar. Sem a trava, dois rebaixamentos simultâneos veriam dois ADMINs ativos e passariam, e o
+sistema ficaria sem administrador. Nenhuma constraint expressa "pelo menos um ADMIN ativo". O mesmo número de trava
+serializa o bootstrap do ADMIN e a troca de senha.
 
-**`agents.controller.ts`** declara `@UseGuards(JwtAuthGuard, RolesGuard)` e `@Roles(AgentRole.ADMIN)`
-**na classe**. Este é o **único** lugar do projeto que usa `RolesGuard`. Toda a demais distinção entre
-ADMIN e AGENT não é feita por guard — é feita por filtro de dados dentro dos services.
+**O override que evita um desastre.** `AtualizarCorretorDto` herda de `PartialType(CriarCorretorDto)`, que traria o
+padrão `cargo = CORRETOR`. Um PATCH parcial num ADMIN o rebaixaria sem aviso. O DTO sobrescreve
+`cargo = undefined` para impedir isso.
 
-**`agents.service.ts` — a proteção do último administrador.** É a joia do arquivo:
+**Perfil próprio sem elevação.** `AtualizarPerfilDto` usa `PickType` com só `nome`, `whatsapp`, `creci` e `url_foto`.
+Mandar `cargo`, `email` ou `ativo` em `PATCH /autenticacao/eu` responde 400.
 
-```ts
-await manager.query('SELECT pg_advisory_xact_lock(741901)');
-```
+**Tradução de erro do banco.** `salvar` captura `QueryFailedError` com código `23505` (violação de unicidade) e
+devolve 409 em vez de 500.
 
-Um *advisory lock* do Postgres, dentro de uma transação, **antes** de contar os ADMINs ativos. Sem
-ele, dois PATCH simultâneos rebaixando dois ADMINs diferentes passariam os dois na contagem (cada um
-veria dois ativos) e o sistema ficaria sem administrador nenhum. Nenhuma constraint de banco consegue
-expressar "pelo menos um ADMIN ativo"; o lock é o substituto.
+**`select: false` na senha.** `buscarParaAutenticacao` e `alterarSenha` pedem o hash explicitamente com a lista
+`camposComSenha()`. Nenhuma outra consulta o traz.
 
-**`agents.service.ts` — tradução de erro de banco.** `create` e `update` capturam `QueryFailedError`
-e inspecionam `driverError.code === '23505'` (unique violado) para devolver **409** em vez de 500.
-Onde ninguém traduz, erro de driver vira 500 — e não há filtro global de exceção neste projeto.
-
-**`update-agent.dto.ts` — o override que evita um desastre.** `PartialType(CreateAgentDto)` herdaria
-o default `role = AGENT`. Se herdasse, um PATCH parcial num ADMIN o **rebaixaria em silêncio**. O
-arquivo sobrescreve `role` para `undefined` exatamente para impedir isso.
-
-> **Correções:** o `@Check` na entidade **não criou** a constraint de e-mail — quem criou foi a
-> migration. E o filtro em `update` é `filter(([key, value]) => key !== 'password' && value !== undefined)`:
-> ele **mantém** o que é diferente de `undefined`.
+**Validação.** CPF com dígitos verificadores (`@DocumentoValido`), WhatsApp brasileiro com ou sem 55, senha de 12 a
+128 caracteres, foto só em URL HTTPS.
 
 ---
 
-## 5. Autenticação (`auth`)
+## 5. Autenticação
 
 | Arquivo | O que faz |
 |---|---|
-| `auth.module.ts` | junta dependências, providers e o controller de `/auth` |
-| `auth.controller.ts` | as quatro rotas de sessão e o cuidado com o cookie |
-| `auth.service.ts` | valida credenciais, rotaciona sessão, emite tokens |
-| `session.service.ts` | ciclo do refresh token no banco: criar, consumir uma vez, revogar |
-| `refresh-session.entity.ts` | mapeia `refresh_sessions` |
-| `strategies/jwt.strategy.ts` | valida o Bearer e produz o perfil do corretor |
-| `guards/jwt-auth.guard.ts` | liga uma rota à estratégia `jwt` |
-| `guards/roles.guard.ts` | compara o papel do usuário com o exigido |
-| `decorators/roles.decorator.ts` | carimba na rota quais papéis podem entrar |
-| `browser-origin.guard.ts` | anti-CSRF das rotas que dependem do cookie |
-| `login-rate.guard.ts` | limite de tentativas por IP e por conta |
-| `dto/login.dto.ts` | contrato do `POST /auth/login` |
+| `autenticacao.module.ts` | registra o `JwtModule` (HS256, emissor, audiência, duração do ambiente), guards e services; exporta `AutenticacaoGuard` e `CargosGuard` |
+| `autenticacao.controller.ts` | as seis rotas de sessão e perfil; lê e grava o cookie |
+| `autenticacao.service.ts` | confere credenciais, emite o par de tokens, renova, sai, troca senha |
+| `sessoes.service.ts` | cria, consome uma vez, revoga e limpa sessões |
+| `sessao-login.entity.ts` | mapeia `sessoes_login` |
+| `estrategia-jwt.ts` | confere o Bearer e produz o usuário autenticado |
+| `autenticacao.guard.ts` | liga a rota à estratégia `autenticacao-jwt` do Passport |
+| `cargos.guard.ts` | o decorator `@Cargos(...)` e o guard que o lê |
+| `origem.guard.ts` | anti-CSRF das rotas que dependem do cookie e das alterações de perfil |
+| `tentativas.guard.ts` | limite de tentativas de login |
+| `autenticacao.dto.ts` | `EntrarDto` |
 
-### Por que existem DOIS tokens
+### Por que dois tokens
 
-Esta é a pergunta número um de quem vê o login devolver um `accessToken` e mais nada aparentemente útil.
+| | Token de acesso | Token de renovação |
+|---|---|---|
+| Formato | JWT HS256 com `sub` (id em texto) e `cargo` | 48 bytes aleatórios em base64url |
+| Duração | `JWT_EXPIRES_IN`, padrão 15 minutos | 30 dias |
+| No cliente | só em memória | cookie `corretor_renovacao`, HttpOnly, Secure, SameSite=Strict, Path=/ |
+| No servidor | em lugar nenhum | SHA-256 em `sessoes_login` |
+| Revogável | não, só expira | sim |
 
-O **access token** é um JWT de 15 minutos. Vai no corpo da resposta, o front guarda **em memória** e
-manda em `Authorization: Bearer` a cada chamada. Ele não é salvo em lugar nenhum — é verificável só
-pela assinatura. Consequência: **não dá para revogá-lo**. A resposta do projeto é mantê-lo curto.
+O controller desestrutura `const { token_renovacao, ...dados } = sessao`: o token de renovação nunca sai no corpo.
 
-O **refresh token** é o oposto: opaco (`randomBytes(48)` = 384 bits de entropia), longo (30 dias),
-e **guardado no banco**. Vai em cookie `httpOnly`, e nunca sai do cookie — `AuthController.setSession`
-desestrutura `const { refreshToken, ...publicSession } = session` e devolve só o resto.
+### O laço do cliente
 
-A divisão é: **o que é usado o tempo todo é curto e irrevogável; o que é usado raramente é longo e
-revogável**. Um XSS no front rouba o access token (15 minutos de estrago) mas não alcança o refresh.
+1. `POST /autenticacao/entrar` e guarda `token_acesso` em memória. O cookie o navegador guarda sozinho.
+2. Toda chamada leva `Authorization: Bearer <token_acesso>`.
+3. Resposta 401 significa token expirado.
+4. `POST /autenticacao/renovar`, sem Bearer, só com o cookie.
+5. Recebe o par novo, com o cookie antigo queimado, e repete a chamada.
 
-### O laço que o cliente faz
+### `autenticacao.service.ts` e o hash de disfarce
 
-Esta é a pergunta prática de quem vai integrar, e ela não está escrita em nenhum outro lugar:
+`entrar` sempre roda o Argon2: se o e-mail não existe, confere a senha contra um hash gerado uma vez a partir de
+bytes aleatórios. O tempo de resposta fica igual para e-mail existente e inexistente, e a mensagem é sempre
+"E-mail ou senha inválidos." Sem isso, dava para descobrir quais e-mails têm conta medindo o tempo.
 
-1. `POST /auth/login` → guarda o `accessToken` **em memória**; o cookie de refresh o navegador guarda sozinho.
-2. Toda chamada leva `Authorization: Bearer <accessToken>`.
-3. Uma chamada volta **401** → o access token expirou.
-4. `POST /auth/refresh` — **sem** Bearer; vai só o cookie.
-5. Recebe um par novo (o refresh antigo foi **queimado**), e repete a chamada original.
+`alterarSenha` troca o hash e chama `revogarTodasDoCorretor`, derrubando todas as sessões de renovação.
 
-O passo 4 é de **uso único**, e é aí que mora a melhor linha do módulo.
-
-### `session.service.ts` — a linha que vale o capítulo
-
-```ts
-DELETE ... WHERE token_hash = :hash RETURNING agent_id, expires_at
-```
-
-Em vez de `SELECT` e depois `DELETE`, um comando só. Como o `DELETE` é atômico no Postgres, se duas
-requisições chegarem ao mesmo tempo com o mesmo token, **exatamente uma** recebe a linha; a outra
-recebe vazio e leva 401. Não há janela de corrida, e a garantia vale **mesmo com várias instâncias
-da API**, porque quem arbitra é o banco, não a memória do processo.
-
-Antes disso, `consume` valida a forma com `/^[A-Za-z0-9_-]{64}$/` — lixo é descartado sem tocar no banco.
-
-**Por que o token vira SHA-256 no banco, se senha usa Argon2?** Porque o problema é outro. Argon2 é
-lento de propósito, contra dicionário sobre segredos escolhidos por humanos. Um token de 384 bits
-aleatórios não tem dicionário. Em compensação o hash é a **chave primária** da tabela: precisa ser
-determinístico para permitir busca indexada, e o salt aleatório do Argon2 tornaria isso impossível.
-SHA-256 é a escolha certa aqui, e pelos motivos certos.
-
-### `jwt.strategy.ts` — a decisão arquitetural mais interessante da API
-
-O `validate` não confia no payload: confere que `sub` é UUID v4 e `exp` é número, e então
-**vai ao banco**: `findActiveById(payload.sub)`. O comentário no código explica:
-*"Authorization uses the current role, so deactivation/demotion takes effect immediately."*
-
-Pense no que isso compra. O JWT **carrega** `role` no payload, mas esse `role` **nunca é usado para
-autorizar**. O papel que chega em `request.user` foi lido do banco **agora**. Então desativar um
-corretor invalida o token dele na requisição seguinte, sem esperar os 15 minutos; rebaixar um ADMIN
-tira o poder na hora. Paga-se uma consulta por requisição autenticada e compra-se revogação imediata.
-
-O `super({...})` fixa `algorithms: ['HS256']` (fecha a porta do ataque de troca de algoritmo e do
-`alg: none`), `issuer: 'corretor-api'`, `audience: 'corretor-web'` e `ignoreExpiration: false`.
-
-### `browser-origin.guard.ts`
-
-Protege as três rotas que dependem do cookie. Duas regras: se veio `Origin`, tem que estar na lista
-(string exata); se não veio `Origin` mas veio `Sec-Fetch-Site`, só `same-origin` e `none` passam.
-
-Por que existe, se `sameSite: 'strict'` já barraria CSRF? Porque `sameSite` depende do **navegador**
-respeitar a flag; a checagem de `Origin` acontece no **servidor**. Defesa em profundidade.
-
-Note o que ele **não** faz: não exige que `Origin` exista. Um `curl` passa. O nome é
-`BrowserOriginGuard` — o objetivo é impedir que *um navegador com sessão ativa* vire arma de um site
-terceiro, não filtrar clientes.
-
-E note por que as outras rotas não precisam dele: elas autenticam por `Authorization: Bearer`, e esse
-header **não** é enviado automaticamente pelo navegador. Sem envio automático, não há CSRF.
-
-### `login-rate.guard.ts`
-
-Um `Map` em memória, duas chaves por requisição: `ip:<...>` com limite **50** e
-`account:<sha256(email)>` com limite **10**, janela de 15 minutos. Dois eixos, não um: só por IP, uma
-botnet distribui e passa; só por conta, um atacante que tenta uma senha em mil contas
-(*password spraying*) passa. O limite por conta é mais apertado porque num escritório atrás de NAT
-várias pessoas legítimas compartilham IP. O e-mail vira SHA-256 antes de virar chave — dado pessoal
-não fica em claro na memória.
-
-> **Correção que muda o entendimento:** guards rodam **antes** dos pipes, então este guard **nunca vê**
-> o `LoginDto` transformado. Ele lê o corpo cru e faz a **própria** normalização
-> (`email.trim().toLowerCase()`). O `@Transform` do DTO não tem efeito nenhum sobre a chave do rate limit.
-
-### `auth.controller.ts`
-
-`cookieOptions()` devolve `{ httpOnly: true, secure: NODE_ENV === 'production', sameSite: 'strict', path: '/' }`.
-As três rotas com token levam `@Header('Cache-Control', 'no-store')`.
-
-Como não há `cookie-parser`, o método `readCookie` fatia o header à mão:
+### `sessoes.service.ts`
 
 ```ts
-request.headers.cookie?.split(';').map(part => part.trim())
-  .find(part => part.startsWith('corretor_refresh='))?.slice(17) ?? ''
+this.sessoes.createQueryBuilder().delete().where('token_hash = :hash', { hash })
+  .returning(['corretor_id', 'expira_em']).execute();
 ```
 
-O `.map(trim)` é **essencial**: sem ele, o cookie só seria encontrado quando fosse o primeiro do
-header. E o `17` é o tamanho exato de `'corretor_refresh='` — renomear o cookie sem ajustar o número
-quebra refresh e logout **em silêncio**, com 401 em vez de erro claro.
+Um comando só remove e devolve a sessão. Se duas renovações chegam juntas, exatamente uma recebe a linha; a outra
+leva 401. Quem arbitra é o banco, então vale com várias instâncias. Antes disso, o token é conferido contra
+`/^[A-Za-z0-9_-]{64}$/`, e lixo é descartado sem ir ao banco.
 
-> **Correção:** `JWT_EXPIRES_IN` tem default `'15m'` na classe de ambiente, então o `getOrThrow` no
-> módulo nunca lança por causa dele. Quem derruba a subida por `JWT_SECRET` ausente é a validação de
-> ambiente, não o `getOrThrow`.
+**Por que SHA-256 e não Argon2 no token?** Token de 384 bits aleatórios não tem dicionário, e o hash é a chave
+primária: precisa ser determinístico para busca indexada.
+
+`onModuleInit` liga um `setInterval` de uma hora que apaga sessões expiradas; `unref()` impede que ele segure o
+processo vivo, e `onModuleDestroy` o desliga.
+
+### `estrategia-jwt.ts`
+
+`super({...})` fixa `algorithms: ['HS256']`, emissor, audiência e `ignoreExpiration: false`, fechando a porta da troca
+de algoritmo e do `alg: none`. `validate` confere que `sub` é texto numérico e `exp` é número, e **relê o corretor
+ativo no banco**. O cargo que chega em `request.user` vem do banco, nunca do token. Desativar ou rebaixar vale na
+requisição seguinte. Paga-se uma consulta por requisição e compra-se revogação imediata.
+
+### `origem.guard.ts`
+
+Se veio `Origin`, ele precisa estar em `ALLOWED_ORIGINS` por igualdade exata. Se não veio, mas veio
+`Sec-Fetch-Site`, só `same-origin` e `none` passam. Um `curl` sem esses headers passa: o objetivo é impedir que um
+navegador com sessão seja usado por outro site, não filtrar clientes.
+
+Aplicado em `entrar`, `renovar`, `sair`, `PATCH /eu` e `PATCH /eu/senha`.
+
+### `tentativas.guard.ts`
+
+Um `Map` em memória com duas chaves por requisição: `ip:<ip>` com limite 50 e `conta:<sha256(email)>` com limite 10,
+janela de 15 minutos. Dois eixos porque só por IP uma botnet passa e só por conta um ataque de uma senha em mil
+contas passa. O e-mail vira hash para não ficar em claro na memória. Estourou: 429 com `Retry-After: 900`.
+
+O guard roda antes do `ValidationPipe`, então lê o corpo cru e faz a própria normalização do e-mail.
+
+### `autenticacao.controller.ts`
+
+Não há `cookie-parser`. `lerCookie` divide o header `Cookie` por `;`, apara cada parte e procura
+`corretor_renovacao=`. As rotas de sessão levam `@Header('Cache-Control', 'no-store')`. `@Res({ passthrough: true })`
+permite gravar o cookie e ainda deixar o Nest serializar o retorno.
+
+O cookie é sempre `secure: true`: o login pelo navegador exige HTTPS também em desenvolvimento.
 
 ---
 
-## 6. O `AgentProfile`: o eixo invisível
+## 6. O usuário autenticado
 
-Uma página para a ligação mais importante do sistema — hoje partida em **onze arquivos**.
+`src/comum/usuario-autenticado.ts` define `{ id, nome, email, cargo }`. É o eixo de autorização:
 
-`src/agents/dto/agent-profile.dto.ts` é importado por: `auth.controller`, `auth.service`,
-`jwt.strategy`, `roles.guard`, `agents.service`, `properties.controller`, `properties.service`,
-`media.controller`, `media.service`, `leads.controller` e `leads.service`. Cinco módulos.
-
-O fluxo é uma linha só:
-
-```
-JwtStrategy.validate  →  produz o AgentProfile (lido do banco, agora)
+```text
+EstrategiaJwt.validate  → lê o corretor no banco, agora
         ↓
 Passport grava em request.user
         ↓
-cada controller tipa com o seu AuthenticatedRequest local
+cada controller tipa com Request & { user: UsuarioAutenticado } e repassa requisicao.user
         ↓
-cada service recebe com o nome viewer
+cada service recebe `usuario` e decide
         ↓
-ownerRestriction(viewer) / findOwnedProperty(viewer) / list(query, viewer)
-        ↓
-decidem o que EXISTE para aquele usuário
+filtro no WHERE (pessoas, contratos, comissões) ou checagem de dono (imóveis, mídias)
 ```
 
-**Esse é o eixo de autorização da API.** Não há guard decidindo "pode editar este imóvel?" — há um
-filtro entrando na cláusula `WHERE`.
+Duas estratégias convivem, e a diferença importa:
 
-Duas observações que só aparecem comparando os módulos:
+- **Filtro no `WHERE`** (pessoas, contratos, comissões): o registro alheio não existe para o usuário e a resposta é
+  **404**. Ninguém descobre se o id existe.
+- **Checagem depois de buscar** (imóveis, mídias): todo corretor pode ler todos os imóveis internos, então o
+  imóvel alheio é encontrado e a alteração responde **403**.
 
-**O tipo `AuthenticatedRequest = Request & { user: AgentProfile }` está escrito três vezes, idêntico** —
-em `properties.controller.ts`, `media.controller.ts` e `leads.controller.ts`. É a duplicação mais
-visível do repositório.
-
-**`AuthModule` é importado por `MediaModule` e `LeadsModule`, mas não por `PropertiesModule` nem
-`AgentsModule`** — e os quatro usam `JwtAuthGuard`. Se "importe `AuthModule` para usar o guard" fosse
-a regra, metade do código estaria quebrado. Os dois funcionam porque `AppModule` importa `AuthModule`
-na mesma árvore e o registro da estratégia é global ao Passport. A prova está nos testes:
-`properties.http.spec.ts` precisa listar `AuthModule` **à mão** no módulo de teste, justamente porque
-`PropertiesModule` não o traz.
-
-`AgentProfile` é o tipo `Omit<Agent, 'passwordHash' | 'properties'>`, e `toAgentProfile` monta o objeto
-**campo a campo**, sem spread. Construção explícita não vaza coluna nova por acidente.
+Os módulos que usam `AutenticacaoGuard` importam `AutenticacaoModule`, que exporta os guards.
 
 ---
 
-## 7. Imóveis (`properties`)
-
-O núcleo do produto e o maior módulo: 424 linhas.
+## 7. Cadastros
 
 | Arquivo | O que faz |
 |---|---|
-| `properties.module.ts` | registra o repositório, os **dois** controllers e o service |
-| `properties.controller.ts` | rotas públicas e administrativas, delegando tudo |
-| `properties.service.ts` | slug, permissão de dono, filtros, paginação, escrita |
-| `property.entity.ts` | mapeia a tabela, com enums, índices, CHECKs e relações |
-| `dto/create-property.dto.ts` | 17 campos validados um a um |
-| `dto/update-property.dto.ts` | uma linha: `PartialType` torna tudo opcional |
-| `dto/property-query.dto.ts` | paginação e filtros da query string |
-| `dto/property-response.dto.ts` | decide **à mão** o que sai na resposta |
+| `cadastros.entity.ts` | `TipoImovel`, `FinalidadeImovel`, `Caracteristica` (sobre a base abstrata `CadastroNomeado`) e `ImovelCaracteristica` |
+| `cadastros.controller.ts` | fábricas `controladorPublico(categoria)` e `controladorAdministrativo(categoria)`, mais `CaracteristicasController` |
+| `cadastros.service.ts` | CRUD genérico por categoria e a função `gerar_slug` |
+| `cadastros.dto.ts` | DTOs de criação, alteração e consulta |
 
-### Dois controllers, dois públicos
+**Controllers fabricados por função.** Decorators são funções, então a mesma classe decorada é criada uma vez por
+categoria. O módulo registra o array `controladoresCadastros`. É elegante e pouco comum.
 
-`PropertiesController` (`/properties`) tem `list` e `detail` **abertos** e `create`, `update`, `remove`
-com `@UseGuards(JwtAuthGuard)` **no método**. `ManagedPropertiesController` (`/admin/properties`) tem o
-guard **na classe**.
+A leitura pública traz só ativos; a administrativa traz todos. Slug gerado a partir do nome quando não informado.
+Nome ou slug repetido, inclusive entre inativos, responde 409.
 
-A diferença real está no service: o caminho público força
-`{ status: DISPONIVEL, agent: { active: true } }`; o administrativo troca isso por `ownerRestriction(viewer)`.
-Por isso o painel vê `RESERVADO` e `CONCLUIDO`, e o ADMIN vê os imóveis de todos.
+`gerar_slug` normaliza para NFD, remove acentos, passa a minúsculas, troca o que não é letra ou número por hífen e
+corta em 100 caracteres. Também é usada pelos imóveis.
 
-### A autorização por dono
+---
 
-```ts
-ownerRestriction(viewer) {
-  return viewer.role === AgentRole.ADMIN ? {} : { agentId: viewer.id };
-}
-```
+## 8. Imóveis
 
-Essa restrição é fundida no `where` do `findOne`. **A diferença é de segurança, não de estilo:** quando
-o filtro está no `WHERE`, o registro alheio simplesmente **não existe** para aquele usuário, e a
-resposta é **404**, não 403. Um AGENT não descobre se o UUID que chutou pertence a outro corretor ou
-não existe. É IDOR fechado por construção.
+| Arquivo | O que faz |
+|---|---|
+| `imovel.entity.ts` | mapeia `imoveis` e o enum `StatusImovel` |
+| `imoveis.controller.ts` | `ImoveisPublicosController` (`/imoveis`) e `ImoveisController` (`/admin/imoveis`, guard na classe) |
+| `imoveis.service.ts` | listagem, detalhe, criação, alteração, slug, características, permissões |
+| `imoveis.dto.ts` | `CriarImovelDto`, `AtualizarImovelDto`, `ConsultaImoveisDto`, `ConsultaInternaImoveisDto` |
+| `imoveis.resposta.ts` | `resposta_imovel_publico`, `resposta_imovel` e `resposta_midia` |
 
-`resolveOwner` complementa: um não-ADMIN tentando atribuir imóvel a outro corretor leva **403**.
+### Público e interno
 
-> **Correção importante:** o papel é checado em **dois** pontos, não um. Além de `resolveOwner`,
-> `ownerRestriction` também o checa — e é ela que dá ao ADMIN o poder de **editar e apagar** imóvel
-> alheio. Dizer que o papel só é visto em `resolveOwner` ensina errado sobre quem pode o quê.
+- O público força `imovel.ativo = true AND imovel.status = 'DISPONIVEL' AND corretor.ativo = true`.
+- O interno aceita filtros extras: `status`, `ativo`, `corretor_id`, `proprietario_id`, `id`.
+- Todo corretor autenticado lê qualquer imóvel interno. `verificar_edicao` exige dono ou ADMIN para alterar (403).
+- Só ADMIN atribui imóvel a outro corretor.
 
 ### O slug
 
-Gerado em `create`: normaliza NFD, remove diacríticos, minúsculas, troca não-alfanuméricos por `-`,
-apara hífens, corta em 80 caracteres, cai para `'imovel'` se sobrar vazio, e concatena `-${uuid}`.
-Um **slug** é o identificador legível que vai na URL pública, em vez do UUID cru:
-`/imoveis/galpao-industrial-cuiaba-a1b2c3d4-...`. O `update` **nunca** recalcula — a URL é permanente.
+`titulo-normalizado-<id>`, por exemplo `galpao-na-br-163-42`. Para saber o id antes do INSERT, `criar` pede o
+próximo valor da sequência com `nextval(pg_get_serial_sequence('imoveis', 'id'))`. `atualizar` recalcula o slug
+quando o título muda. `encontrar_publico` confere o formato do slug, extrai o número do fim e busca pelo id: um link
+com o título antigo continua achando o imóvel, e a resposta devolve o slug atual para o front redirecionar.
 
-### Detalhes que merecem parada
+### Filtros e ordenação
 
-**`numericTransformer`** na entidade: o driver devolve `numeric` como string, então `price` chegaria
-no JSON como `"12000.50"`. O transformer converte para `Number` na leitura. **Toda coluna `numeric`
-nova precisa dele.**
+Filtros: `tipo_id`, `finalidade_id`, `cidade` (igualdade sem diferenciar maiúsculas), `bairro` (parcial), `busca`
+(título, bairro, cidade e descrição; `#12` ou `12` busca pelo id), `valor_min`, `valor_max`, `area_min`, `area_max`
+(área útil) e `destaque`. Intervalos invertidos respondem 400.
 
-**`toPropertyResponse`** é a decisão arquitetural mais consequente: **não existe** `ClassSerializerInterceptor`,
-não existe `@Exclude()` em entidade nenhuma. A resposta é montada **à mão**, campo a campo. Do
-corretor sai só `{ id, name, whatsappNumber, creci, avatarUrl }` — sem `email`, sem `role`, sem `active`.
-Das mídias sai `{ id, type, url, orderIndex, isCover }` — **sem `storageKey`**.
+`ordenar`: `recentes` (padrão), `valor_asc`, `valor_desc`, `area_asc`, `area_desc`. A coluna de preço depende da
+finalidade filtrada: slug com "venda" usa `valor_venda`, com "loca" usa `valor_locacao`, e o resto usa
+`COALESCE(valor_venda, valor_locacao)`. Nulos ficam por último.
 
-A vantagem de serializar à mão: vazamento vira erro de escrita visível num arquivo só, em vez de
-consequência silenciosa de esquecer um decorator.
+### Paginação em duas fases
 
-> **Correção:** **não existe uma classe `PropertyResponseDto`.** O arquivo exporta uma única **função**,
-> `toPropertyResponse`. Quem procurar pela classe não acha nada. E ela devolve dezenas de campos do
-> imóvel — a restrição a cinco campos vale só para o `.map` das mídias.
+Carregar relações de um-para-muitos junto com `LIMIT` faz o banco contar linhas do JOIN, não imóveis. Por isso
+`listar`:
 
-**A assimetria entre query e corpo.** `PropertyQueryDto` tem `@Type(() => Number)` e aceita `page=2`
-como string, porque query string é sempre texto. `CreatePropertyDto` **não tem** — no corpo JSON,
-número tem que chegar número, e `"price": "12000.50"` dá 400. Esquecer o `@Type` num DTO de query novo
-quebra a paginação inteira.
+1. conta o total com a consulta base;
+2. busca só os ids da página, ordenados, com desempate por `id DESC`;
+3. carrega imóveis com corretor, tipo, finalidade e, no interno, proprietário;
+4. carrega mídias e características desses ids em duas consultas paralelas e distribui em memória;
+5. reordena os itens pela ordem dos ids.
 
-> **Mais correções:** `addressState` **não** tem `@Transform`, então `" SP "` é rejeitado em vez de
-> aparado. `CreatePropertyDto` tem **17** campos. O `remove` devolve `void` e **não** chama
-> `toPropertyResponse` — o controller responde 204. E o filtro de `undefined` no `update` é
-> **defensivo**, não essencial: o TypeORM já ignora propriedades `undefined` no UPDATE; o filtro
-> importa para o objeto em memória que vai virar JSON.
+### Escrita
+
+`criar` e `atualizar` rodam em transação. `atualizar` trava o imóvel com `pessimistic_write`. `validar_referencias`
+confere, com trava de leitura, que tipo, finalidade, proprietário e corretor existem e estão ativos.
+`salvar_caracteristicas` desativa todos os vínculos do imóvel e regrava os enviados como ativos, preservando a
+auditoria dos que já existiam. `definidos()` descarta campos `undefined` antes do `Object.assign`.
+
+### Respostas
+
+`resposta_imovel_publico` monta o JSON campo a campo. Do corretor sai só `id`, `nome`, `whatsapp`, `creci`,
+`url_foto`. Das mídias, sem `chave_armazenamento`. Características só ativas. `resposta_imovel` acrescenta a ficha
+interna. Montar à mão faz com que coluna nova não vaze por acidente.
 
 ---
 
-## 8. Mídia (`media`)
-
-> **Comece por aqui: não existe `GET` neste módulo.** Ele só escreve. A galeria chega ao cliente pela
-> relação `@OneToMany` de `Property`, serializada por `toPropertyResponse`. O subsistema de mídia
-> **escreve** e o de imóveis **lê** — a ligação mais contraintuitiva do projeto.
+## 9. Mídias
 
 | Arquivo | O que faz |
 |---|---|
-| `media.module.ts` | registra tudo e **cria o cliente S3** apontado para o R2 |
-| `media.controller.ts` | as cinco rotas sob `/properties/:propertyId/media` |
-| `media.service.ts` | dono, validação, gravação no R2, ordem, capa, limpeza |
-| `property-media.entity.ts` | mapeia `property_media` |
-| `dto/create-media-embed.dto.ts` | um campo `url`, obrigatoriamente https |
-| `dto/reorder-media.dto.ts` | a lista completa de ids na nova ordem |
+| `midias.module.ts` | cria o `S3Client` do R2 sob o token `R2_MIDIAS`, com timeouts |
+| `midias.controller.ts` | as cinco rotas sob `/admin/imoveis/:imovel_id/midias` |
+| `midias.service.ts` | envio, embed, ordem, capa e exclusão, com compensação no R2 |
+| `imovel-midia.entity.ts` | mapeia `imoveis_midias` e o enum `TipoMidia` |
+| `validacao-arquivo.ts` | tipos aceitos, assinatura de bytes e limites |
+| `video-embed.ts` | normaliza URLs do YouTube e do Vimeo |
 
-### O upload
+### Envio
 
-`@UseInterceptors(FilesInterceptor('files', 20, { limits: { fileSize: 30 * 1024 * 1024 } }))` — o
-**único** interceptor do projeto. Interceptors rodam **depois** dos guards, então o multipart só é
-lido depois do JWT aprovado.
+`FilesInterceptor('arquivos', 20, { limits: { fileSize: 30 MB, files: 20, fields: 0 } })` lê o multipart para a
+memória depois dos guards. `validar_arquivo` exige que o tamanho declarado bata com o buffer e confere os
+**primeiros bytes** de cada formato: JPEG, PNG, WebP, MP4 e WebM. Imagem até 10 MB, vídeo até 30 MB, lote até 60 MB.
+A extensão vem do mapa interno, nunca do nome enviado.
 
-**Multipart/form-data** é o formato de requisição que carrega arquivos junto com campos. Detalhe que
-importa: o `mimetype` é um campo de **texto que o cliente escreve** no envelope — não é deduzido do
-conteúdo.
+Na transação, `bloquear_imovel` trava o imóvel e confere dono ou ADMIN. Cada arquivo vai ao R2 com a chave
+`imoveis/<id>/<uuid><extensão>`, anotada numa lista **antes** do envio. A primeira imagem vira capa se não houver
+outra. Se qualquer coisa falhar, o `catch` apaga do R2 todas as chaves da lista. Se até a limpeza falhar, registra no
+log e responde 503.
 
-`validateFile` consulta o mimetype em dois mapas fechados (`image/jpeg`, `image/png`, `image/webp`;
-`video/mp4`, `video/webm`) e a extensão devolvida vem **do mapa**, nunca do nome do arquivo enviado.
-Com isso o `storageKey` fica `properties/<id-do-imóvel>/<uuid><extensão>`: **nenhum byte controlado
-pelo cliente entra no caminho do objeto**, então não há traversal nem sobrescrita de objeto alheio.
+### Exclusão
 
-E se algo falhar no meio de um lote, o `catch` apaga do R2 tudo que já subiu antes de relançar —
-compensação manual, já que não há transação entre banco e bucket.
+Baixa uma cópia do objeto, apaga no R2, remove a linha, renumera a ordem e promove a próxima imagem a capa se a
+removida era a capa. Se o banco falhar depois de apagar no R2, devolve a cópia ao bucket.
 
-### Os embeds
+### Embeds
 
-`isSupportedEmbed` parseia a URL e compara o hostname (minúsculo, sem `www.`) por **igualdade exata**
-com `youtube.com`, `youtu.be`, `vimeo.com`, `player.vimeo.com`. Comparar assim, em vez de
-`url.includes('youtube.com')`, é o que impede `https://youtube.com.evil.net/...` de passar. É o erro
-clássico nesse tipo de validação, e o código não o comete.
+`normalizar_video_embed` aceita só HTTPS, sem usuário, senha ou porta, e compara o host por **igualdade exata**.
+`youtube.com.site-falso.net` não passa. YouTube vira `youtube-nocookie.com/embed/<id>`; Vimeo vira
+`player.vimeo.com/video/<id>`. Embed não tem `chave_armazenamento` e nunca é capa.
 
-Embed grava `storageKey: null` — é a nulidade dessa coluna que distingue mídia hospedada de mídia externa.
+### Ordem e capa
 
-> **Correções:** `listForProperty` é **público** e **não** chama `findOwnedProperty` — não faz checagem
-> de dono nenhuma. Os cinco que fazem são `upload`, `addEmbed`, `reorder`, `setCover` e `remove`,
-> justamente os que atendem rotas HTTP. E para carregar a relação `property` de uma mídia a opção
-> seria `relations: { property: true }`.
+`reordenar` exige a lista completa de ids do imóvel, sem repetição. `definir_capa` exige imagem, desmarca a capa atual
+e marca a nova na mesma transação. O índice único parcial impede duas capas mesmo sob concorrência.
 
 ---
 
-## 9. Leads (`leads`)
-
-**LGPD** é a Lei Geral de Proteção de Dados brasileira. As quatro colunas de consentimento existem
-para **provar consentimento informado**: quem consentiu, quando, de onde, e sob qual versão dos termos.
+## 10. Pessoas
 
 | Arquivo | O que faz |
 |---|---|
-| `leads.module.ts` | o que importa, quais controllers expõe, qual service fornece |
-| `leads.controller.ts` | uma rota pública para criar, duas protegidas para listar e excluir |
-| `leads.service.ts` | valida consentimento, decide o dono, monta filtros, autoriza exclusão |
-| `lead.entity.ts` | mapeia `leads` |
-| `dto/create-lead.dto.ts` | o contrato do POST público |
-| `dto/lead-query.dto.ts` | paginação, filtros de imóvel e data, busca textual |
-| `dto/lead-response.dto.ts` | o formato de saída e a função que converte |
+| `pessoa.entity.ts` | mapeia `pessoas`, enums e `resposta_pessoa()` sem o IP |
+| `pessoas.controller.ts` | `PessoasPublicasController` (`POST /pessoas`) e `PessoasController` (`/admin/pessoas`) |
+| `pessoas.service.ts` | contato do site, cadastro manual, listagem, alteração, visibilidade |
+| `pessoas.dto.ts` | `PessoaPublicaDto`, `CriarPessoaDto`, `AtualizarPessoaDto`, `ConsultaPessoasDto` |
+| `limite-pessoas.guard.ts` | 5 envios por minuto por IP |
 
-### O consentimento, em duas camadas
+**Uma pessoa é uma pessoa.** O contato do site, o cliente, o proprietário e o inquilino são o mesmo cadastro. Não
+existe coluna de papel: o papel aparece pelo vínculo (proprietário do imóvel, locador ou locatário do contrato).
 
-`CreateLeadDto` marca `consentGiven` com `@IsBoolean()` **e** `@Equals(true)`. E `LeadsService.create`
-**confere de novo**. Redundância proposital: a coluna no banco é `NOT NULL` mas **não tem CHECK
-exigindo `true`**, então as duas camadas de código são a única garantia real.
+### Contato do site
 
-Ao gravar, o service carimba `consentTimestamp`, `consentIp` (que só é confiável por causa do
-`trust proxy 1` lá do `main.ts`) e `termsVersion = 'v1.0'`.
+1. `LimitePessoasGuard` limita por IP.
+2. `PessoaPublicaDto` exige nome, telefone brasileiro válido, `imovel_id` e `consentimento` exatamente `true`.
+3. O service confere o consentimento de novo e exige imóvel ativo, disponível e com corretor ativo.
+4. Grava com o corretor do imóvel, `origem = SITE`, `status_contato = PENDENTE`, IP, data e `versao_termos = 'v1.0'`.
+5. O CHECK `consentimento_site` é a última barreira no banco.
+6. Responde só `{ id }`.
 
-O lead só é aceito se o imóvel existir com `status: DISPONIVEL` **e** corretor ativo.
+Ninguém é avisado de um contato novo. É a tarefa NOTIFY-001.
 
-### O que acontece quando um lead chega
+### Cadastro manual e alteração
 
-**Nada.** Não há e-mail, WhatsApp, webhook ou notificação. O lead fica no banco esperando alguém abrir
-`GET /admin/leads`. É a pergunta óbvia de quem lê um módulo chamado "leads", e a resposta honesta é
-"por enquanto, nada".
+- Nasce com `origem = MANUAL`, `status_contato = RESPONDIDO` por padrão e `consentimento = false`. O sistema não
+  finge consentimento.
+- `corretor_id` diferente do próprio só para ADMIN.
+- `validarDocumento` confere CPF ou CNPJ, deduz `tipo_pessoa` pelo tamanho quando vier só o documento, recusa tipo
+  incoerente e exige data de nascimento no passado e só para PF.
+- Desativar pessoa com contrato ATIVO como locador ou locatário responde 409.
 
-### `escapeLike`
+### Visibilidade
 
-`value.replace(/[\\%_]/g, '\\$&')` antes do `ILike`. Isso **não** é proteção contra SQL injection —
-disso o TypeORM já cuida, parametrizando tudo. É proteção contra **abuso de curinga**: sem escapar,
-uma busca por `%` casaria com todos os registros. Defesa contra DoS por consulta, não contra injeção.
+ADMIN vê todas. Corretor vê as pessoas sob sua responsabilidade **e** as que participam de contratos que intermedeia,
+por um `EXISTS` no `WHERE`. Para alterar, precisa ser o responsável ou ADMIN. Pessoa invisível responde 404.
 
-Note a diferença sutil: `LeadsService.list` usa `ILike('%termo%')` (busca parcial), enquanto
-`PropertiesService.list` usa `ILike(cidade)` (casamento **exato** case-insensitive). `city=Cuiabá`
-**não** encontra "Cuiabá Norte". Fácil confundir os dois.
-
-> **Correções:** `?page=` vazio vira `0` (não `NaN`) e falha em `@Min(1)`. E, no TypeORM 0.3, uma
-> condição aninhada em relação dentro do `where` **gera o JOIN automaticamente** — o
-> `relations: { agent: true }` está ali porque o `create` usa o objeto carregado, não para habilitar
-> o filtro.
+A busca procura em nome e e-mail e, se o termo tiver dígitos, também em telefone e documento.
 
 ---
 
-## 10. Suporte: senha e bootstrap
+## 11. Locações e Google Drive
 
 | Arquivo | O que faz |
 |---|---|
-| `common/security/password.service.ts` | **único** ponto que gera e confere hash, com Argon2id |
-| `common/security/password.module.ts` | registra e exporta o service |
-| `commands/bootstrap-admin.ts` | o comando que cria o primeiro administrador |
-| `commands/bootstrap-admin.config.ts` | traduz `BOOTSTRAP_ADMIN_*` num DTO validado, sem tocar no banco |
+| `locacoes/contrato.entity.ts` | mapeia `contrato` e `resposta_contrato()` com nomes do imóvel e das partes |
+| `locacoes/locacoes.controller.ts` | as seis rotas de `/admin/contratos` |
+| `locacoes/locacoes.service.ts` | validação, criação, alteração, expiração e integração com o Drive |
+| `locacoes/locacoes.dto.ts` | DTOs de contrato e de consulta |
+| `drive/drive.service.ts` | garante a hierarquia de pastas e o registro em `pastas_drive` |
+| `drive/drive-cliente.ts` | cliente HTTP do Google: token OAuth, criação e validação de pastas |
+| `drive/registro-pasta-drive.entity.ts` | mapeia `pastas_drive` |
 
-`PasswordService` tem duas funções e nada mais. Argon2id é a variante recomendada porque combina
-resistência a GPU com resistência a ataques de canal lateral. Ter **um** lugar que sabe hashear é o
-que garante que ninguém vai, por distração, gravar senha em claro numa rota nova.
+### Regras do contrato
 
-O `bootstrap:admin` existe porque não há rota pública de cadastro inicial — e o comando **recusa
-rodar se já existir algum ADMIN**. Ele valida as variáveis **antes** de conectar ao banco, e reporta
-só nomes de variável.
+- Toda escrita roda em transação com `pg_advisory_xact_lock(hashtext('locacoes:integridade'))`.
+- Antes de qualquer operação, contratos com `data_fim` no passado viram `INATIVO`. Isso também roda por `@Cron` a cada
+  hora e antes de cada consulta.
+- Corretor comum só cria contrato em que ele é o intermediador e não pode trocar o intermediador.
+- `validarContrato` confere datas, valores em centavos, partes distintas e trava imóvel, corretor e pessoas **em ordem
+  crescente de id**, para evitar deadlock. Contrato ativo exige tudo ativo.
+- Contrato com comissão registrada não pode trocar de imóvel.
+- Segundo contrato ATIVO no mesmo imóvel estoura o índice único parcial, e o código `23505` vira 409.
 
-> **Correção:** o bootstrap **passa pelo DTO**. `bootstrap-admin.config.ts` faz
-> `plainToInstance(CreateAgentDto, ...)` seguido de `validateSync`, então o e-mail chega ao banco já
-> normalizado e validado pelas mesmas regras de `POST /agents`. O CHECK do banco é rede de segurança
-> para SQL manual, **não** para o bootstrap.
+### A pasta no Drive
 
----
+A pasta é criada **depois** de salvar o contrato, fora da transação.
 
-## 11. Como este projeto se testa
+1. `DriveCliente.validarPastaPrivada` confere que a raiz pertence ao Drive compartilhado configurado e que nenhuma
+   permissão é `anyone` ou `domain`.
+2. `garantirPasta` cria ou reaproveita, nesta ordem, `Imobiliária`, `Contratos` e `{numero} - {locatário}`. Para cada
+   uma, numa transação com advisory lock, registra em `pastas_drive` um **id pedido antes ao Google**
+   (`files/generateIds`).
+3. Com a transação confirmada, cria a pasta usando esse id. Se a rede falhar e a operação se repetir, o Google
+   responde 409 e o código entende que a criação anterior deu certo. A operação é **idempotente**.
+4. Mudança de número ou locatário renomeia a mesma pasta.
 
-São **13 arquivos** `.spec.ts` e **1.054 linhas** — 31% do `src/`. A arquitetura de teste aqui **é**
-uma decisão de arquitetura, e sem entendê-la você não escreve um teste novo.
+Sucesso grava `url_pasta_drive` e `CRIADA`. Falha grava `FALHOU`, preserva o contrato e a rota `pasta-drive` tenta de
+novo. O update condicional impede que uma tentativa que falhou apague o resultado de outra que deu certo.
 
-### O mecanismo central
-
-```ts
-.overrideProvider(getRepositoryToken(Property)).useValue(new PropertyRepositoryFixture())
-```
-
-Os testes sobem uma **aplicação Nest de verdade** (`application.listen(0, '127.0.0.1')`) e trocam
-**só** o repositório por uma fixture em memória. Ou seja: roteamento, guards, pipes, serialização e
-regra de negócio são **reais**; só a fronteira do banco é simulada. É por isso que a suíte roda sem
-Neon e sem rede.
-
-As cinco fixtures em `src/testing/` são repositórios falsos. A de leads tem o interpretador de
-operadores mais completo; a de mídia tem um **interruptor para simular falha de banco** no meio do
-upload — é assim que se testa a compensação que apaga os objetos já enviados ao R2.
-
-### As quatro suítes de contrato HTTP
-
-`auth.http.spec.ts` (203 linhas), `properties.http.spec.ts` (173), `leads.http.spec.ts` (151) e
-`media.http.spec.ts` (149). São a **única documentação executável** do comportamento das rotas.
-Note: **não existe** `agents.http.spec.ts` — os testes HTTP de `/agents` moram dentro de `auth.http.spec.ts`.
-
-Elas montam `ConfigModule` com `ignoreEnvFile: true` e `skipProcessEnv: true` (para não depender do
-`.env` da máquina) e um `JwtService` próprio assinando com o mesmo issuer/audience de produção.
-
-### O teste mais importante do repositório
-
-`src/bootstrap.spec.ts` é o único que executa `src/main.ts` **de verdade**, num subprocesso via
-`spawnSync`. Ele prova as duas garantias que o resto do documento apenas afirma: que o processo sai
-com status 1 **antes** de conectar, e que a saída contém `DATABASE_URL` e `JWT_SECRET` mas **não**
-contém os valores, nem `Unable to connect`, nem `Nest application successfully started`.
-
-E `agent.entity.spec.ts` é o mais didático: ele prova que `password_hash` **não aparece no SQL gerado**,
-transformando o `select: false` de promessa em fato verificado.
-
-### A duplicação perigosa
-
-A configuração do `ValidationPipe` está escrita **cinco vezes**: uma em `main.ts` e uma em cada uma
-das quatro suítes HTTP. Mudar uma flag em produção sem mudar nos testes faz a suíte continuar verde
-validando outra coisa.
-
-### Como escrever um teste novo
-
-1. Copie a montagem de uma suíte HTTP existente.
-2. Se o seu service usa um método que a fixture não implementa, **ela quebra em tempo de execução, não
-   de compilação**. Adicione o método na fixture.
-3. `jest.config.cjs` tem 7 linhas e 5 opções; `testRegex: '\\.spec\\.ts$'` e `roots: ['<rootDir>/src']`.
-   Não existe pasta `test/` nem suíte e2e: os specs moram ao lado do código que testam.
+O cliente não usa a biblioteca do Google. Assina o JWT RS256 com `node:crypto`, troca por token de acesso, guarda o
+token em memória até um minuto antes de expirar e chama a API com `fetch`, timeout de 10 segundos, até três
+tentativas com espera crescente para 429 e 5xx, e uma renovação de token em caso de 401. Nenhum erro externo vai para
+o log com credenciais.
 
 ---
 
-## 12. Travessia: o ciclo de uma requisição
+## 12. Comissões
 
-### A ordem que o Nest executa
+| Arquivo | O que faz |
+|---|---|
+| `comissao.entity.ts`, `parcela-comissao.entity.ts` | mapeiam `comissoes` e `parcelas_comissao` |
+| `comissoes.controller.ts` | as seis rotas de `/admin/comissoes` |
+| `comissoes.service.ts` | criação, listagem, alteração, baixa e atrasos |
+| `comissoes.dto.ts` | DTOs de criação, alteração, consulta e pagamento |
+| `parcelamento.ts` | `distribuirParcelas` e `vencimentoMensal` |
 
-```
-1. middleware do Express   (body parser, CORS)
-2. guards                  ← canActivate
-3. interceptors            (parte "antes")
-4. pipes                   ← ValidationPipe e ParseUUIDPipe
-5. o handler do controller
-6. interceptors            (parte "depois")
+- Receita da imobiliária, com valor informado pelo usuário. O sistema não calcula comissão de corretor, repasse
+  mensal nem cobrança.
+- Locação exige contrato ativo do mesmo imóvel; venda não pode ter contrato.
+- Pessoa e imóvel precisam estar ativos, ter o **mesmo corretor responsável**, e a pessoa não pode estar vinculada a
+  outro imóvel.
+- Corretor comum só vê e altera comissões em que ele é responsável pelo imóvel e pela pessoa.
+- `distribuirParcelas` converte o total para centavos em `BigInt`, divide e dá os centavos que sobram às primeiras
+  parcelas: R$ 100,00 em 3 vira 33,34, 33,33 e 33,33.
+- `vencimentoMensal` calcula cada vencimento a partir do primeiro, sem acumular ajustes: dia 31 em fevereiro cai no
+  último dia do mês, e março volta ao dia 31.
+- Parcela com vencimento passado nasce `ATRASADO`. As demais viram `ATRASADO` por `@Cron` e antes de cada consulta.
+- Baixa exige `confirmar_pagamento: true` e referência do comprovante com 5 caracteres ou mais. Repetir a mesma baixa
+  devolve a parcela sem erro; outro comprovante responde 409. Comissão desativada não aceita baixa.
+- Desativar a comissão desativa as parcelas.
+- A listagem calcula `valor_pago` e `saldo_pendente` em centavos.
+
+A resposta de comissão devolve a entidade com as parcelas, sem uma função de resposta montada campo a campo, ao
+contrário dos outros módulos.
+
+---
+
+## 13. Suporte
+
+### `src/comum/`
+
+- `auditoria.entity.ts`: a classe abstrata herdada por todas as entities.
+- `dto.ts`: `IdRegistro()` (junta `@Type(() => Number)`, `@IsInt()` e `@Min(1)` com `applyDecorators`) e os
+  transformadores `aparar`, `booleano`, `decimal`, e as condições `definido` e `informado` para `@ValidateIf`.
+  `informado` ignora `null`, o que permite limpar um campo opcional mandando `null`.
+- `validacao.ts`: dígitos verificadores de CPF e CNPJ, telefone brasileiro, data civil válida, conversão de decimal em
+  centavos, os decorators `@DocumentoValido`, `@TelefoneValido`, `@DataCivilValida`, e `escaparBusca`.
+- `datas.ts`: `DATA_ATUAL_SQL` e `hojeCivil()` no fuso `America/Cuiaba`.
+
+`escaparBusca` escapa `\`, `%` e `_` antes de um `ILIKE`. Não é contra SQL injection, que a parametrização já evita: é
+para que uma busca por `%` não case com tudo.
+
+### `src/common/filters/global-exception.filter.ts`
+
+`@Catch()` sem argumento captura tudo. Erros de status 500 ou mais vão ao log só com o código do PostgreSQL, sem SQL
+nem parâmetros. A resposta é `{ statusCode, message }`, com `message` em texto ou lista, como o front espera.
+
+### `src/database/log-seguro.ts`
+
+`LoggerSeguro` implementa a interface de logger do TypeORM sem registrar nada: SQL com parâmetros pode conter CPF,
+telefone e e-mail. `mensagemFalhaOperacional` produz a mensagem genérica usada pelo filtro e pelos comandos.
+
+### `src/commands/migracoes.ts`
+
+É o executor de `npm run migration:show`, `migration:run` e `migration:revert`, no lugar da CLI do TypeORM, que
+imprime erros com parâmetros. Para executar ou reverter, exige `MIGRACAO_BACKUP_ARQUIVO` apontando para um arquivo não
+vazio. Roda todas as migrations pendentes numa única transação e imprime só a contagem. Só mensagens controladas pelo
+código chegam ao terminal.
+
+### `src/commands/bootstrap-admin.ts`
+
+Valida as `BOOTSTRAP_ADMIN_*` com o `CriarCorretorDto` **antes** de conectar e reporta só nomes de variável. Sobe o
+Nest com `createApplicationContext`, sem servidor HTTP, e chama `criarAdministradorInicial`, que recusa se já houver
+ADMIN. Imprime só o id criado.
+
+### `src/saude/`
+
+`GET /saude` executa `SELECT 1`. Responde `{ status: 'ok', verificado_em }` ou 503, sem dado de negócio.
+
+---
+
+## 14. Como o projeto se testa
+
+Jest com `ts-jest`, arquivos `*.spec.ts` ao lado do código, execução em série. 27 arquivos de teste.
+
+### Quatro tipos de teste
+
+1. **Unitários de service com mocks** (`pessoas.service.spec.ts`, `comissoes.service.spec.ts` e outros). O
+   repositório é um objeto com `jest.fn()`. O teste confere as condições que o service mandou ao QueryBuilder e o
+   objeto que ele tentou gravar.
+2. **HTTP com aplicação Nest real** (`autenticacao.http.spec.ts`, `cadastros.http.spec.ts`). Sobem o módulo numa porta
+   aleatória e trocam só os repositórios:
+   ```ts
+   Test.createTestingModule({ imports: [ConfigModule.forRoot({ ignoreEnvFile: true, skipProcessEnv: true, load: [...] }), AutenticacaoModule] })
+     .overrideProvider(getRepositoryToken(Corretor)).useValue(repositorio)
+   ```
+   Rotas, guards, pipes e regras são reais. O `ConfigModule` ignora o `.env` da máquina.
+3. **Processo real** (`bootstrap.spec.ts`). Executa `main.ts` e o bootstrap num subprocesso e prova que o processo sai
+   com código 1 **antes** de conectar e **sem** imprimir valores de segredo.
+4. **Integração com PostgreSQL real** (`database/modelo-portugues.integracao.spec.ts`). Roda as migrations com dados
+   sintéticos, confere constraints e percorre o fluxo HTTP inteiro. Só executa com `TESTE_LOCAL_DATABASE_URL` ou
+   `HOMOLOGACAO_DATABASE_URL`.
+
+### Detalhes
+
+- `jest.config.cjs` troca `@nestjs/schedule` por `src/testing/schedule.mock.ts`, para os `@Cron` não dispararem.
+- A configuração do `ValidationPipe` está repetida no `main.ts` e nos testes HTTP. Mudar uma sem a outra deixa a suíte
+  verde validando outra coisa.
+- `bootstrap.spec.ts` tem limite de 15 segundos por subprocesso. Em 17/09/2026, nesta máquina com a pasta no OneDrive,
+  um dos casos estourou o tempo: 174 testes passaram, 4 foram ignorados e 1 falhou por tempo.
+
+### O que não tem teste automatizado
+
+Upload real no R2, criação real de pastas no Drive e a cadeia completa das 10 migrations sobre banco vazio.
+
+---
+
+## 15. Travessia: o ciclo de uma requisição
+
+### A ordem de execução
+
+```text
+1. middleware do Express  (helmet, reescrita de URL, CORS, leitura do corpo)
+2. guards                 (autenticação, cargo, origem, limites)
+3. interceptors, antes    (upload de arquivos)
+4. pipes                  (ValidationPipe, ParseIntPipe)
+5. handler do controller  → service → banco, R2, Drive
+6. interceptors, depois
 7. serialização e envio
+   erro em qualquer etapa → GlobalExceptionFilter
 ```
 
-**A consequência que explica metade das confusões: guard roda ANTES de pipe.** Um `POST /properties`
-sem token **e** com corpo inválido devolve **401**, nunca 400 — a validação sequer acontece. Ao
-depurar, não conclua que o DTO está certo só porque não veio erro de validação: ele pode nem ter rodado.
+**Guard roda antes de pipe.** `POST /admin/imoveis` sem token e com corpo inválido responde 401, nunca 400.
+Guards veem o corpo já lido, mas não o DTO validado.
 
-Segunda consequência: guards enxergam `request.body` já parseado (o body parser é middleware), mas
-**não** enxergam o DTO validado. É exatamente por isso que o `LoginRateGuard` lê o corpo cru.
+### `GET /imoveis`
 
-### `GET /properties` — o caminho público
+Sem guard. `ValidationPipe` monta o `ConsultaImoveisDto` com padrões `pagina = 1` e `limite = 20` (máximo 100) e
+converte os textos da query. O service escolhe a coluna de preço, aplica a restrição pública, conta, busca os ids da
+página e carrega os dados. `resposta_imovel_publico` decide o que sai. 200.
 
-Roteamento (sem prefixo global, o caminho é literal) → **nenhum guard** → `ValidationPipe` monta o
-`PropertyQueryDto` (defaults `page = 1` e `limit = 20` vêm dos inicializadores da classe; `@Type`
-coage as strings; `@Max(100)` no limit é o freio) → handler delega ao service → service força
-`{ status: DISPONIVEL, agent: { active: true } }` → `findAndCount` com ordenação
-`createdAt DESC, id DESC` (o `id` é o desempate determinístico, sem ele duas linhas do mesmo instante
-trocariam de página entre requisições) → `numericTransformer` converte os `numeric` → `toPropertyResponse`
-decide o que sai → **200**.
+### `POST /admin/imoveis`
 
-### `POST /properties` — o caminho autenticado
-
-Preflight CORS → body parser → `JwtAuthGuard` → `JwtStrategy.validate` **vai ao banco** → Passport
-grava em `request.user` → **agora** o `ValidationPipe` → handler → service (`validateAreas` →
-`resolveOwner` → `randomUUID` → slug → `repository.create` que **só instancia em memória** →
-`save` que é o INSERT) → `toPropertyResponse` → **201**.
+Preflight CORS, corpo lido, `AutenticacaoGuard`, `EstrategiaJwt` relê o corretor, `request.user` preenchido,
+`ValidationPipe`, handler, service: valida áreas, abre transação, valida referências, pede o próximo id, monta o slug,
+`create` instancia em memória e `save` faz o INSERT, grava características. Recarrega a ficha completa. 201.
 
 ### Quem rejeita o quê
 
 | Etapa | Status |
 |---|---|
-| validação de ambiente (boot) | processo sai com código 1 |
-| `BrowserOriginGuard` | 403 |
-| `LoginRateGuard` | 429 |
-| `JwtAuthGuard` / `validate` | 401 |
-| `RolesGuard` (retorna `false`) | 403 |
-| `ValidationPipe` / `ParseUUIDPipe` | 400 |
-| service: dono ou papel | 403 |
-| service: não encontrado | 404 |
-| banco: unique violado | **409 só onde há tratamento**, senão 500 |
+| validação do ambiente, no boot | processo sai com código 1 |
+| `OrigemGuard` | 403 |
+| `TentativasGuard`, `LimitePessoasGuard` | 429 |
+| `AutenticacaoGuard` e `EstrategiaJwt` | 401 |
+| `CargosGuard` | 403 |
+| `ValidationPipe`, `ParseIntPipe` | 400 |
+| service: sem permissão sobre registro visível | 403 |
+| service: não encontrado ou invisível | 404 |
+| service ou banco: unicidade, último ADMIN, contrato ativo | 409 |
+| banco fora, Drive falhou, compensação falhou | 503 |
+| erro não tratado | 500 genérico |
 
 ---
 
-## 13. Travessia: o que acontece quando você apaga
+## 16. Travessia: o que acontece quando você apaga
 
-### O grafo, em uma frase
+### Pela API, quase nada é apagado
 
-`agents` é a raiz. `properties` → `agents` (**RESTRICT**). `property_media` → `properties` (**CASCADE**).
-`leads` → `properties` (**SET NULL**) **e** → `agents` (**RESTRICT**). `refresh_sessions` → `agents` (**CASCADE**).
+| Rota `DELETE` | Efeito |
+|---|---|
+| corretor | `ativo = false`; protegido pela regra do último ADMIN |
+| tipo, finalidade, característica | `ativo = false` |
+| imóvel | `ativo = false`; mídias, características e contratos continuam |
+| pessoa | `ativo = false`; recusado com contrato ATIVO |
+| contrato | `ativo = false` e, pela validação, `status = INATIVO` |
+| comissão | `ativo = false` na comissão e nas parcelas |
+| mídia | **exclusão física** no R2 e no banco |
+| sessão (`sair`, troca de senha, limpeza horária) | **exclusão física** |
 
-Leia os `ON DELETE` em conjunto e eles contam uma história coerente:
+Reativar é `PATCH { "ativo": true }`.
 
-> **corretor não se apaga** · **imóvel se apaga e leva a mídia junto** · **lead nunca se perde por
-> causa de imóvel** · **sessão é descartável**
+### O que as chaves estrangeiras fariam num `DELETE` direto no banco
 
-### Apagando um imóvel
+- `RESTRICT` em quase tudo: corretor com imóveis, pessoas ou auditoria; imóvel com contrato ou comissão; pessoa com
+  contrato, comissão ou como proprietária.
+- `CASCADE`: mídias e características do imóvel, parcelas da comissão, sessões do corretor.
+- `SET NULL`: o imóvel de interesse da pessoa. O contato sobrevive se o imóvel sumir.
 
-1. As linhas de `property_media` desaparecem por CASCADE. **Não é o TypeORM fazendo isso** — não há
-   `cascade: true` em `@OneToMany` nenhum. É o Postgres.
-2. Os `leads` daquele imóvel têm `property_id` virando `NULL`. O lead **sobrevive**: nome, telefone,
-   consentimento e `agent_id` continuam lá. É decisão de produto visível no schema — o histórico
-   comercial e o registro de LGPD não podem evaporar porque um anúncio saiu do ar.
-
-**E o que não acontece: os objetos no R2 continuam exatamente onde estavam.**
-
-Este é o ponto cego do sistema e vale entender direito. `PropertiesService.remove` não chama
-`MediaService`; `PropertiesModule` sequer importa `MediaModule`. Ao apagar o imóvel, as linhas de
-`property_media` somem e levam junto o `storage_key` — que era o **único ponteiro conhecido** para o
-objeto no bucket. O arquivo vira lixo permanente, sem índice, e você só o encontra listando o bucket
-pelo prefixo `properties/<uuid-de-um-imóvel-que-não-existe-mais>/`.
-
-**A regra prática: apague a mídia antes de apagar o imóvel.**
-
-### Apagando um corretor
-
-Não dá. Não há rota `DELETE`, e os dois `ON DELETE RESTRICT` bloqueariam a operação assim que o
-corretor tivesse qualquer imóvel ou qualquer lead.
-
-Note que a ausência da rota e o desenho das FKs são **a mesma decisão dita duas vezes**.
-
-O mecanismo real é `active: false`, e ele atravessa quatro arquivos: `AgentsService.update` (com o
-advisory lock), `JwtStrategy.validate` (derruba o token na hora), `AuthService.refresh` (não renova) e
-os filtros `agent: { active: true }` do catálogo público (tira os imóveis da vitrine).
+A história que o schema conta: **histórico de negócio não se perde; o que é descartável vai junto com o dono.**
 
 ### Onde o banco não protege
 
-1. **O R2 não tem chave estrangeira.** Nenhuma constraint do Postgres alcança um bucket.
-2. **Capa única não é garantida.** Não há índice único parcial. Dois `PATCH .../cover` concorrentes
-   podem deixar duas capas ou nenhuma — `setCover` não roda em transação explícita.
-3. **`order_index` não tem unicidade.** Por isso `toPropertyResponse` ordena defensivamente com
-   desempate por id.
-4. **"Pelo menos um ADMIN ativo" só existe no código.** Um `UPDATE` direto no banco fura a regra.
-5. **`consent_given = true` só existe no código.**
-6. **`leads.agent_id` é denormalizado.** É uma cópia feita na criação. Se um ADMIN reatribuir o imóvel
-   depois, os leads antigos continuam apontando para o corretor anterior. Pode ser intencional — quem
-   atendeu foi o corretor da época — mas nenhum dos dois módulos revela isso sozinho.
-7. **Sessões expiradas nunca são varridas.** O índice `idx_refresh_sessions_expiry` existe e **nenhum
-   código o usa**. Está esperando uma limpeza que ninguém escreveu.
+1. **O R2 não tem chave estrangeira.** Um `DELETE` direto de imóvel no banco apagaria as linhas de mídia por CASCADE e
+   deixaria os arquivos órfãos no bucket. A API nunca faz isso, porque o `DELETE` de imóvel é lógico.
+2. **"Pelo menos um ADMIN ativo"** só existe no código, com o advisory lock.
+3. **Pessoa e imóvel com o mesmo corretor numa comissão** só existe no código.
+4. **Status `ATRASADO` e contratos vencidos** dependem do `@Cron` e das consultas; o banco não muda o status sozinho.
+5. **Limites de tentativa** vivem na memória do processo.
 
 ---
 
-## 14. Travessia: a corrente de segurança
-
-A segurança desta API não mora em nenhum arquivo. É uma corrente, e cada elo existe porque o anterior,
-sozinho, não bastaria.
+## 17. Travessia: a corrente de segurança
 
 | Camada | Onde | Contra o quê |
 |---|---|---|
-| 0 | `env.validation.ts` | segredo curto, URL de banco adulterada, TLS desligado |
-| 1 | `database.config.ts` | man-in-the-middle na conexão com o Neon |
-| 2 | `main.ts` — `ValidationPipe` | **mass assignment** (mandar `slug`, `role`, `passwordHash`) |
-| 3 | `password.service.ts` + `select: false` | vazamento de senha, mesmo com o banco comprometido |
-| 4 | par de tokens + cookie `httpOnly` | XSS roubando sessão longa |
-| 5 | `sameSite: 'strict'` + `BrowserOriginGuard` | CSRF (duas defesas, uma no cliente, uma no servidor) |
-| 6 | `LoginRateGuard` | força bruta por IP e *password spraying* por conta |
-| 7 | `JwtStrategy.validate` relendo o banco | JWT irrevogável |
-| 8 | `RolesGuard` | acesso a rota por papel |
-| 9 | `ownerRestriction` no `WHERE` | **IDOR** — e não serve de oráculo de existência |
-| 10 | `to*Response` manual | vazamento de `email`, `role`, `storageKey` |
-| 11 | `validateFile` + `isSupportedEmbed` | traversal de caminho, host enganoso |
-| 12 | `@Equals(true)` + recheck no service | lead sem consentimento |
+| 0 | `env.validation.ts` | segredo curto, banco adulterado, TLS desligado, segredo impresso |
+| 1 | `database.config.ts` | interceptação da conexão com o Neon |
+| 2 | `helmet()` | clickjacking, *MIME sniffing*, ausência de HSTS |
+| 3 | `ValidationPipe` com whitelist | *mass assignment* de `cargo`, `ativo`, `senha_hash` |
+| 4 | Argon2id, `select: false` | vazamento de senha, mesmo com o banco exposto |
+| 5 | hash de disfarce no login | enumeração de contas pelo tempo |
+| 6 | par de tokens e cookie HttpOnly | XSS roubando sessão longa |
+| 7 | `SameSite=Strict` e `OrigemGuard` | CSRF, com defesa no navegador e no servidor |
+| 8 | `TentativasGuard`, `LimitePessoasGuard` | força bruta, *password spraying*, spam de contatos |
+| 9 | `EstrategiaJwt` relendo o banco | JWT irrevogável |
+| 10 | `CargosGuard` | rota por cargo |
+| 11 | filtro no `WHERE`, checagem de dono | IDOR, sem oráculo de existência |
+| 12 | funções `resposta_*` e `perfilCorretor` | vazamento de chave do R2, IP, hash, campos internos |
+| 13 | assinatura de bytes, host exato, chave gerada pelo servidor | arquivo disfarçado, host enganoso, *path traversal* |
+| 14 | `GlobalExceptionFilter`, `LoggerSeguro` | vazamento de SQL, stack trace, dado pessoal |
+| 15 | pasta do Drive sem permissão pública | documentos de contrato expostos |
 
-**O padrão:** cada camada é falível sozinha. O `sameSite` depende do navegador — por isso existe o
-guard de origem. O JWT é irrevogável — por isso `validate` relê o banco. O `whitelist` depende de o
-DTO estar certo — por isso `slug` e `passwordHash` também são impossíveis de setar pelo caminho do
-service. **Segurança aqui não é uma parede: é a sobreposição das paredes.**
+Cada camada é falível sozinha, e por isso existe a seguinte. `SameSite` depende do navegador, então há o guard de
+origem. O JWT não é revogável, então a estratégia relê o banco. O DTO pode ter um erro, então o banco tem CHECKs.
 
-### As fragilidades conhecidas
+### Fragilidades conhecidas
 
-Nenhum sistema é só virtudes. Estas são reais e estão no código hoje:
-
-- **O rate limit é de instância única.** O `Map` vive na memória do processo. Duas instâncias = limite
-  dobrado; todo deploy zera a contagem. Não há Redis nem `@nestjs/throttler`.
-- **O teto de 10.000 chaves do rate limit é um DoS embutido.** Quando o mapa estoura, **toda** tentativa
-  de login leva 429 — inclusive a legítima. Um atacante enche o mapa com e-mails aleatórios e tranca
-  o login de todo mundo por até 15 minutos.
-- **Enumeração de contas por tempo.** `login` só roda o Argon2 se o corretor existe e está ativo. A
-  mensagem é sempre a mesma, mas o **tempo** não: e-mail inexistente responde muito mais rápido.
-- **Não há detecção de reuso de refresh token.** Um token roubado e já consumido devolve 401, mas o
-  sistema não revoga as outras sessões nem registra o evento.
-- **O default é aberto.** Não existe guard global. Uma rota nova sem `@UseGuards` nasce pública e nada
-  avisa. `PropertiesController` protege 3 dos 5 handlers, na mão.
-- **`POST /leads` não tem rate limit nem guard de origem.** Spam de leads é possível à vontade.
-- **Não há `helmet`.** HSTS, CSP e `X-Content-Type-Options` dependem do que o proxy à frente colocar.
-- **`validateFile` confia no `mimetype` que o cliente envia.** Não há inspeção de magic bytes.
+- **Limites em memória de instância única.** Duas instâncias dobram o limite; reinício zera.
+- **O teto de 10.000 chaves do `TentativasGuard` tranca o login de todos.** Um atacante que encha o mapa com e-mails
+  aleatórios faz toda tentativa levar 429 por até 15 minutos.
+- **O padrão é aberto.** Não existe guard global; rota nova sem `@UseGuards` é pública.
+- **Não há detecção de reuso de token de renovação.** Um token roubado e já consumido leva 401, mas as outras sessões
+  não são revogadas.
+- **Redefinição de senha pelo ADMIN não revoga as sessões** do corretor alvo.
+- **O cookie é sempre `Secure`**: o navegador em HTTP puro não guarda a sessão.
 
 ---
 
-## 15. Receitas
+## 18. Receitas
 
-### Rodar o projeto pela primeira vez
+### Rodar o projeto
 
 ```bash
-npm ci                      # instala (não precisa de rede além do registry)
-cp .env.example .env        # e preencha — veja abaixo
-npm run migration:run       # só se o banco for novo; no Neon já foram aplicadas
-npm run bootstrap:admin     # cria o primeiro ADMIN; recusa se já houver um
-npm run start:dev           # sobe em watch, na porta 3000
+npm ci
+cp .env.example .env        # preencha; o .env de desenvolvimento existe só na máquina do dono
+npm run start:dev           # porta 3000
 ```
 
-O `.env` de desenvolvimento **existe apenas na máquina do dono do projeto** e não é reconstruído por
-agentes. As quatro `BOOTSTRAP_ADMIN_*` devem ser **removidas depois do uso**.
+Banco novo: `npm run migration:run` com `MIGRACAO_BACKUP_ARQUIVO` e depois `npm run bootstrap:admin`. Remova as
+`BOOTSTRAP_ADMIN_*` do `.env` depois.
 
 ### Antes de commitar
 
@@ -1073,54 +980,56 @@ agentes. As quatro `BOOTSTRAP_ADMIN_*` devem ser **removidas depois do uso**.
 npm run typecheck && npm run lint && npm test
 ```
 
-Os três são obrigatórios pelo `AGENTS.md`. Código que compila não significa tarefa concluída.
+### Adicionar um campo ao imóvel
 
-### Adicionar um campo novo a um imóvel
+1. **Migration nova** em `src/database/migrations/`, registrada em `src/database/registros.ts`. Nunca edite uma aplicada.
+2. **A entity** `imovel.entity.ts`. Coluna `numeric` é tipada como `string`.
+3. **`CriarImovelDto`.** O `AtualizarImovelDto` herda por `PartialType`. Sem isso, quem mandar o campo leva 400.
+4. **A resposta**: `resposta_imovel_publico` se o site pode ver, ou só `resposta_imovel` se for interno.
+5. Se virar filtro: `ConsultaImoveisDto` ou `ConsultaInternaImoveisDto` e uma condição em `listar`.
+6. Testes do DTO e do service.
 
-Cinco lugares, **nesta ordem**:
+### Adicionar uma entidade
 
-1. **Migration nova.** Nunca edite as 5 aplicadas — altera o histórico de um banco real.
-2. **A entidade** (`property.entity.ts`). Se for `numeric`, não esqueça o `numericTransformer`.
-3. **O DTO de criação.** Sem isso, `forbidNonWhitelisted` devolve **400** para quem mandar o campo.
-4. **`toPropertyResponse`.** Sem isso, o campo existe no banco e **não sai** na resposta.
-5. **A fixture de teste**, se o seu código novo usar um método que ela não tem.
+Entity herdando de `Auditoria`; `TypeOrmModule.forFeature([...])` no módulo; inclusão na lista `entidades` de
+`registros.ts`, senão o CLI de migrations não a enxerga; migration nova.
 
-### Adicionar um endpoint novo
+### Adicionar um endpoint
 
-- Declare no controller, e **lembre do `@UseGuards(JwtAuthGuard)`** — o default é público.
-- Se for rota pública de imóvel, replique `{ status: DISPONIVEL, agent: { active: true } }`. Não há
-  nada no ORM impedindo você de esquecer e expor imóveis reservados.
-- Se receber um id na URL, use `@Param('id', new ParseUUIDPipe({ version: '4' }))`.
-- Rota autenticada que mexe em registro: passe `viewer` ao service e filtre no `WHERE`, não com um
-  `if` depois de buscar.
+- Declare `@UseGuards(AutenticacaoGuard)`, e `CargosGuard` com `@Cargos('ADMIN')` se for só de ADMIN. O padrão é público.
+- Ids na URL com `ParseIntPipe`.
+- Passe `requisicao.user` ao service e filtre pelo dono no `WHERE`.
+- Rota pública de imóvel replica `ativo = true`, `status = DISPONIVEL` e corretor ativo.
+- Monte a resposta com uma função `resposta_*`, nunca devolvendo a entity crua.
+- Rota que depende do cookie leva `OrigemGuard`.
 
 ### Adicionar uma variável de ambiente
 
-Declare o campo em `EnvironmentVariables` com decorators, acrescente ao `.env.example` com um
-comentário explicando o formato, e registre em `DECISIONS.md` — é exigência do projeto.
+Declare em `EnvironmentVariables` com decorators, acrescente ao `.env.example` com comentário e registre em
+`DECISIONS.md`, como exige o `AGENTS.md`.
 
-### Quem pode o quê, de uma vez
+### Quem pode o quê
 
-| Ação | AGENT | ADMIN |
+| Ação | CORRETOR | ADMIN |
 |---|---|---|
-| ver catálogo público | ✅ | ✅ |
-| criar/editar/apagar imóvel | só os seus | **qualquer um** |
-| atribuir imóvel a outro corretor | ❌ | ✅ |
-| subir e apagar mídia | só nos seus imóveis | **qualquer um** |
-| ver e apagar leads | só os seus | **todos** |
-| listar, criar e editar corretores | ❌ | ✅ |
-| apagar corretor | ❌ | ❌ (não existe) |
+| ver o catálogo público | sim | sim |
+| ler imóveis internos | todos | todos |
+| criar, alterar e desativar imóvel | só os seus | qualquer um |
+| atribuir imóvel a outro corretor | não | sim |
+| enviar e apagar mídia | só nos seus imóveis | qualquer um |
+| ver pessoas | as que atende e as dos seus contratos | todas |
+| alterar pessoas | as que atende | todas |
+| contratos | os que intermedeia | todos |
+| comissões | com imóvel e pessoa seus | todas |
+| gerenciar tipos, finalidades e características | não | sim |
+| gerenciar corretores | não | sim |
 
 ---
 
 ## Onde continuar
 
-- **O código.** É a fonte de verdade, e são só 2.272 linhas.
-- **`DECISIONS.md`** — por que cada escolha foi feita, e o que **não** fazer.
-- **`AGENTS.md`** — o protocolo de trabalho do repositório.
-- **`corretor-spec.json`** — a especificação de produto.
-- **`docs/handoffs/`** — o registro da montagem de Neon e R2.
-
-> ⚠️ **Não confie no `README.md` nem no `PLANO-PROJETO-CORRETOR.md`.** Os dois estão desatualizados em
-> pontos conhecidos (o README descreve mídia e leads como "módulos vazios" e diz que as migrations
-> criam duas tabelas, quando são cinco). O próprio `CLAUDE.md` do repositório avisa isso.
+- **O código**, fonte de verdade.
+- [GUIA-DE-ESTUDO.md](GUIA-DE-ESTUDO.md), com plano de estudo e exercícios.
+- [DECISIONS.md](../DECISIONS.md), com o porquê de cada escolha e o que não fazer.
+- [AGENTS.md](../AGENTS.md), com o protocolo de trabalho.
+- [docs/handoffs/2026-09-16-ids-inteiros-pessoas.md](handoffs/2026-09-16-ids-inteiros-pessoas.md), o contrato v2.

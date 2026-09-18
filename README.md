@@ -1,218 +1,201 @@
 # corretor-api
 
-> **Estado vigente — 16/09/2026:** contrato v2 com ids inteiros, cadastro único de `pessoas` e ficha do imóvel ampliada; ver [docs/handoffs/2026-09-16-ids-inteiros-pessoas.md](docs/handoffs/2026-09-16-ids-inteiros-pessoas.md). Rotas `/clientes` e `/admin/partes-locacao` não existem mais.
->
-> **Estado anterior — 14/09/2026:** backend integral em português, com cadastros dinâmicos, clientes, contratos/Drive compartilhado e comissões. Consulte a [entrega e migração](docs/handoffs/2026-09-14-backend-portugues.md) e a [especificação aprovada](docs/specs/2026-09-13-backend-integral.md). As seções antigas abaixo permanecem como histórico e não definem o contrato novo. Publicação depende da adaptação do frontend e do corte de banco coordenado.
+API REST do sistema da imobiliária de imóveis comerciais: catálogo público, contatos do site, painel dos
+corretores, contratos de locação e comissões.
 
-Fundação da API REST do sistema de corretor imobiliário. Backend separado do `corretor-web`, com NestJS 11, TypeScript, TypeORM e PostgreSQL hospedado no Neon.
+NestJS 11 sobre Express, TypeScript estrito, TypeORM 0.3 e PostgreSQL 16 no Neon. Mídia no Cloudflare R2 e
+pastas de contratos no Google Drive compartilhado. Node `>=24 <25` e npm `>=11`.
 
-## Estado da entrega
+Repositório irmão: **corretor-web** (React 18 + Vite 7 + SSR próprio), em `../Corretor-web`.
 
-- [x] Projeto NestJS, dependências e scripts de desenvolvimento/verificação.
-- [x] ConfigModule global com validação obrigatória de ambiente no boot.
-- [x] Configuração TypeORM preparada para Neon, com TLS verificado.
-- [x] Login JWT, perfil autenticado e cadastro de corretores restrito a ADMIN.
-- [x] Entity Agent, hash Argon2id, guards de autenticação e autorização.
-- [x] Migrations de corretores/imóveis e comando de criação do primeiro administrador preparados.
-- [x] CRUD de imóveis, catálogo público com filtros/paginação e gestão com restrição por corretor.
-- [x] Módulos vazios de mídia e leads.
-- [x] Testes de configuração e falha de inicialização, sem serviços externos.
-- [ ] Conexão real ao Neon: aguarda criação do projeto e configuração de DATABASE_URL.
-- [ ] Integração R2: aguarda bucket, credenciais e implementação do módulo de mídia.
+> Situação descrita: contrato v2, em vigor desde 16/09/2026 (ids inteiros e cadastro único de pessoas).
+> A fonte de verdade é o código. O contrato detalhado está em
+> [docs/handoffs/2026-09-16-ids-inteiros-pessoas.md](docs/handoffs/2026-09-16-ids-inteiros-pessoas.md).
 
-A próxima etapa de negócio é o módulo de mídia. As migrations estão escritas, mas não foram aplicadas ao Neon. Render, Vercel e deploy continuam pendentes; nenhum deploy automático foi configurado nesta entrega.
+## Situação atual (17/09/2026)
 
-O progresso detalhado é mantido no [plano do projeto](PLANO-PROJETO-CORRETOR.md), com validações externas separadas das tarefas de código.
+- Banco do Neon recriado do zero com as 10 migrations. Contém o administrador (id `1`) e os cadastros
+  iniciais: 5 tipos de imóvel e 3 finalidades.
+- API validada localmente contra o Neon: `GET /api/v1/saude`, catálogo e login respondem 200.
+- O serviço no Render roda um commit antigo, com o contrato anterior, e **não funciona contra o banco atual**.
+  A publicação precisa subir API e front v2 juntos, com o health check em `/api/v1/saude`.
+- Pendências: aviso de novo contato ao corretor, regras de acesso a locações e comissões, CPF real do
+  administrador e remoção das variáveis `BOOTSTRAP_ADMIN_*` do `.env`. Detalhes em [TASKS.md](TASKS.md).
 
-## Requisitos e instalação
+## Instalação
 
-Node.js 24.x (também indicado em `.nvmrc`) e npm 11 ou superior.
-
-```powershell
+```bash
 npm ci
-Copy-Item .env.example .env
+cp .env.example .env   # preencha os valores; o .env nunca vai para o Git
 ```
 
-Preencha `.env` antes de iniciar a API. Os testes e o build não precisam de `.env`, Neon ou R2. A aplicação exige toda a configuração abaixo; não há banco local nem modo de execução sem banco. Copiar o exemplo sem preencher os campos deve resultar em erro de inicialização.
-
-## Variáveis de ambiente
-
-| Variável | Regra |
-|---|---|
-| PORT | Inteiro entre 1 e 65535; padrão 3000 |
-| NODE_ENV | development, test ou production; padrão development |
-| DATABASE_URL | URL postgres:// ou postgresql:// do Neon, com usuário, senha, banco e sslmode=require, verify-ca ou verify-full |
-| JWT_SECRET | Segredo aleatório de pelo menos 32 caracteres, não vazio |
-| JWT_EXPIRES_IN | Inteiro positivo seguido de s, m, h ou d; padrão 15m |
-| R2_ENDPOINT | URL HTTPS; use https://<account_id>.r2.cloudflarestorage.com |
-| R2_ACCESS_KEY_ID | Chave de acesso não vazia |
-| R2_SECRET_ACCESS_KEY | Segredo não vazio |
-| R2_PUBLIC_URL | URL HTTPS pública do bucket, r2.dev ou domínio próprio |
-
-Valores inválidos interrompem a inicialização e o erro lista apenas os nomes dos campos. Nunca comite `.env`, tokens ou dumps do banco. Os números de WhatsApp ficarão no cadastro de cada corretor, conforme as specs.
+Testes, lint, tipos e build não precisam de `.env` nem de rede. Subir a API exige todas as variáveis
+obrigatórias e o Neon acessível: não existe modo sem banco, e Postgres local é recusado.
 
 ## Comandos
 
-```powershell
-npm run start:dev  # Desenvolvimento com watch, exige ambiente válido e Neon disponível
-npm start          # Compila e inicia a API
-npm run build      # Compila para dist/main.js
-npm run start:prod # Executa o build existente
-npm run lint       # ESLint, sem alterar arquivos
-npm run typecheck  # Checagem TypeScript incluindo testes
-npm test           # Testes locais, sem conexão externa
-npm run test:watch
-```
-
-Com configuração, migration e conexão válidas, a aplicação escuta na porta configurada (3000 por padrão).
-
-## Autenticação e corretores
-
-| Endpoint | Acesso | Entrada / saída |
+| Ação | Comando | Precisa de `.env` e rede |
 |---|---|---|
-| POST /auth/login | Público | Recebe email e password; retorna accessToken, tokenType: Bearer e agent |
-| GET /auth/me | JWT Bearer | Retorna o perfil atual do corretor |
-| POST /agents | JWT Bearer + ADMIN | Cria corretor e retorna perfil sem senha/hash |
+| Desenvolvimento com recarga | `npm run start:dev` | sim |
+| Build | `npm run build` | não |
+| Executar o build | `npm run start:prod` | sim |
+| Testes | `npm test` | não |
+| Lint | `npm run lint` | não |
+| Tipos | `npm run typecheck` | não |
+| Ver migrations pendentes | `npm run migration:show` | sim |
+| Aplicar migrations | `npm run migration:run` | sim, com `MIGRACAO_BACKUP_ARQUIVO` |
+| Reverter a última migration | `npm run migration:revert` | sim, com `MIGRACAO_BACKUP_ARQUIVO` |
+| Criar o primeiro ADMIN | `npm run bootstrap:admin` | sim |
 
-O cadastro aceita `name`, `email`, `password`, `whatsappNumber` e, opcionalmente, `creci`, `role` e `avatarUrl`. O papel padrão é AGENT; um ADMIN também pode cadastrar outro ADMIN. Senhas de cadastro têm 12 a 128 caracteres. WhatsApp deve conter somente dígitos com código do país (10 a 15 dígitos, sem zero inicial). O e-mail é normalizado para minúsculas e sem espaços nas extremidades, antes de verificar sua unicidade. Campos extras, como `passwordHash` e `active`, são rejeitados.
+Antes de qualquer commit: `npm run typecheck`, `npm run lint` e `npm test`.
 
-Credenciais incorretas e contas inativas recebem 401 no login. E-mail duplicado recebe 409; entrada inválida, 400. Cadastro sem token recebe 401 e cadastro por AGENT recebe 403. O JWT usa HS256, issuer `corretor-api` e audience `corretor-web`. A cada requisição protegida o corretor é consultado novamente: contas inativas/removidas perdem acesso e alterações de papel passam a valer mesmo para tokens já emitidos.
+## Variáveis de ambiente
 
-A API entrega access token para uso em memória e refresh token em cookie httpOnly rotativo. Logout/revogação, origens autorizadas e limitação de login estão implementados; consulte os contratos e limites operacionais na seção de integração abaixo.
+A validação roda no boot. Valor inválido encerra o processo, e a mensagem cita só o nome do campo.
 
-## Preparar o banco e o primeiro administrador
+| Variável | Regra | Obrigatória |
+|---|---|---|
+| `DATABASE_URL` | URL do Neon (`*.neon.tech`) com usuário, senha, banco e `sslmode=require`, `verify-ca` ou `verify-full`; só aceita os parâmetros `sslmode` e `channel_binding` | sim |
+| `JWT_SECRET` | 32 caracteres ou mais | sim |
+| `R2_ENDPOINT` | endpoint HTTPS S3 da conta Cloudflare, sem o bucket | sim |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | credenciais do token R2 | sim |
+| `R2_PUBLIC_URL` | URL HTTPS pública do bucket `corretor-midia` | sim |
+| `PORT` | padrão `3000` | não |
+| `NODE_ENV` | `development`, `test` ou `production`; padrão `development` | não |
+| `JWT_EXPIRES_IN` | número seguido de `s`, `m`, `h` ou `d`; padrão `15m` | não |
+| `ALLOWED_ORIGINS` | origens exatas do front, separadas por vírgula, sem barra final; só HTTPS em produção | não |
+| `R2_REQUEST_TIMEOUT_MS`, `R2_CONNECTION_TIMEOUT_MS` | padrões `30000` e `5000` | não |
+| `GOOGLE_DRIVE_CLIENT_EMAIL`, `GOOGLE_DRIVE_PRIVATE_KEY`, `GOOGLE_DRIVE_ROOT_FOLDER_ID`, `GOOGLE_DRIVE_SHARED_DRIVE_ID` | Service Account e Drive compartilhado; as quatro juntas ou nenhuma; chave RSA de 2048 bits ou mais | não |
+| `MIGRACAO_BACKUP_ARQUIVO` | caminho de um backup não vazio; exigido para executar ou reverter migrations | só no CLI |
+| `MIGRACAO_COMPLEMENTOS_ARQUIVO`, `LEADS_ENCRYPTION_KEY` | usados só para migrar dados legados | só no CLI |
+| `BOOTSTRAP_ADMIN_NAME`, `_EMAIL`, `_PASSWORD`, `_WHATSAPP`, `_CPF` | dados do primeiro ADMIN; **remover depois do uso** | só no bootstrap |
+| `TESTE_LOCAL_DATABASE_URL` | PostgreSQL 16 local, por exemplo em Docker, para o teste de integração | só em teste |
 
-Depois de configurar o ambiente real e fazer backup de um banco existente:
+Sem as variáveis do Drive, a API sobe normalmente e a criação de pastas de contrato responde com falha explícita.
 
-```powershell
-npm run migration:show
-npm run migration:run
-```
+## Rotas
 
-As migrations criam a tabela agents e, depois, properties, com enums, UUIDs, constraints e índices. Elas não são executadas no boot. `npm run migration:revert` desfaz a última migration e apaga a tabela correspondente (properties ou agents); use somente quando for apropriado perder esses dados.
+Todas sob o prefixo `/api/v1`. A API também aceita as rotas sem o prefixo, porque o proxy do front o remove.
 
-Para o primeiro administrador, preencha temporariamente no `.env` as variáveis `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` e `BOOTSTRAP_ADMIN_WHATSAPP` (comentadas no exemplo), e execute:
+| Área | Rotas | Acesso |
+|---|---|---|
+| Saúde | `GET /saude` | público; testa o banco com `SELECT 1` |
+| Sessão | `POST /autenticacao/entrar`, `/renovar`, `/sair`; `GET` e `PATCH /autenticacao/eu`; `PATCH /autenticacao/eu/senha` | login com guarda de origem e limite de tentativas; perfil com JWT |
+| Corretores | `GET` e `POST /admin/corretores`; `GET`, `PATCH` e `DELETE /admin/corretores/:id` | ADMIN |
+| Classificações | `GET /tipos-imovel`, `/finalidades-imovel`, `/caracteristicas`; CRUD em `/admin/tipos-imovel`, `/admin/finalidades-imovel`, `/admin/caracteristicas` | leitura pública dos ativos; escrita ADMIN |
+| Imóveis | `GET /imoveis`, `GET /imoveis/:slug`; `GET` e `POST /admin/imoveis`; `GET`, `PATCH` e `DELETE /admin/imoveis/:id` | público; no painel, todos leem e só o dono ou ADMIN altera |
+| Mídias | `POST /admin/imoveis/:imovel_id/midias` (multipart `arquivos`); `POST .../video-embed`; `PATCH .../ordem`; `PATCH .../:midia_id/capa`; `DELETE .../:midia_id` | dono do imóvel ou ADMIN |
+| Pessoas | `POST /pessoas`; `GET` e `POST /admin/pessoas`; `GET`, `PATCH` e `DELETE /admin/pessoas/:id` | site com consentimento; no painel, responsável ou ADMIN |
+| Contratos | `GET` e `POST /admin/contratos`; `GET`, `PATCH` e `DELETE /admin/contratos/:id`; `POST /admin/contratos/:id/pasta-drive` | intermediador ou ADMIN |
+| Comissões | `GET` e `POST /admin/comissoes`; `GET`, `PATCH` e `DELETE /admin/comissoes/:id`; `PATCH /admin/comissoes/parcelas/:id/pagamento` | ADMIN, ou corretor responsável pelo imóvel e pela pessoa |
 
-```powershell
-npm run bootstrap:admin
-```
+Convenções:
 
-O comando valida os dados antes de conectar, gera Argon2id, cria ADMIN e informa apenas o ID. Se já existir um ADMIN, ele recusa a operação sem redefinir credenciais. Remova as variáveis de bootstrap após o uso. Não existe rota pública de criação do primeiro administrador. A API normal não exige essas variáveis.
+- Campos em português e `snake_case`. Ids são inteiros positivos; id inválido na URL responde 400.
+- Listagens respondem `{ itens, total, pagina, limite, total_paginas }`, com `limite` máximo de 100.
+- `DELETE` é exclusão lógica (`ativo = false`) e `PATCH { "ativo": true }` reativa. A exceção é a mídia,
+  apagada do R2 e do banco.
+- Valores monetários e áreas são texto decimal com até duas casas, por exemplo `"1500.00"`.
+- Campo que não está no DTO responde 400 (`whitelist` e `forbidNonWhitelisted` no `ValidationPipe` global).
+- Registro de outro corretor que a pessoa não pode ver responde 404, não 403.
 
-## Imóveis
+## Sessão
 
-| Endpoint | Comportamento |
-|---|---|
-| GET /properties | Catálogo público paginado |
-| GET /properties/:slug | Detalhe público por slug |
-| GET /admin/properties | Lista autenticada, incluindo todos os status |
-| GET /admin/properties/:id | Detalhe para edição, por UUID |
-| POST /properties | Cria imóvel, exige JWT |
-| PATCH /properties/:id | Atualiza campos fornecidos, exige JWT |
-| DELETE /properties/:id | Exclui imóvel, retorna 204, exige JWT |
-
-O catálogo mostra somente DISPONIVEL e corretores ativos. RESERVADO/CONCLUIDO ficam disponíveis na gestão. AGENT só consulta/edita/exclui seus próprios imóveis na gestão; ADMIN pode gerenciar todos. A tentativa de acessar um imóvel alheio retorna 404. Somente ADMIN pode fornecer `agentId` diferente do próprio ID para atribuir/repassar imóveis a outro corretor ativo. O prefixo `/admin` identifica o painel, não exige papel ADMIN para visualizar os próprios imóveis.
-
-Filtros de ambas as listagens: `type` (GALPAO/SALA/PREDIO/LOJA/TERRENO), `purpose` (LOCACAO/VENDA), `city` (correspondência exata sem diferenciar maiúsculas), `minPrice` e `maxPrice`. Paginação por `page` (padrão 1) e `limit` (padrão 20, máximo 100), ordenada por criação decrescente e UUID como desempate. Resposta: `{ items, total, page, limit, totalPages }`. Intervalos de preço invertidos são rejeitados.
-
-Cadastro exige `title`, `type`, `purpose`, `price`, `usableArea`, `totalArea`, `addressStreet`, `addressNumber`, `addressCity`, `addressState`, `neighborhood` e `description`. Aceita `condoFee`, `iptuFee`, `features`, `status` e `agentId`. A UF deve ser uma sigla brasileira válida. Preços/taxas são números JSON não negativos com até duas casas decimais; áreas são positivas e a útil não pode superar a total. Taxas opcionais podem ser limpas com null. Campos omitidos em PATCH preservam os valores anteriores. O slug é gerado com título/UUID e permanece estável após alterações de título.
-
-As respostas incluem contato público do corretor (nome, WhatsApp, CRECI e avatar), sem e-mail, senha/hash ou papel de acesso. Valores numéricos do PostgreSQL são convertidos para números JSON. Fotos, vídeos e galeria ainda não são implementados nesta etapa.
+- `POST /autenticacao/entrar` recebe `{ "email", "senha" }` e responde `{ token_acesso, tipo_token, corretor }`.
+- O token de acesso é um JWT HS256 de 15 minutos, emissor `corretor-api`, audiência `corretor-web`. O front o
+  mantém só em memória e o envia em `Authorization: Bearer`.
+- O token de renovação vai no cookie `corretor_renovacao` (HttpOnly, Secure, SameSite=Strict, 30 dias). O banco
+  guarda só o SHA-256. Cada renovação consome o token com `DELETE ... RETURNING` e emite outro.
+- O cargo é relido do banco a cada requisição: desativar ou rebaixar um corretor vale na hora.
+- Trocar a própria senha revoga todas as sessões do corretor. A redefinição feita pelo ADMIN não revoga.
+- O cookie é sempre `Secure`, então o login pelo navegador exige HTTPS, inclusive em desenvolvimento.
+- Limites em memória do processo: login com 10 tentativas por conta e 50 por IP a cada 15 minutos;
+  contato do site com 5 envios por minuto por IP.
 
 ## Estrutura
 
 ```text
 src/
-  config/       # Validação de ambiente e opções do TypeORM
-  auth/         # Login, JWT strategy, guards e decorators
-  agents/       # Entity, DTOs e criação de corretores
-  commands/     # Bootstrap do primeiro administrador
-  database/     # DataSource e migrations explícitas
-  properties/   # Entity, DTOs, catálogo e gestão de imóveis
-  media/        # Módulo vazio de mídia
-  leads/        # Módulo vazio de leads
-  common/
-    filters/
-    interceptors/
-    security/   # Hash e verificação de senha compartilhados
-  app.module.ts
-  main.ts
+  main.ts            helmet, filtro global de erros, prefixo /api/v1, CORS, ValidationPipe, porta
+  app.module.ts      configuração validada, TypeORM, agendador e os módulos de domínio
+  config/            validação do ambiente e opções de conexão com TLS verificado
+  comum/             auditoria, validadores de CPF/CNPJ, telefone e data, decorators de DTO, datas
+  common/filters/    filtro global de exceções
+  autenticacao/      login, renovação, saída, perfil, guards, estratégia JWT e sessões
+  corretores/        corretores, hash Argon2id e proteção do último ADMIN
+  cadastros/         tipos, finalidades e características do catálogo
+  imoveis/           catálogo público e gestão interna
+  midias/            upload para o R2 e vídeos do YouTube e Vimeo
+  pessoas/           contato do site com LGPD e cadastro manual
+  locacoes/          contratos de locação
+  comissoes/         comissões e parcelas
+  drive/             cliente do Google Drive e registro de pastas
+  saude/             health check
+  database/          DataSource do CLI, registro de entidades e migrations, logger sem dados pessoais
+  commands/          bootstrap do ADMIN e executor de migrations
+  testing/           substituto do agendador usado nos testes
 ```
 
-Os módulos seguirão entity + dto + service + controller quando os respectivos comportamentos forem implementados. Não há rotas fictícias ou persistência em memória para substituir integrações pendentes.
+## Banco de dados
 
-## Banco e mídia
+- `synchronize` e `migrationsRun` são `false`. O schema só muda por migration explícita.
+- Migration aplicada nunca é editada, renomeada ou apagada: crie uma nova e registre-a em
+  `src/database/registros.ts`.
+- As duas últimas migrations recusam reversão automática. Voltar atrás exige restaurar backup.
+- `1789084805000-hardening.ts` existe no disco, mas não está registrada e nunca roda.
+- As migrations de 13/09 e 16/09 arquivam o modelo anterior nos schemas `legado_20260913` e `legado_20260916`,
+  hoje vazios.
+- Tabelas atuais: `corretores`, `sessoes_login`, `tipos_imovel`, `finalidades_imovel`, `caracteristicas`,
+  `imoveis_caracteristicas`, `imoveis`, `imoveis_midias`, `pessoas`, `contrato`, `comissoes`,
+  `parcelas_comissao`, `pastas_drive` e `typeorm_migrations`.
+- Toda tabela de negócio tem `criado_em`, `alterado_em`, `criado_por` e `alterado_por`.
 
-TypeORM usa exclusivamente DATABASE_URL. `synchronize: false`, `migrationsRun: false` e `installExtensions: false` impedem alterações automáticas do schema/extensões. PostgreSQL 16 fornece gen_random_uuid() para a migration. Backups manuais devem preceder mudanças estruturais em um banco existente.
+### Backup
 
-A configuração remove parâmetros SSL da URL antes de passá-la ao driver e define `rejectUnauthorized: true` explicitamente, mantendo a verificação do certificado. A conexão tem timeout de 10 segundos e não mantém um ciclo prolongado de retentativas no boot.
+Faça backup antes de qualquer mudança estrutural. O procedimento documentado usa `pg_dump` via Docker:
 
-A URL aceita somente os parâmetros `sslmode` e `channel_binding`, sem duplicatas. Parâmetros extras são rejeitados para impedir que o driver sobrescreva o host Neon ou desative TLS.
-
-Arquivos de mídia deverão ir para Cloudflare R2; o backend não deve persistir uploads no disco efêmero do Render. Nenhum cliente R2 ou upload foi implementado ainda.
-
-## Dependências e verificação
-
-O lockfile registra as versões instaladas. O override `multer: 2.3.0` corrige os alertas da versão 2.2.0 fixada pelo adaptador Express do NestJS. Reavaliar o override quando o adaptador atualizar essa dependência.
-
-A suíte verifica configuração, erros sem segredos, opções de conexão, Argon2id, tokens e guards, cadastro e login via HTTP local, proteção de hashes nas consultas, validação do bootstrap e CRUD/filtros/paginação/posse de imóveis. Somente a persistência é substituída nos testes HTTP; não existe banco em memória no código de produção. Conexão real, aplicação das migrations, certificado do Neon e acesso ao R2 permanecem pendentes.
-
-Referências de implementação: [Configuração NestJS](https://docs.nestjs.com/techniques/configuration) e [Integração TypeORM](https://docs.nestjs.com/techniques/database).
-
-## Integração com Corretor-web
-
-O front usa /api como proxy e remove esse prefixo: /api/auth/login chega a /auth/login.
-Configure ALLOWED_ORIGINS com as origens exatas autorizadas, separadas por vírgula,
-sem barra final (ex.: https://imoveis.example.com). O CORS aceita credenciais somente
-nessas origens; login, refresh e logout recusam Origin não autorizado e metadados
-de navegação cross-site sem Origin. Clientes HTTP sem cabeçalhos de navegador
-continuam permitidos. Em produção, use HTTPS e NODE_ENV=production.
-
-- POST /auth/login: JSON {email,password}; retorna {accessToken,tokenType,agent}
-  e define corretor_refresh em cookie httpOnly, SameSite=Strict, Path=/, Secure em produção.
-- POST /auth/refresh: envia o cookie e retorna o mesmo formato, rotacionando o cookie.
-- POST /auth/logout: revoga o cookie atual, limpa-o e retorna 204.
-- GET /auth/me: recebe Authorization: Bearer e retorna o perfil atual.
-- Access token padrão: 15 minutos; o front deve mantê-lo somente em memória.
-  Refresh token: 30 dias por renovação, aleatório, persistido somente como SHA-256.
-  DELETE RETURNING torna o refresh de uso único mesmo com requisições concorrentes.
-  O front deve coordenar renovações para evitar disparar refresh concorrente.
-- GET /agents?page=1&limit=20: ADMIN; {items,total,page,limit,totalPages}; limite máximo 100.
-- PATCH /agents/:id: ADMIN; campos opcionais de criação e active booleano. Senha omitida
-  permanece intacta. Desativação preserva vínculos; o último ADMIN ativo não pode ser
-  desativado ou rebaixado. Edições são serializadas por advisory lock transacional.
-- Listagens de imóveis incluem mídia para exibir capa. Permissões usam a conta e
-  o papel atuais do banco em cada requisição; conta inativa não renova sessão.
-
-A migração 1789084804000 cria refresh_sessions e deve ser revisada e executada no Neon
-autorizado antes de iniciar a versão nova. Nenhuma migração foi executada nesta entrega.
-Inclua limpeza periódica de refresh_sessions WHERE expires_at < now() na manutenção
-do banco. Logout revoga o refresh atual; um access token já emitido pode durar até sua
-expiração (ou desativação da conta).
-
-Login tem janela de 15 minutos, com 10 tentativas por conta e 50 por IP. O limite é
-local ao processo, inclusive reinicia com o processo; antes de escalar para múltiplas
-instâncias, complemente no gateway com armazenamento compartilhado. Configure o
-proxy confiável conforme sua infraestrutura; o bootstrap atual confia em um salto.
-
-Validação de integração real com Neon/R2 exige ambiente e credenciais autorizados.
-Os testes HTTP substituem somente os repositórios e o armazenamento externo;
-não comprovam a execução de SQL no PostgreSQL nem upload real no R2.
-
-Caso a descoberta padrão do Jest omita arquivos hidratados no Windows/OneDrive,
-execute todos os testes explicitamente em PowerShell:
-
-```powershell
-$specs = @(rg --files src -g '*.spec.ts')
-node node_modules/jest/bin/jest.js --runInBand --runTestsByPath @specs
+```bash
+export PGURL="$(node -e "require('dotenv').config({quiet:true}); process.stdout.write(process.env.DATABASE_URL)")"
+docker run --rm -e PGURL postgres:16 sh -c 'pg_dump --no-owner --no-privileges "$PGURL"' > backups/backup_$(date +%Y%m%d_%H%M).sql
+unset PGURL
 ```
 
-## Administração de locações — entrega de 12/09/2026
+A máquina de desenvolvimento atual não tem Docker. Em 17/09 o backup foi exportado em JSON com o driver `pg`
+do projeto. Arquivos de backup ficam em `backups/`, fora do Git.
 
-Cadastros de proprietários e inquilinos PF/PJ, dados bancários do proprietário, contratos e documentos privados estão disponíveis para ADMIN. Consulte `docs/plans/2026-09-12-rental-administration.md` para interfaces, limites e fluxo. Comissão, cobranças e repasses ainda não fazem parte desta entrega.
+## Mídia e documentos
 
-No painel: Proprietários → Novo cadastro; Inquilinos → Novo cadastro; Contratos → selecionar imóvel de locação e as duas partes. As fichas permitem editar dados, consultar contratos vinculados e anexar documentos. Pessoas com contrato ativo não podem ser desativadas. Contratos encerrados permanecem no histórico.
+- Bucket R2 `corretor-midia`, com nome fixo no código. Os uploads ficam em memória e vão direto ao R2, porque o
+  disco do Render é apagado a cada reinício.
+- Formatos aceitos: JPEG, PNG e WebP até 10 MB; MP4 e WebM até 30 MB; até 20 arquivos e 60 MB por lote.
+  O tipo é conferido pelos primeiros bytes do arquivo.
+- Documentos de contrato ficam no Google Drive compartilhado privado, em
+  `Imobiliária/Contratos/{numero_contrato} - {locatário}`. Falha do Drive não desfaz o contrato: ele fica com
+  `status_pasta_drive = FALHOU` e a rota `pasta-drive` tenta de novo.
 
-Pré-requisitos novos na API: aplicar a migration `1789257600000-create-rental-administration` após backup do Neon e configurar `R2_DOCUMENTS_BUCKET` com bucket **privado**, separado de `corretor-midia`, e permissão S3 de leitura/escrita no token existente. Sem bucket configurado, os anexos retornam 503; não há fallback público. Não aplicar migrations sem revisar o histórico existente. Não publicar arquivos .env nem dados pessoais.
+## Testes
 
-Verificações: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` em cada repositório. No front, `node scripts/seo-smoke.mjs` confere SSR, proxy e discovery após o build. Node suportado: >=24 <25.
+`npm test` roda as suítes Jest em série. Os testes HTTP sobem uma aplicação Nest real e trocam só os
+repositórios por objetos em memória, então não precisam de banco nem de rede.
+
+O teste de integração `src/database/modelo-portugues.integracao.spec.ts` roda as migrations em PostgreSQL real e
+só executa com `TESTE_LOCAL_DATABASE_URL` definida.
+
+Execução de 17/09/2026 nesta máquina: 174 testes aprovados, 4 ignorados e 1 falha por tempo esgotado em
+`src/bootstrap.spec.ts`. Esse teste sobe o `main.ts` num subprocesso com limite de 15 segundos, que a máquina
+atual, com a pasta sincronizada pelo OneDrive, ultrapassou.
+
+Não têm teste automatizado: upload real no R2, criação real de pastas no Drive e a cadeia completa de migrations
+sobre banco vazio.
+
+## Documentação
+
+| Documento | Conteúdo |
+|---|---|
+| [docs/GUIA-DE-ESTUDO.md](docs/GUIA-DE-ESTUDO.md) | guia de estudo do projeto e do NestJS |
+| [docs/ENTENDENDO-O-BACKEND.md](docs/ENTENDENDO-O-BACKEND.md) | referência técnica do código, módulo por módulo |
+| [docs/handoffs/2026-09-16-ids-inteiros-pessoas.md](docs/handoffs/2026-09-16-ids-inteiros-pessoas.md) | contrato v2 entre API e front |
+| [PROJECT_STATUS.md](PROJECT_STATUS.md), [TASKS.md](TASKS.md), [DECISIONS.md](DECISIONS.md), [CHANGELOG_AI.md](CHANGELOG_AI.md) | estado, tarefas, decisões e histórico dos agentes |
+| [AGENTS.md](AGENTS.md) | regras e protocolo de trabalho |
+
+Documentos em `docs/specs/`, `docs/plans/` e os handoffs anteriores a 16/09 são históricos.
