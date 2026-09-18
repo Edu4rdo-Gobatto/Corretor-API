@@ -3,6 +3,31 @@
 Cada decisão registra a data, o motivo e o que **não** fazer. Antes de contrariar uma decisão, revise-a aqui
 e registre a mudança com a nova data.
 
+## 2026-09-17 — Banco do Neon zerado e recriado pela cadeia completa de migrations
+
+Decisão do dono: em vez do corte coordenado com backup e complementos previsto em 14/09 e 16/09, o banco
+`corretor-db` do Neon foi **apagado por completo** (`DROP SCHEMA public CASCADE`, `DROP SCHEMA legado_20260913
+CASCADE`) e reconstruído rodando as 10 migrations registradas do zero, sobre banco vazio.
+
+Motivo: o banco continha apenas o administrador (com senha quebrada, ADMIN-002) e os seeds; não havia imóvel,
+pessoa, contrato nem comissão. Recriar do zero é mais simples e mais seguro do que rodar as migrations de cópia de
+legado, que exigem `MIGRACAO_COMPLEMENTOS_ARQUIVO` com CPF, taxa, garantia e reajuste reais de cada registro antigo.
+Com o banco vazio, essas cópias percorrem zero linhas e nenhum complemento é necessário. O administrador foi
+recriado por `bootstrap:admin` com senha conhecida, o que também destravou o ADMIN-002.
+
+O backup exigido foi feito em JSON via `pg` (`backups/backup_pre_zerar_202609170236.json`) porque **Docker não está
+instalado nesta máquina** e o procedimento de `pg_dump` do `AGENTS.md` não pôde ser executado.
+
+Não fazer:
+
+- Não repetir este procedimento com o banco em uso: só foi aceitável porque não havia dado de negócio algum.
+  Com imóveis, pessoas ou contratos reais, vale o corte coordenado com backup restaurável e complementos.
+- Não confiar nos registros anteriores sobre o estado do Neon: verificou-se que `1789516800000-modelo-portugues`
+  já estava aplicada, ao contrário do que `PROJECT_STATUS.md` e os handoffs afirmavam. Conferir sempre
+  `typeorm_migrations` no banco antes de decidir.
+- Não publicar o Render no commit atual (`896c39c`): ele serve o contrato antigo e o banco já está no v2.
+- Não deixar o CPF de exemplo do administrador nem as variáveis `BOOTSTRAP_ADMIN_*` no `.env`.
+
 ## 2026-09-11 — Banco no Neon, região São Paulo, conexão direta
 
 Decisão: o projeto Neon foi criado com PostgreSQL **16**, banco `corretor-db`, na região `aws-sa-east-1` (São Paulo),

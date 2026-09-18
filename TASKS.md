@@ -20,7 +20,12 @@ Critérios de conclusão:
   `/clientes` e `/admin/partes-locacao` removidas. Feito.
 - Migration aditiva validada em PostgreSQL 16 real com dados legados sintéticos. Feito (teste de integração).
 - Typecheck, lint e suíte aprovados. Feito: 26 suítes/175 testes + 4 de integração local.
-- Publicação coordenada com o front (BACKEND-PT-002) e migração do banco publicado com backup. Pendente.
+- Banco do Neon no contrato v2. Feito em 17/09/2026, mas por outro caminho: o banco foi zerado com autorização do
+  dono e as 10 migrations rodaram do zero (backup em `backups/backup_pre_zerar_202609170236.json`). API executada
+  contra ele com saúde, catálogo e login verificados.
+- Publicação coordenada com o front (BACKEND-PT-002). Pendente, sem urgência: o dono informou em 17/09 que ainda
+  não usa o Render. O serviço publicado (`896c39c`) serve o contrato antigo e, quando for usado, precisa subir o
+  código v2 junto com o front e apontar o health check para `/api/v1/saude`.
 
 ---
 
@@ -128,10 +133,15 @@ Critérios de conclusão:
 
 ## ADMIN-002 — Acesso ao painel bloqueado: senha do administrador não confere
 
-Status: em andamento
-Responsável: Claude (aguardando a senha escolhida pelo dono)
+Status: resolvida em 17/09/2026 (Claude), por caminho diferente do planejado
+Responsável: Claude
 
-Objetivo:
+Resolução: o banco foi zerado com autorização do dono e o administrador recriado por `npm run bootstrap:admin`
+com a senha de `BOOTSTRAP_ADMIN_PASSWORD`. O comando de redefinição de senha **não** foi criado — deixou de ser
+necessário. `POST /api/v1/autenticacao/entrar` verificado com resposta 200 e token emitido, corretor id `1`.
+Pendências herdadas: trocar o CPF de exemplo pelo real e remover as variáveis `BOOTSTRAP_ADMIN_*` do `.env`.
+
+Objetivo original:
 
 O único administrador (`190d1d1a-f9aa-41f5-8218-ec9dcd5e2c9f`) não consegue entrar no painel. O e-mail do `.env`
 confere com o do banco, mas a senha não: `POST /auth/login` responde 401. O hash Argon2id gravado em 11/09 não

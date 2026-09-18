@@ -1,5 +1,53 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-09-17 — Claude — banco Neon zerado e cadeia completa de migrations aplicada
+
+Pedido do dono: "realizar a migration completa, e se possível zerar o banco", com build e execução local da API.
+
+Estado encontrado (divergente da documentação): o Neon **já tinha** `1789516800000-modelo-portugues` aplicada
+(9 migrations em `typeorm_migrations`, schema em português com UUID e `legado_20260913` arquivado), ao contrário do
+que `PROJECT_STATUS.md`, `CHANGELOG_AI.md` e o handoff de 14/09 afirmavam ("banco publicado nunca foi tocado").
+O banco também não estava vazio: 1 corretor, 5 tipos de imóvel, 3 finalidades, 2 sessões e 1 registro legado em
+`legado_20260913.agents` — 21 linhas no total.
+
+Execução:
+
+- Backup integral em JSON de todas as tabelas de todos os schemas antes de qualquer alteração
+  (`backups/backup_pre_zerar_202609170236.json`, 6095 bytes, fora do Git). Docker não está instalado nesta máquina,
+  então o `pg_dump` documentado no `AGENTS.md` não pôde ser usado; o dump foi feito via `pg` do próprio projeto.
+- `DROP SCHEMA public CASCADE` e `DROP SCHEMA legado_20260913 CASCADE`, seguidos de `CREATE SCHEMA public`.
+- `npm run migration:run` com `MIGRACAO_BACKUP_ARQUIVO` apontando para o backup acima: **10 migrations aplicadas
+  do zero**, incluindo `1789516800000-modelo-portugues` e `1789603200000-ids-inteiros-pessoas`. Com o banco vazio,
+  as cópias de legado percorrem zero linhas e `MIGRACAO_COMPLEMENTOS_ARQUIVO` não é necessário.
+- `npm run bootstrap:admin` recriou o administrador com id inteiro `1`, reaproveitando o CPF do backup e a senha de
+  `BOOTSTRAP_ADMIN_PASSWORD` do `.env`. **Isto destrava o ADMIN-002**: o login passou a funcionar.
+
+Resultado no Neon: schema v2 em `public` (14 tabelas, `corretores.id`/`imoveis.id`/`pessoas.id` como `integer`),
+`pessoas` presente, seeds de tipos e finalidades preservados pela cadeia, e os schemas `legado_20260913` e
+`legado_20260916` criados vazios como subproduto da cadeia (sem dado nenhum).
+
+Testes executados e resultado real:
+
+- `npm run typecheck` — sem erros.
+- `npm run lint` — sem erros.
+- `npm run build` — `dist/main.js` gerado.
+- `npm test` — 26 suítes/175 testes aprovados; 1 suíte/4 testes de integração ignorados (exigem
+  `TESTE_LOCAL_DATABASE_URL`, que precisa de PostgreSQL local — sem Docker nesta máquina).
+- Execução real contra o Neon novo: `node dist/main.js`, `GET /api/v1/saude` → 200 `{"status":"ok"}`;
+  `GET /api/v1/imoveis` → 200 com catálogo vazio; `POST /api/v1/autenticacao/entrar` com as credenciais do `.env`
+  → 200, token emitido, corretor `id: 1`, `cargo: ADMIN`.
+
+Pendências e riscos:
+
+- O CPF do administrador veio do backup e é um CPF de exemplo com dígito verificador válido, não um documento real.
+  Trocar pelo CPF real antes de qualquer uso em produção.
+- `BOOTSTRAP_ADMIN_*` continuam no `.env` (contrariando a decisão de 14/09); remover após confirmar o acesso.
+- O Render ainda aponta para o commit `896c39c`, que serve o **contrato antigo**. O banco agora está no contrato v2:
+  enquanto o deploy não for atualizado junto com o front v2, a API publicada não funciona contra este banco.
+- Sem cobertura de teste: a cadeia completa de migrations sobre banco vazio não tem spec automatizada; foi validada
+  manualmente nesta execução contra o Neon.
+- Nada foi commitado; a árvore de trabalho segue limpa (a alteração foi de banco e documentação).
+
 ## 2026-09-16 — Claude — ids inteiros, pessoas unificadas e ficha do imóvel (contrato v2)
 
 Pedido do dono: abandonar UUID em favor de id inteiro com autoincremento, unificar o cadastro de pessoas

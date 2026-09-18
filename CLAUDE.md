@@ -12,8 +12,7 @@ Antes de responder ou modificar arquivos:
 Durante o trabalho:
 
 - Não confie no `README.md` nem no `PLANO-PROJETO-CORRETOR.md` para afirmar o que existe:
-  os dois estão desatualizados em pontos conhecidos. A fonte de verdade é o código.
-- Prefira revisar e planejar a implementar em paralelo com o outro agente na mesma área.
+A fonte de verdade é o código.
 - Mudanças em migration, variável de ambiente ou contrato de endpoint exigem registro em `DECISIONS.md`.
 
 Quando terminar:

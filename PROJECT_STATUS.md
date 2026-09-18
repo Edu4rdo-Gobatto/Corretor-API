@@ -1,5 +1,29 @@
 # Estado atual — corretor-api
 
+## 2026-09-17 — Claude: banco Neon zerado e contrato v2 aplicado do zero
+
+Área assumida: banco de dados do Neon (`corretor-db`) e validação de build/execução local. Concluído.
+
+Autorização explícita do dono para zerar o banco. Backup integral em JSON feito antes
+(`backups/backup_pre_zerar_202609170236.json`, 21 linhas, fora do Git), porque o `pg_dump` via Docker do
+`AGENTS.md` não roda nesta máquina (Docker não instalado).
+
+**Correção de registro importante:** ao contrário do que os documentos anteriores afirmavam, a migration
+`1789516800000-modelo-portugues` **já estava aplicada no Neon** antes desta sessão. O banco não estava vazio.
+
+Estado do banco agora: schemas `public` (contrato v2, 14 tabelas, ids `integer`, tabela `pessoas`),
+`legado_20260913` e `legado_20260916` vazios. `typeorm_migrations` com as **10 migrations** registradas.
+Seeds: 5 tipos de imóvel e 3 finalidades. Administrador recriado com id `1` e a senha de `BOOTSTRAP_ADMIN_PASSWORD`
+— **ADMIN-002 destravado**, login verificado com resposta 200.
+
+Validação: typecheck, lint, build e 26 suítes/175 testes aprovados (1 suíte/4 testes de integração ignorados por
+exigirem PostgreSQL local). API executada de fato a partir de `dist/main.js` contra o Neon novo:
+`GET /api/v1/saude` 200, `GET /api/v1/imoveis` 200 vazio, `POST /api/v1/autenticacao/entrar` 200 com token.
+
+Próximo passo: usar o ambiente local para testar o sistema. O Render não é bloqueio — o dono informou em 17/09 que
+ainda não o usa; quando for publicar, subir o código v2 junto com o front e apontar o health check para
+`/api/v1/saude`. Pendências menores: CPF de exemplo do administrador e `BOOTSTRAP_ADMIN_*` ainda no `.env`.
+
 ## 2026-09-16 — Claude: ids inteiros, pessoas unificadas e ficha do imóvel
 
 Área assumida: contrato v2 descrito em `../Corretor-web/docs/specs/2026-09-16-ids-inteiros-pessoas.md`.
