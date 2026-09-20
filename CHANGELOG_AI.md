@@ -1,5 +1,55 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-09-20 — Claude — imóvel criado dava 404 na ficha pública (id do slug fora de sincronia)
+
+Pedido do dono: "Criei um imóvel e quando vou acessá-lo dá erro 404. Qual será o motivo?"
+
+Diagnóstico: o 404 era do próprio backend. Consulta somente-leitura no Neon mostrou `id = 2` com
+`slug = kitnet-32m2-rua-das-araribas-727-1`, e o mesmo desencontro nas outras quatro linhas (4/-3, 6/-5, 8/-7,
+10/-9), com `imoveis_id_seq.last_value = 10`. Causa: `criar` reservava o id com `nextval` e o TypeORM descartava
+esse id no INSERT (coluna `@PrimaryGeneratedColumn`), fazendo o identity do Postgres gerar outro. Cada criação
+queimava dois valores da sequência e o slug apontava sempre para o id anterior. Detalhe em `DECISIONS.md`.
+
+Arquivos alterados:
+
+- `src/imoveis/imoveis.service.ts` — removido `proximo_id()`; o insert vai sem id e o slug definitivo é gravado
+  depois, com o id real; `atualizar` recalcula o slug sempre.
+- `src/imoveis/imoveis.service.spec.ts` — teste novo com `save` que reproduz o identity do Postgres (descarta o id
+  enviado e devolve outro) e cobra slug e resposta com o id real.
+- `src/database/modelo-portugues.integracao.spec.ts` — `POST /admin/imoveis` com características, `GET` público
+  pelo slug devolvido e conferência de ids consecutivos.
+
+Testes executados e resultado real:
+
+- `npm run typecheck` — sem erros.
+- `npm run lint` — sem erros (uma falha `require-await` no teste novo foi corrigida antes).
+- `npm test` — 26 suítes/176 testes aprovados; 1 suíte/4 testes de integração **ignorados**, porque
+  `HOMOLOGACAO_DATABASE_URL` e `TESTE_LOCAL_DATABASE_URL` não estão definidas nesta máquina.
+- Prova de que o teste novo pega o defeito: com `src/imoveis/imoveis.service.ts` restaurado da `main`, ele falha
+  (`TypeError: (intermediate value) is not iterable` em `proximo_id`); com a correção, passa.
+- `npm run build` — `dist/main.js` gerado.
+- Execução real contra o Neon (`PORT=3001 node dist/main.js`, porque a 3000 estava ocupada pela instância do dono):
+  login ADMIN 200; `GET /imoveis/kitnet-32m2-rua-das-araribas-727-1` → 404 (estado inicial reproduzido);
+  `PATCH /admin/imoveis/2` com `{}` → 200, slug corrigido para `...-727-2`;
+  `GET /imoveis/kitnet-32m2-rua-das-araribas-727-2` → 200, id 2, 1 mídia;
+  dois `POST /admin/imoveis` → **201** (antes era 404), slugs `teste-verificacao-um-11` e
+  `teste-verificacao-dois-12`, ficha pública 200 em ambos e ids consecutivos (11 → 12).
+
+Dados: backup `backups/backup_pre_limpeza_imoveis_202609201926.json` (40 tabelas, 109 linhas) antes de qualquer
+escrita. Imóvel 2 reparado. Apagados 4, 6, 8 e 10 (duplicatas inativas, autorizado pelo dono) e 11 e 12
+(verificação). Restou 1 imóvel, com a sua mídia. Nenhum objeto órfão no R2: as linhas apagadas não tinham mídia.
+
+Pendências e riscos:
+
+- **A instância que o dono tem rodando na porta 3000 ainda serve o código antigo**: reiniciar antes de criar imóvel
+  novo pelo painel, senão o defeito volta a acontecer.
+- O teste de integração novo **não foi executado**: exige PostgreSQL de homologação, ausente nesta máquina. A
+  validação equivalente foi feita à mão contra o Neon, descrita acima.
+- O Render continua com o código antigo; publicar depende do corte conjunto do BACKEND-PT-002.
+- `encontrar_interno` não confere dono: qualquer corretor autenticado lê a ficha interna de qualquer imóvel
+  (proprietário, chaves, matrícula, observações). Não foi alterado aqui — decidir se é intencional.
+- Sem commit/push, conforme a regra de confirmar com o dono antes de commitar.
+
 ## 2026-09-17 — Claude — banco Neon zerado e cadeia completa de migrations aplicada
 
 Pedido do dono: "realizar a migration completa, e se possível zerar o banco", com build e execução local da API.

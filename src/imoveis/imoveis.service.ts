@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, FindOptionsWhere, In, Repository } from 'typeorm';
@@ -38,6 +39,10 @@ export class ImoveisService {
 
   async encontrar_interno(id: number) { return resposta_imovel(await this.encontrar({ id }, true)); }
 
+  /**
+   * O id vem do identity do banco: o TypeORM descarta valor explícito em coluna @PrimaryGeneratedColumn,
+   * então o slug só pode ser montado depois do insert, com o id real.
+   */
   async criar(dto: CriarImovelDto, usuario: UsuarioAutenticado) {
     this.validar_areas(dto.area_util, dto.area_total);
     let id = 0;
@@ -45,12 +50,14 @@ export class ImoveisService {
       await this.validar_referencias(gerenciador, dto, usuario);
       const { caracteristicas, ...campos } = dto;
       const repositorio = gerenciador.getRepository(Imovel);
-      id = await this.proximo_id(gerenciador);
-      await repositorio.save(repositorio.create({
-        ...definidos(campos), id, slug: this.slug(dto.titulo, id), corretor_id: dto.corretor_id ?? usuario.id,
+      const imovel = repositorio.create({
+        ...definidos(campos), slug: `rascunho-${randomUUID()}`, corretor_id: dto.corretor_id ?? usuario.id,
         status: dto.status ?? StatusImovel.DISPONIVEL, ativo: dto.ativo ?? true, destaque: dto.destaque ?? false, exclusividade: dto.exclusividade ?? false,
         criado_por: usuario.id, alterado_por: usuario.id,
-      }));
+      });
+      await repositorio.save(imovel);
+      id = imovel.id;
+      await repositorio.update(id, { slug: this.slug(dto.titulo, id) });
       if (caracteristicas) await this.salvar_caracteristicas(gerenciador, id, caracteristicas, usuario);
     });
     return this.encontrar_interno(id);
@@ -65,9 +72,8 @@ export class ImoveisService {
       this.validar_areas(dto.area_util ?? imovel.area_util, dto.area_total ?? imovel.area_total);
       await this.validar_referencias(gerenciador, dto, usuario);
       const { caracteristicas, ...campos } = dto;
-      const titulo_anterior = imovel.titulo;
       Object.assign(imovel, definidos(campos), { alterado_por: usuario.id });
-      if (imovel.titulo !== titulo_anterior) imovel.slug = this.slug(imovel.titulo, id);
+      imovel.slug = this.slug(imovel.titulo, id);
       await repositorio.save(imovel);
       if (caracteristicas !== undefined) await this.salvar_caracteristicas(gerenciador, id, caracteristicas, usuario);
     });
@@ -81,11 +87,6 @@ export class ImoveisService {
   }
 
   private slug(titulo: string, id: number): string { return `${gerar_slug(titulo) || 'imovel'}-${id}`; }
-
-  private async proximo_id(gerenciador: EntityManager): Promise<number> {
-    const [linha]: [{ id: string | number }] = await gerenciador.query("SELECT nextval(pg_get_serial_sequence('imoveis', 'id')) AS id");
-    return Number(linha.id);
-  }
 
   /** Com finalidade de venda ou de locação o preço é a coluna correspondente; sem filtro, o primeiro valor informado. */
   private async coluna_preco(finalidade_id?: number): Promise<string> {

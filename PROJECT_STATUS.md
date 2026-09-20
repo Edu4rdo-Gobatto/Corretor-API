@@ -194,3 +194,22 @@ informativa porque ConsultaClientesDto não aceita esse filtro; ordenação adia
 Validação frontend e limites de homologação registrados no CHANGELOG_AI.md do Corretor-web; testes desta API não foram
 reexecutados neste corte exclusivamente documental. Sem commit/push/deploy.
 
+
+## 2026-09-20 — Claude: 404 na ficha pública de imóvel criado — corrigido (sem commit)
+
+Área assumida: `src/imoveis`. Nenhum outro agente estava na mesma área.
+
+Causa: `ImoveisService.criar` reservava o id com `nextval` e o TypeORM descarta id explícito em coluna
+`@PrimaryGeneratedColumn`; o identity do banco gerava outro id e o slug ficava apontando para o id anterior.
+Correção: insert sem id, slug definitivo gravado depois com o id real, e `atualizar` recalculando o slug sempre.
+
+Arquivos tocados: `src/imoveis/imoveis.service.ts`, `src/imoveis/imoveis.service.spec.ts`,
+`src/database/modelo-portugues.integracao.spec.ts`, `DECISIONS.md`, `CHANGELOG_AI.md`, `TASKS.md`,
+`PROJECT_STATUS.md`.
+
+Estado: typecheck, lint, build e `npm test` (26 suítes/176 testes) aprovados; verificação HTTP real contra o Neon
+aprovada. Banco: imóvel 2 reparado, imóveis 4/6/8/10 (duplicatas) e 11/12 (verificação) apagados após backup em
+`backups/backup_pre_limpeza_imoveis_202609201926.json`. Sem migration, sem variável nova, sem dependência nova.
+
+Bloqueios e próximo passo: a API que o dono deixou rodando na porta 3000 ainda serve o código antigo — reiniciar.
+Teste de integração novo não executado por falta de PostgreSQL de homologação. Sem commit/push/deploy.

@@ -3,6 +3,50 @@
 Cada decisão registra a data, o motivo e o que **não** fazer. Antes de contrariar uma decisão, revise-a aqui
 e registre a mudança com a nova data.
 
+## 2026-09-20 — O id do imóvel vem do banco; o slug é gravado depois do insert
+
+Decisão: `ImoveisService.criar` deixou de reservar o id com `nextval(pg_get_serial_sequence(...))`. O insert vai
+sem id, o identity de `imoveis.id` gera o valor, e o slug definitivo (`titulo-id`) é gravado num `update` logo em
+seguida, dentro da mesma transação. O insert usa um slug provisório `rascunho-<uuid>` só para satisfazer
+`slug text NOT NULL UNIQUE`; ele nunca chega ao commit.
+
+Motivo: o TypeORM **descarta valor explícito de coluna `@PrimaryGeneratedColumn`** ao montar o INSERT
+(`InsertQueryBuilder.getInsertedColumns()` remove colunas com `generationStrategy: 'increment'`). Com isso a
+reserva era jogada fora e o Postgres chamava `nextval` outra vez: cada imóvel nascia com `id = id_do_slug + 1`,
+a sequência andava de dois em dois e `GET /imoveis/<slug>` respondia 404 porque procurava o id anterior, que não
+existe. O `POST /admin/imoveis` também respondia 404, porque devolvia `encontrar_interno` com o id errado, e criar
+imóvel com características quebrava por violação de FK.
+
+`ImoveisService.atualizar` passou a recalcular o slug em toda alteração, não só quando o título muda. A operação é
+idempotente e conserta linhas com slug defasado no primeiro `PATCH`.
+
+Não fazer:
+
+- Não voltar a reservar id com `nextval` para montar o slug antes do insert: o TypeORM não envia esse id. Se algum
+  dia for mesmo necessário inserir id explícito, é preciso `insert().into(Entidade, [colunas])` listando as
+  colunas — e aí a lista vira manutenção manual a cada coluna nova.
+- Não repetir esse padrão em outros módulos. Hoje `nextval` não aparece mais em lugar nenhum de `src/`.
+- Não tornar `slug` anulável para evitar o slug provisório: exigiria migration e enfraqueceria a coluna.
+
+## 2026-09-20 — Imóveis duplicados e de verificação apagados do Neon
+
+Decisão do dono, autorizada nesta sessão: apagar as linhas 4, 6, 8 e 10 de `imoveis` — retentativas da mesma
+criação (15:34 a 15:35 de 18/09), já inativas, geradas porque o `POST` respondia 404 mesmo tendo gravado. Junto
+foram apagados os imóveis 11 e 12, criados aqui só para verificar a correção. Sobrou o imóvel 2, o único real, com
+a sua mídia no R2 intacta.
+
+Backup em `backups/backup_pre_limpeza_imoveis_202609201926.json` (40 tabelas, 109 linhas) antes do DELETE, feito
+com o `pg` do projeto porque o `pg_dump` via Docker do `AGENTS.md` continua indisponível nesta máquina.
+Conferido antes de apagar que nenhuma linha de `imoveis_midias`, `imoveis_caracteristicas`, `comissoes` ou
+`pessoas` apontava para os alvos; `contrato` e `comissoes` têm FK `ON DELETE RESTRICT`, então o DELETE teria
+falhado se houvesse vínculo.
+
+Não fazer:
+
+- Não usar `DELETE /admin/imoveis/:id` esperando remoção: esse endpoint só desativa (`ativo = false`).
+- Não apagar imóvel com mídia sem antes remover os objetos no R2: `imoveis_midias` tem `ON DELETE CASCADE` e a
+  linha some sem levar o arquivo junto.
+
 ## 2026-09-17 — Banco do Neon zerado e recriado pela cadeia completa de migrations
 
 Decisão do dono: em vez do corte coordenado com backup e complementos previsto em 14/09 e 16/09, o banco

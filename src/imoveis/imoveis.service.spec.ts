@@ -4,7 +4,7 @@ import { ImovelCaracteristica } from '../cadastros/cadastros.entity';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { Corretor } from '../corretores/corretor.entity';
 import { ImovelMidia, TipoMidia } from '../midias/imovel-midia.entity';
-import { ConsultaImoveisDto, ConsultaInternaImoveisDto } from './imoveis.dto';
+import { ConsultaImoveisDto, ConsultaInternaImoveisDto, CriarImovelDto } from './imoveis.dto';
 import { Imovel, StatusImovel } from './imovel.entity';
 import { resposta_imovel, resposta_imovel_publico } from './imoveis.resposta';
 import { ImoveisService } from './imoveis.service';
@@ -14,7 +14,7 @@ describe('Catálogo e gestão de imóveis', () => {
   const imovel = Object.assign(new Imovel(), { id: 42, corretor_id: usuario.id, status: StatusImovel.DISPONIVEL, ativo: true, slug: 'galpao-centro-42' });
   const consulta = { innerJoin: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), clone: jest.fn().mockReturnThis(), getCount: jest.fn(), select: jest.fn().mockReturnThis(), orderBy: jest.fn().mockReturnThis(), addOrderBy: jest.fn().mockReturnThis(), offset: jest.fn().mockReturnThis(), limit: jest.fn().mockReturnThis(), getRawMany: jest.fn() };
   const finalidades = { findOneBy: jest.fn() };
-  const repositorio = { createQueryBuilder: jest.fn(() => consulta), find: jest.fn(), findOne: jest.fn(), manager: { getRepository: () => finalidades } };
+  const repositorio = { createQueryBuilder: jest.fn(() => consulta), find: jest.fn(), findOne: jest.fn(), manager: { getRepository: () => finalidades, transaction: jest.fn() } };
   const midias = { find: jest.fn() };
   const caracteristicas = { find: jest.fn() };
   const servico = new ImoveisService(repositorio as unknown as Repository<Imovel>, midias as unknown as Repository<ImovelMidia>, caracteristicas as unknown as Repository<ImovelCaracteristica>);
@@ -60,6 +60,30 @@ describe('Catálogo e gestão de imóveis', () => {
     await expect(servico.encontrar_publico('galpao-renomeado-42')).resolves.toMatchObject({ id: 42, slug: 'galpao-centro-42' });
     expect(repositorio.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 42, ativo: true, status: 'DISPONIVEL', corretor: { ativo: true } } }));
     await expect(servico.encontrar_publico('galpao-sem-id')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('deixa o banco gerar o id e grava o slug com o id real, sem reservar nextval', async () => {
+    const ids_enviados: Array<number | undefined> = [];
+    const slugs_enviados: string[] = [];
+    const imoveis = {
+      create: (dados: Partial<Imovel>) => Object.assign(new Imovel(), dados),
+      // Reproduz o identity do PostgreSQL: o id enviado no INSERT é descartado e o banco atribui o próximo.
+      save: jest.fn((entidade: Imovel) => { ids_enviados.push(entidade.id); slugs_enviados.push(entidade.slug); entidade.id = 7; return Promise.resolve(entidade); }),
+      update: jest.fn(),
+    };
+    const referencias = { findOne: jest.fn().mockResolvedValue({ id: usuario.id, ativo: true }) };
+    const gerenciador = { getRepository: (alvo: unknown) => (alvo === Imovel ? imoveis : referencias), query: jest.fn() };
+    repositorio.manager.transaction.mockImplementation((executar: (contexto: unknown) => Promise<void>) => executar(gerenciador));
+    repositorio.findOne.mockResolvedValue(Object.assign(new Imovel(), imovel, { id: 7, slug: 'galpao-centro-7' }));
+    const dto = Object.assign(new CriarImovelDto(), { titulo: 'Galpão Centro', tipo_id: 1, finalidade_id: 2, area_util: '100.00', area_total: '120.00' });
+
+    const criado = await servico.criar(dto, usuario);
+
+    expect(ids_enviados).toEqual([undefined]);
+    expect(slugs_enviados[0]).toMatch(/^rascunho-/);
+    expect(gerenciador.query).not.toHaveBeenCalled();
+    expect(imoveis.update).toHaveBeenCalledWith(7, { slug: 'galpao-centro-7' });
+    expect(criado).toMatchObject({ id: 7, slug: 'galpao-centro-7' });
   });
 
   it('impede edição por outro corretor e permite responsável ou ADMIN', () => {

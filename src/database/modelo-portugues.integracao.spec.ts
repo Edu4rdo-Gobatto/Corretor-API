@@ -218,5 +218,25 @@ executar('modelo português com ids inteiros no PostgreSQL 16 isolado (transaç�
     expect(await baixa.json()).toMatchObject({ status: 'PAGO' });
     const contratos = await fetch(`${origem}/admin/contratos`, { headers: cabecalhos });
     expect(await contratos.json()).toMatchObject({ total: 1, itens: [expect.objectContaining({ numero_contrato: 'LOC-2030-001', imovel_titulo: 'Sala Renomeada', locador_nome: 'Proprietária Sintética', locatario_nome: 'Empresa Locatária' })] });
+    // Regressão: o id do imóvel vem do identity do banco; o slug gravado tem de apontar para o próprio imóvel criado.
+    const [caracteristica] = await executor.query('SELECT id FROM caracteristicas ORDER BY id LIMIT 1') as Array<{ id: number }>;
+    expect(caracteristica?.id).toEqual(expect.any(Number));
+    const cadastrar = (titulo: string) => fetch(`${origem}/admin/imoveis`, { method: 'POST', headers: cabecalhos, body: JSON.stringify({
+      titulo, tipo_id: imovel.tipo_id, finalidade_id: imovel.finalidade_id, area_util: '32.00', area_total: '32.00',
+      logradouro: 'Rua das Araribás', numero: '727', bairro: 'Centro', cidade: 'Sinop', estado: 'MT', descricao: 'Imóvel criado pelo painel.',
+      caracteristicas: [{ caracteristica_id: caracteristica.id, valor: '1' }],
+    }) });
+    const novo = await cadastrar('Kitnet de Regressão');
+    expect(novo.status).toBe(201);
+    const criado = await novo.json() as { id: number; slug: string; caracteristicas: unknown[] };
+    expect(criado.slug).toBe(`kitnet-de-regressao-${criado.id}`);
+    expect(criado.caracteristicas).toHaveLength(1);
+    const fichaPublica = await fetch(`${origem}/imoveis/${criado.slug}`);
+    expect(fichaPublica.status).toBe(200);
+    expect(await fichaPublica.json()).toMatchObject({ id: criado.id, slug: criado.slug });
+    // A sequência avança de um em um: nenhum id é reservado e descartado antes do INSERT.
+    const seguinte = await cadastrar('Kitnet Vizinha');
+    expect(seguinte.status).toBe(201);
+    expect(await seguinte.json()).toMatchObject({ id: criado.id + 1, slug: `kitnet-vizinha-${criado.id + 1}` });
   }, 30000);
 });

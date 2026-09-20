@@ -235,3 +235,21 @@ Concluído: entidades/DTOs/rotas em português, classificação dinâmica, audit
 ## BACKEND-PT-002 — Corte de ambiente publicado — pendente
 
 Adaptar frontend/SSR/auth/painel ao contrato novo; configurar Service Account e IDs do Drive compartilhado; homologar pastas e upload R2 reais; preencher CPF/complementos reais; validar backup/restauração; executar migration explícita com escritores antigos parados; publicar os dois repos juntos e ajustar health check do Render para /api/v1/saude. Não publicar backend isoladamente. Nenhum commit/push/deploy autorizado/executado nesta entrega. Regras antigas RENTAL-001/002/003 ficam substituídas pelo pedido integral, sem apagamento do histórico.
+
+## IMOVEL-404-001 — Ficha pública de imóvel criado respondia 404 — concluída em 20/09/2026
+
+Responsável: Claude. Causa: `criar` reservava o id com `nextval` e o TypeORM descartava esse id no INSERT, então o
+slug gravado apontava para o id anterior e a sequência andava de dois em dois.
+
+Critérios de conclusão e estado real:
+
+- `POST /admin/imoveis` responde 201 com slug terminando no id da própria resposta — **aprovado** (ids 11 e 12).
+- `GET /imoveis/<slug>` responde 200 para imóvel recém-criado — **aprovado**.
+- Ids consecutivos, sem reserva descartada — **aprovado** (11 → 12).
+- Imóvel 2 reparado e visível no site — **aprovado**.
+- Duplicatas 4, 6, 8 e 10 apagadas com backup prévio — **aprovado**.
+- Teste de regressão unitário que falha sem a correção — **aprovado**.
+- Teste de integração HTTP — **escrito, não executado**: exige PostgreSQL de homologação, indisponível na máquina.
+
+Pendente: reiniciar a API local do dono (a que roda na 3000 ainda serve o código antigo) e publicar no Render junto
+com o corte do BACKEND-PT-002. Sem commit.
