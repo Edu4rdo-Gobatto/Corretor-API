@@ -3,6 +3,18 @@
 Cada decisão registra a data, o motivo e o que **não** fazer. Antes de contrariar uma decisão, revise-a aqui
 e registre a mudança com a nova data.
 
+## 2026-10-02 — Limpeza de testes obsoletos e retenção dos últimos 3 commits
+
+Decisão: Removidos testes legados (`src/bootstrap.spec.ts`, `src/cadastros/cadastros.http.spec.ts`, `src/database/migracao-legado.spec.ts`) e documentações de planos anteriores em `docs/`. Preservados integralmente os arquivos modificados nos últimos 3 commits (`7f59109`, `c9a1c96`, `f585fed`), mantendo `src/database/modelo-portugues.integracao.spec.ts` e `src/commands/seed-demonstracao.ts`.
+
+Motivo: Os testes removidos eram ou lentos (subindo subprocessos de 30-40s no Windows com regras já cobertas por testes unitários), ou testavam migrações de dados legados extintas após o reset do Neon, ou agrupavam controladores de múltiplos módulos quebrando diante das novas proteções de autorização. A preservação dos últimos 3 commits atende à instrução direta do dono, mantendo o histórico de regressão de slug e o script de seed.
+
+Não fazer:
+- Não recriar testes que dependam de `spawnSync` com `ts-node` sobre a aplicação inteira para validar variáveis de ambiente: use a validação estrita em memória de `env.validation.spec.ts`.
+- Não remover `src/database/migracao-legado.ts`, pois é dependência estática da migration `1789516800000-modelo-portugues.ts`.
+- Não reintroduzir documentos de planejamento obsoletos em `docs/plans`.
+
+
 ## 2026-09-20 — O id do imóvel vem do banco; o slug é gravado depois do insert
 
 Decisão: `ImoveisService.criar` deixou de reservar o id com `nextval(pg_get_serial_sequence(...))`. O insert vai

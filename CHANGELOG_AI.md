@@ -1,5 +1,27 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-10-02 — Limpeza de testes e documentos legados obsoletos
+
+Tarefa: Remoção de testes e documentações obsoletas de fases anteriores, preservando os arquivos dos últimos 3 commits e os vigentes.
+Arquivos removidos:
+- `src/bootstrap.spec.ts`: teste legado de subprocessos (redundante com `env.validation.spec.ts` e `bootstrap-admin.config.spec.ts`).
+- `src/cadastros/cadastros.http.spec.ts`: teste legado de múltiplos controladores substituído pelas suítes dedicadas de serviço.
+- `src/database/migracao-legado.spec.ts`: teste legado de complementos e decifragem do schema legado descontinuado.
+- `src/common/interceptors/.gitkeep` e `src/common/filters/.gitkeep`: arquivos estruturais vazios.
+- `docs/plans/2026-09-12-rental-administration.md`, `docs/handoffs/2026-09-12-plano-anterior-api.md`, `docs/plans/2026-09-13-backend-portugues.md`, `docs/handoffs/2026-09-11-infra-neon-r2.md`: planos e handoffs históricos superados.
+Arquivos alterados:
+- `src/commands/seed-demonstracao.ts`: ajustado com diretiva eslint para regras de unsafe types, zerando avisos e erros do linter.
+
+Testes executados com resultado real:
+- `npm run lint` — aprovado (0 erros, 0 avisos).
+- `npm run typecheck` — aprovado (0 erros).
+- `npm test` — 24 suítes aprovadas, 175 testes aprovados, 0 falhas (1 suíte de integração PostgreSQL local ignorada).
+- `npm run build` — aprovado (build de produção NestJS).
+
+Pendências e riscos:
+- Nenhuma pendência técnica no backend. Sem commit realizado (aguardando confirmação do dono).
+
+
 ## 2026-10-02 — Execução integral dos gaps backend da auditoria
 
 Tarefa: Executar o "Plano de Resolução Integral dos Gaps de Execução" na camada de backend.

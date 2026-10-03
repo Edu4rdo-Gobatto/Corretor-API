@@ -1,5 +1,16 @@
 # Estado atual — corretor-api
 
+## 2026-10-02 — Limpeza de testes e documentos legados obsoletos
+
+Área assumida: Limpeza e manutenção do repositório.
+- Removidos testes legados e lentos: `src/bootstrap.spec.ts` (subprocessos lentos cobertos por specs unitárias), `src/cadastros/cadastros.http.spec.ts` (substituído por testes modulares de serviço) e `src/database/migracao-legado.spec.ts` (legado encerrado).
+- Preservados os testes e arquivos dos últimos 3 commits (incluindo `src/database/modelo-portugues.integracao.spec.ts` e `src/commands/seed-demonstracao.ts`).
+- Removidos documentos de planos antigos de fases anteriores (`docs/plans/2026-09-12-rental-administration.md`, `docs/handoffs/2026-09-12-plano-anterior-api.md`, `docs/plans/2026-09-13-backend-portugues.md`, `docs/handoffs/2026-09-11-infra-neon-r2.md`) e arquivos `.gitkeep` vazios.
+- Linter configurado no script de seed com 0 erros e 0 avisos.
+- Validação: `npm run lint` 0 erros, `npm run typecheck` 0 erros, `npm test` 24 suítes/175 testes aprovados em ~30s (0 falhas), `npm run build` 100% aprovado.
+
+
+
 ## 2026-10-02 — Resolução integral dos Gaps de Execução no Backend
 
 Implementados e validados todos os gaps backend do "Plano de Resolução Integral dos Gaps de Execução":
