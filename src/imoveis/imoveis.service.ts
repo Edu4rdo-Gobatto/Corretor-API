@@ -179,7 +179,7 @@ export class ImoveisService {
       const encontradas = await gerenciador.getRepository(Caracteristica).find({ where: { id: In(ids) }, lock: { mode: 'pessimistic_read' } });
       if (encontradas.length !== ids.length) throw new BadRequestException('Uma ou mais características não existem.');
       // GAP-04: permitir características já vinculadas ao imóvel mesmo inativas; rejeitar apenas novas inativas.
-      const novos_ids = ids.filter(cid => !anteriores.some(a => a.caracteristica_id === cid));
+      const novos_ids = ids.filter(cid => !anteriores.some(a => a.ativo && a.caracteristica_id === cid));
       const inativos_novos = encontradas.filter(c => !c.ativo && novos_ids.includes(c.id));
       if (inativos_novos.length) throw new BadRequestException('Uma ou mais características novas estão inativas.');
     }

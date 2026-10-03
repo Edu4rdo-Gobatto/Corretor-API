@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, HttpCode, Param, ParseIntPipe, Patch, Post, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, HttpCode, Param, ParseIntPipe, Patch, Post, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { AutenticacaoGuard } from '../autenticacao/autenticacao.guard';
@@ -8,6 +8,7 @@ import { MidiasService } from './midias.service';
 import { ArquivoMidia, TAMANHO_MAXIMO_VIDEO } from './validacao-arquivo';
 
 import { PodeEditarImovelGuard } from './pode-editar-imovel.guard';
+import { ArmazenamentoLimitado, RecepcaoMidiasInterceptor } from './recepcao-midias';
 
 type Requisicao = Request & { user: UsuarioAutenticado };
 
@@ -16,10 +17,9 @@ type Requisicao = Request & { user: UsuarioAutenticado };
 export class MidiasController {
   constructor(private readonly midias: MidiasService) {}
   @Post()
-  @UseInterceptors(FilesInterceptor('arquivos', 20, { limits: { fileSize: TAMANHO_MAXIMO_VIDEO, files: 20, fields: 0 } }))
+  // Busboy sinaliza partsLimit ao atingir o teto: a parte sentinela mantém 20 arquivos válidos.
+  @UseInterceptors(RecepcaoMidiasInterceptor, FilesInterceptor('arquivos', 20, { storage: new ArmazenamentoLimitado(), limits: { fileSize: TAMANHO_MAXIMO_VIDEO, files: 20, fields: 0, parts: 21, headerPairs: 100 } }))
   enviar(@Param('imovel_id', ParseIntPipe) imovel_id: number, @UploadedFiles() arquivos: ArquivoMidia[], @Req() requisicao: Requisicao) {
-    const tamanho = Number(requisicao.headers['content-length']);
-    if (tamanho > 60 * 1024 * 1024) throw new BadRequestException('O lote de mídia deve ter no máximo 60 MB.');
     return this.midias.enviar(imovel_id, arquivos, requisicao.user);
   }
   @Post('video-embed') adicionar_embed(@Param('imovel_id', ParseIntPipe) imovel_id: number, @Body() dto: CriarVideoEmbedDto, @Req() requisicao: Requisicao) { return this.midias.adicionar_embed(imovel_id, dto, requisicao.user); }

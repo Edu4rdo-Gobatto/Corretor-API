@@ -65,7 +65,7 @@ export class LocacoesService {
     return resposta_contrato(contrato);
   }
 
-  private async validarContrato(contrato: Contrato, gerenciador: EntityManager, usuario: UsuarioAutenticado): Promise<void> {
+  private async validarContrato(contrato: Contrato, gerenciador: EntityManager, usuario: UsuarioAutenticado, anterior?: Contrato): Promise<void> {
     if (!dataCivilValida(contrato.data_inicio) || !dataCivilValida(contrato.data_fim) || contrato.data_fim < contrato.data_inicio) throw new BadRequestException('Datas do contrato inválidas.');
     if (decimalEmCentavos(contrato.valor_aluguel) <= 0n || decimalEmCentavos(contrato.taxa_administracao) > 10000n) throw new BadRequestException('Valores do contrato inválidos.');
     if (!contrato.ativo || contrato.data_fim < hojeCivil()) contrato.status = 'INATIVO';
@@ -85,6 +85,8 @@ export class LocacoesService {
     if (usuario.cargo !== 'ADMIN') {
       for (const pessoa of [locador, locatario]) {
         if (pessoa.corretor_id === usuario.id) continue;
+        // O contrato persistido já autorizava estas partes antes do PATCH.
+        if (anterior?.corretor_id === usuario.id && [anterior.locador_id, anterior.locatario_id].includes(pessoa.id)) continue;
         const vinculoPrevio = await gerenciador.getRepository(Contrato).createQueryBuilder('c')
           .where('c.corretor_id = :corretorId', { corretorId: usuario.id })
           .andWhere('(c.locador_id = :pessoaId OR c.locatario_id = :pessoaId)', { pessoaId: pessoa.id })
@@ -116,7 +118,7 @@ export class LocacoesService {
       if (dto.imovel_id && dto.imovel_id !== existente.imovel_id && await gerenciador.count(Comissao, { where: { contrato_id: id } })) throw new ConflictException('Contrato com comissão registrada não pode trocar de imóvel.');
       const atualizado = Object.assign(new Contrato(), existente, dto, { alterado_por: usuario.id });
       if ((dto.numero_contrato && dto.numero_contrato !== existente.numero_contrato) || (dto.locatario_id && dto.locatario_id !== existente.locatario_id)) atualizado.status_pasta_drive = 'PENDENTE';
-      await this.validarContrato(atualizado, gerenciador, usuario);
+      await this.validarContrato(atualizado, gerenciador, usuario, existente);
       return gerenciador.save(atualizado);
     });
     return this.concluir(contrato.status === 'ATIVO' ? await this.prepararPasta(contrato, usuario) : contrato);

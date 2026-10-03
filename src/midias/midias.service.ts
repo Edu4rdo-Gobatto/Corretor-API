@@ -27,7 +27,7 @@ export class MidiasService {
     const url_base = this.configuracao.getOrThrow<string>('R2_PUBLIC_URL').replace(/\/$/, '');
 
     // Autorização antecipada fora da transação longa — falha rápida antes de consumir memória no R2.
-    await this.bloquear_imovel(this.midias.manager, imovel_id, usuario);
+    await this.bloquear_imovel(this.midias.manager, imovel_id, usuario, false);
 
     // 1. Upload ao R2 fora de transação PostgreSQL.
     const chaves: string[] = [];
@@ -135,8 +135,8 @@ export class MidiasService {
 
   private listar(repositorio: Repository<ImovelMidia>, imovel_id: number) { return repositorio.find({ where: { imovel_id }, order: { ordem: 'ASC', id: 'ASC' } }); }
 
-  private async bloquear_imovel(gerenciador: EntityManager, id: number, usuario: UsuarioAutenticado) {
-    const imovel = await gerenciador.getRepository(Imovel).findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+  private async bloquear_imovel(gerenciador: EntityManager, id: number, usuario: UsuarioAutenticado, bloquear = true) {
+    const imovel = await gerenciador.getRepository(Imovel).findOne({ where: { id }, ...(bloquear ? { lock: { mode: 'pessimistic_write' as const } } : {}) });
     if (!imovel) throw new NotFoundException('Imóvel não encontrado.');
     if (usuario.cargo !== 'ADMIN' && imovel.corretor_id !== usuario.id) throw new ForbiddenException('Somente o corretor responsável ou ADMIN pode alterar as mídias.');
     return imovel;

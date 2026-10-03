@@ -1,5 +1,31 @@
 # Decisões técnicas — corretor-api
 
+## 2026-10-03 — Remover os arquivos de teste
+
+Por pedido explícito do dono, excluir todos os fontes `*.test.*` e `*.spec.*` dos dois repositórios.
+Manter configurações/scripts e dependências de teste por enquanto; não alegar validação atual por testes.
+Resultados registrados antes da exclusão são históricos. Não recriar suítes sem novo pedido.
+
+## 2026-10-03 — Revisão da auditoria: contratos, upload e características (Codex)
+
+- A01: na alteração, partes do contrato persistido e autorizado podem permanecer, inclusive compartilhadas
+  pelo ADMIN. Nova pessoa continua exigindo carteira própria ou vínculo independente já existente. A checagem
+  usa o registro anterior ao PATCH; não confiar nos IDs enviados para fabricar autorização.
+- A02: guard antecede o multipart; storage próprio do Multer soma buffers até 60 MiB, rejeita excedente com
+  413 e libera buffers. Limite de dois uploads por instância cobre recepção e envio ao R2. Multer drena o corpo
+  rejeitado sem armazená-lo; não depender de Content-Length nem afirmar que a conexão é destruída no limite.
+  Limites de 20 arquivos/30 MiB por vídeo preservados; parts=21 acomoda o evento partsLimit do Busboy ao
+  atingir o teto, com files=20 impedindo o vigésimo primeiro arquivo. Sem dependências novas.
+- A02: autorização antes do R2 não usa lock fora de transação. Na transação de gravação continua sendo
+  revalidada com lock pessimista. Não remover o lock da persistência nem manter transação aberta durante R2.
+- A09: ficha expõe apenas vínculos ativos; classificação inativa ainda vinculada mantém valor. Classificação
+  inativa removida não pode ser reintroduzida como se ainda estivesse vinculada. Coleção omitida preserva;
+  coleção vazia remove. Não reativar todas as associações históricas na resposta administrativa.
+- A10: normalizar dígitos da coluna e o +55 de número nacional completo na consulta; documento usa termo
+  completo separado. Não modificar telefones armazenados nem criar migration para este filtro.
+- H01/integrações reais permanecem pendentes; testes HTTP desta revisão usam autenticação/repositórios
+  sintéticos. Nenhuma mudança de ACL, banco, R2, Drive ou infraestrutura.
+
 Cada decisão registra a data, o motivo e o que **não** fazer. Antes de contrariar uma decisão, revise-a aqui
 e registre a mudança com a nova data.
 

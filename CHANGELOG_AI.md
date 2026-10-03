@@ -1,5 +1,46 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-10-03 — Remoção dos arquivos de teste
+
+Por solicitação do dono, removidos os 28 arquivos `*.test.*`/`*.spec.*` deste repositório e os 46 equivalentes
+do `../Corretor-web`, incluindo testes modificados e novos não rastreados. Código de produção preservado.
+Validação: conferência dos caminhos removidos no Git; testes não executados após a exclusão. Scripts e
+dependências de teste permanecem, mas já não há suítes fonte.
+
+## 2026-10-03 — Codex: revisão e correção dos gaps da auditoria
+
+Pedido do dono: revisar as correções nos dois repositórios e melhorar o que estivesse inadequado.
+A01: edição preserva partes previamente compartilhadas pelo ADMIN sem autorizar novas referências alheias.
+A02: storage do Multer limita lote em 60 MiB durante leitura; 2 uploads simultâneos por instância até fim
+R2, autorização anterior ao storage, 20 arquivos aceitos/21 recusados. Lock fora da transação corrigido;
+lock/revalidação na transação de persistência mantidos. Corpo rejeitado é drenado sem armazenamento adicional.
+A03: correção anterior revalidada com duas sessões revogadas e outra conta preservada.
+A09: ficha exclui associação removida; característica global inativa ainda vinculada preserva valor;
+associação removida não autoriza reintroduzir característica inativa. A10: +55 normalizado na busca telefônica,
+parâmetro CPF/CNPJ separado, sem alterar registros.
+
+Arquivos: src/locacoes/locacoes.service.ts, locacoes.service.spec.ts e novo locacoes.http.spec.ts;
+src/midias/midias.controller.ts, midias.module.ts, midias.service.ts, midias.service.spec.ts,
+novos recepcao-midias.ts, recepcao-midias.spec.ts e midias.http.spec.ts;
+src/imoveis/imoveis.resposta.ts, imoveis.service.ts e imoveis.service.spec.ts;
+src/pessoas/pessoas.service.ts e pessoas.service.spec.ts; src/corretores/corretores.service.spec.ts;
+PROJECT_STATUS.md, TASKS.md, DECISIONS.md e este CHANGELOG_AI.md.
+Relatório central atualizado no Corretor-web/docs/audits/2026-10-02-auditoria-fullstack.md.
+
+Validação real: npm run typecheck e npm run lint aprovados; npm test: 27 suítes/188 testes aprovados,
+1 suíte/4 testes PostgreSQL não executados; npm run build aprovado. HTTP local real com DTOs/serviços
+reais e autenticação/repositórios sintéticos cobre dois corretores/ADMIN, POST/PATCH/visibilidade e
+multipart chunked com teto reduzido, autorização, concorrência, 20/21 arquivos. Round-trip de associações
+sintético e consumo dos refreshes reais via SessoesService testados. git diff --check aprovado; fetch e
+rev-list HEAD...origin/main = 0/0. Frontend irmão: typecheck/lint, 43 arquivos/231 testes, build e smoke aprovados.
+
+Sem migration, dados/banco/R2/Drive reais, alteração de ACL, dependência nova, commit/push/deploy.
+A09/A10 exigem homologação PostgreSQL; A11 exige ambiente implantado; H01 continua hipótese de ACL.
+O teste de falha de exclusão R2 emite o log esperado, sem acesso a serviço externo.
+Referências do storage: https://github.com/expressjs/multer/blob/main/StorageEngine.md
+ e https://docs.nestjs.com/techniques/file-upload.
+
+
 ## 2026-10-02 — Limpeza de testes e documentos legados obsoletos
 
 Tarefa: Remoção de testes e documentações obsoletas de fases anteriores, preservando os arquivos dos últimos 3 commits e os vigentes.

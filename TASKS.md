@@ -1,5 +1,10 @@
 # Tarefas — corretor-api
 
+## 2026-10-03 — Remover todos os arquivos de teste — concluída
+
+Por solicitação do dono, removidos 28 arquivos `*.test.*`/`*.spec.*` desta API e 46 do `../Corretor-web`.
+Não executei suítes depois da remoção. Scripts e dependências de teste foram mantidos.
+
 Status possíveis: `aberta`, `em andamento`, `em revisão`, `bloqueada`, `concluída`.
 Quem assume uma tarefa escreve o próprio nome em Responsável e reflete isso no `PROJECT_STATUS.md`.
 Tarefas do front ficam em `../Corretor-web/TASKS.md`.
@@ -260,3 +265,18 @@ Critérios de conclusão e estado real:
 
 Pendente: reiniciar a API local do dono (a que roda na 3000 ainda serve o código antigo) e publicar no Render junto
 com o corte do BACKEND-PT-002. Sem commit.
+
+## AUDIT-REV-20261003 — Revisão das correções da auditoria por Codex
+
+Status: concluída no escopo de revisão/correções locais; homologação operacional permanece aberta.
+Responsável: Codex — 03/10/2026, por pedido do dono.
+
+Critérios atendidos: revisar A01–A11/H01; corrigir regressões encontradas; testes sintéticos/HTTP,
+typecheck/lint/build dos dois repos e smoke SSR; atualizar o relatório e documentos sem remover histórico.
+A01/A02/A03 validados localmente, A04–A08 revalidados. A09 corrigido com round-trip sintético e PATCH explícito;
+A10 normaliza +55 sem alterar registros; A11 degrada/recupera em simulação. H01 segue hipótese não homologada.
+
+Próximos passos operacionais: PostgreSQL de teste para A09/A10, cold start no ambiente implantado para A11,
+ACLs reais do Drive para H01 e upload R2 real. Nenhum desses ambientes foi alterado nesta revisão.
+Evidência central: Corretor-web/docs/audits/2026-10-02-auditoria-fullstack.md, atualização de 03/10/2026.
+Sem commit/push/deploy, dependências novas ou migrations.
