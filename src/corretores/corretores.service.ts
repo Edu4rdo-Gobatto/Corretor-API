@@ -6,6 +6,7 @@ import { escaparBusca } from '../comum/validacao';
 import { CargoCorretor, Corretor, perfilCorretor } from './corretor.entity';
 import { AlterarSenhaDto, AtualizarCorretorDto, AtualizarPerfilDto, ConsultarCorretoresDto, CriarCorretorDto } from './corretores.dto';
 import { SenhasService } from './senhas.service';
+import { SessaoLogin } from '../autenticacao/sessao-login.entity';
 
 @Injectable()
 export class CorretoresService {
@@ -61,6 +62,14 @@ export class CorretoresService {
       const campos = ['nome', 'email', 'cpf', 'whatsapp', 'creci', 'cargo', 'url_foto', 'ativo'] as const;
       const alteracoes = Object.fromEntries(campos.filter(campo => dto[campo] !== undefined).map(campo => [campo, dto[campo]]));
       Object.assign(corretor, alteracoes, senha_hash === undefined ? {} : { senha_hash }, { alterado_por: usuario.id });
+      // GAP-03: revogar sessões quando ADMIN redefine senha ou desativa corretor.
+      if (senha_hash !== undefined || dto.ativo === false) {
+        await gerente.createQueryBuilder()
+          .delete()
+          .from(SessaoLogin)
+          .where('corretor_id = :id', { id })
+          .execute();
+      }
       return this.salvar(repositorio, corretor);
     });
   }

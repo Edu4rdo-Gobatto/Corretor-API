@@ -26,4 +26,9 @@ export class TentativasGuard implements CanActivate {
     }
     return true;
   }
+
+  resetarConta(email: string): void {
+    const conta = `conta:${createHash('sha256').update(email.trim().toLowerCase()).digest('hex')}`;
+    this.tentativas.delete(conta);
+  }
 }

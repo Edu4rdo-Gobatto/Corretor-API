@@ -7,7 +7,7 @@ export function createDatabaseOptions(configuration: ConfigService): TypeOrmModu
   return {
     ...createPostgresOptions(configuration.getOrThrow<string>('DATABASE_URL')),
     autoLoadEntities: true,
-    retryAttempts: 1,
+    retryAttempts: 3,
   };
 }
 
@@ -29,6 +29,6 @@ export function createPostgresOptions(databaseUrl: string): PostgresConnectionOp
     uuidExtension: 'pgcrypto',
     logging: false,
     logger: new LoggerSeguro(),
-    extra: { connectionTimeoutMillis: 10_000 },
+    extra: { connectionTimeoutMillis: 15_000 },
   };
 }

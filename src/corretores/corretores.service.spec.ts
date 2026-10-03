@@ -4,13 +4,28 @@ import { CargoCorretor, Corretor } from './corretor.entity';
 import { ConsultarCorretoresDto } from './corretores.dto';
 import { CorretoresService } from './corretores.service';
 import { SenhasService } from './senhas.service';
+import { SessaoLogin } from '../autenticacao/sessao-login.entity';
 
 class RepositorioCorretores {
   readonly registros = new Map<number, Corretor>();
   private sequencia = 0;
   private fila = Promise.resolve();
+  readonly qbDelete = jest.fn().mockReturnThis();
+  readonly qbFrom = jest.fn().mockReturnThis();
+  readonly qbWhere = jest.fn().mockReturnThis();
+  readonly qbExecute = jest.fn().mockResolvedValue({ affected: 1 });
+
   readonly manager = {
-    transaction: async <T>(executar: (gerente: { query: (sql: string) => Promise<void>; getRepository: () => RepositorioCorretores }) => Promise<T>): Promise<T> => {
+    transaction: async <T>(executar: (gerente: {
+      query: (sql: string) => Promise<void>;
+      getRepository: () => RepositorioCorretores;
+      createQueryBuilder: () => {
+        delete: () => unknown;
+        from: (entity: unknown) => unknown;
+        where: (condition: string, params: Record<string, unknown>) => unknown;
+        execute: () => Promise<unknown>;
+      };
+    }) => Promise<T>): Promise<T> => {
       let liberar: (() => void) | undefined;
       const gerente = {
         query: async (sql: string): Promise<void> => {
@@ -20,6 +35,12 @@ class RepositorioCorretores {
           await anterior;
         },
         getRepository: () => this,
+        createQueryBuilder: () => ({
+          delete: this.qbDelete,
+          from: this.qbFrom,
+          where: this.qbWhere,
+          execute: this.qbExecute,
+        }),
       };
       try { return await executar(gerente); } finally { liberar?.(); }
     },
@@ -110,4 +131,15 @@ describe('regras e persistência dos corretores', () => {
     expect(await new SenhasService().verificar(alterado.senha_hash, 'nova-senha-123')).toBe(true);
     expect(alterado.alterado_por).toBe(corretor.id);
   });
+  it('reset de senha ou desativação pelo ADMIN revoga sessões ativas (GAP-03 / A03)', async () => {
+    const corretor = await servico.criar(dados, usuario);
+    repositorio.qbWhere.mockClear();
+    repositorio.qbFrom.mockClear();
+    repositorio.qbExecute.mockClear();
+    await servico.atualizar(corretor.id, { senha: 'nova-senha-admin-123' }, usuario);
+    expect(repositorio.qbFrom).toHaveBeenCalledWith(SessaoLogin);
+    expect(repositorio.qbWhere).toHaveBeenCalledWith('corretor_id = :id', { id: corretor.id });
+    expect(repositorio.qbExecute).toHaveBeenCalled();
+  });
 });
+

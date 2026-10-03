@@ -1,7 +1,7 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { randomUUID } from 'node:crypto';
 import { EntityManager, Repository } from 'typeorm';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
@@ -9,7 +9,7 @@ import { Imovel } from '../imoveis/imovel.entity';
 import { resposta_midia } from '../imoveis/imoveis.resposta';
 import { ImovelMidia, TipoMidia } from './imovel-midia.entity';
 import { CriarVideoEmbedDto, ReordenarMidiasDto } from './midias.dto';
-import { ArquivoMidia, TAMANHO_MAXIMO_VIDEO, validar_arquivo } from './validacao-arquivo';
+import { ArquivoMidia, validar_arquivo } from './validacao-arquivo';
 import { normalizar_video_embed } from './video-embed';
 
 export const R2_MIDIAS = 'R2_MIDIAS';
@@ -25,7 +25,25 @@ export class MidiasService {
     const validados = arquivos.map((arquivo) => validar_arquivo(arquivo));
     if (arquivos.reduce((total, arquivo) => total + arquivo.size, 0) > 60 * 1024 * 1024) throw new BadRequestException('O lote de mídia deve ter no máximo 60 MB.');
     const url_base = this.configuracao.getOrThrow<string>('R2_PUBLIC_URL').replace(/\/$/, '');
+
+    // Autorização antecipada fora da transação longa — falha rápida antes de consumir memória no R2.
+    await this.bloquear_imovel(this.midias.manager, imovel_id, usuario);
+
+    // 1. Upload ao R2 fora de transação PostgreSQL.
     const chaves: string[] = [];
+    try {
+      for (const [indice, arquivo] of arquivos.entries()) {
+        const validado = validados[indice];
+        const chave = `imoveis/${imovel_id}/${randomUUID()}${validado.extensao}`;
+        chaves.push(chave);
+        await this.armazenamento.send(new PutObjectCommand({ Bucket: BUCKET, Key: chave, Body: arquivo.buffer, ContentType: arquivo.mimetype }));
+      }
+    } catch (erro) {
+      await this.compensar(chaves, imovel_id);
+      throw erro;
+    }
+
+    // 2. Transação rápida apenas para persistir registros.
     try {
       const resultado = await this.midias.manager.transaction(async (gerenciador) => {
         await this.bloquear_imovel(gerenciador, imovel_id, usuario);
@@ -34,12 +52,9 @@ export class MidiasService {
         let possui_capa = existentes.some((midia) => midia.capa);
         const ordem_inicial = existentes.reduce((maximo, midia) => Math.max(maximo, midia.ordem + 1), 0);
         const novas: ImovelMidia[] = [];
-        for (const [indice, arquivo] of arquivos.entries()) {
+        for (const [indice] of arquivos.entries()) {
           const validado = validados[indice];
-          const chave = `imoveis/${imovel_id}/${randomUUID()}${validado.extensao}`;
-          // A tentativa também é compensada se o provedor armazenar antes de um timeout.
-          chaves.push(chave);
-          await this.armazenamento.send(new PutObjectCommand({ Bucket: BUCKET, Key: chave, Body: arquivo.buffer, ContentType: arquivo.mimetype }));
+          const chave = chaves[indice];
           const capa = !possui_capa && validado.tipo === TipoMidia.IMAGEM;
           possui_capa ||= capa;
           novas.push(repositorio.create({ imovel_id, tipo: validado.tipo, url: `${url_base}/${chave}`, chave_armazenamento: chave,
@@ -49,12 +64,15 @@ export class MidiasService {
       });
       return resultado.map(resposta_midia);
     } catch (erro) {
-      const compensacoes = await Promise.allSettled(chaves.map((chave) => this.armazenamento.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: chave }))));
-      if (compensacoes.some((resultado) => resultado.status === 'rejected')) {
-        this.logger.error(`Falha na compensação do upload do imóvel ${imovel_id}; verificar objetos órfãos no R2.`);
-        throw new ServiceUnavailableException('Upload não concluído; a limpeza de arquivos requer verificação operacional.');
-      }
+      await this.compensar(chaves, imovel_id);
       throw erro;
+    }
+  }
+
+  private async compensar(chaves: string[], imovel_id: number): Promise<void> {
+    const compensacoes = await Promise.allSettled(chaves.map((chave) => this.armazenamento.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: chave }))));
+    if (compensacoes.some((resultado) => resultado.status === 'rejected')) {
+      this.logger.error(`Falha na compensação do upload do imóvel ${imovel_id}; verificar objetos órfãos no R2.`);
     }
   }
 
@@ -97,42 +115,21 @@ export class MidiasService {
   }
 
   async excluir(imovel_id: number, midia_id: number, usuario: UsuarioAutenticado): Promise<void> {
-    let restauracao: { chave: string; conteudo: Buffer; tipo_conteudo: string } | undefined;
-    let exclusao_tentada = false;
-    try {
-      await this.midias.manager.transaction(async (gerenciador) => {
-        await this.bloquear_imovel(gerenciador, imovel_id, usuario);
-        const repositorio = gerenciador.getRepository(ImovelMidia);
-        const selecionada = await repositorio.createQueryBuilder('midia').addSelect('midia.chave_armazenamento').where('midia.id = :midia_id AND midia.imovel_id = :imovel_id', { midia_id, imovel_id }).getOne();
-        if (!selecionada) throw new NotFoundException('Mídia não encontrada.');
-        if (selecionada.chave_armazenamento) {
-          const chave = selecionada.chave_armazenamento;
-          try {
-            const objeto = await this.armazenamento.send(new GetObjectCommand({ Bucket: BUCKET, Key: chave }));
-            if (!objeto.Body || (objeto.ContentLength ?? 0) > TAMANHO_MAXIMO_VIDEO) throw new ServiceUnavailableException('Não foi possível preparar a exclusão segura da mídia.');
-            const conteudo = Buffer.from(await objeto.Body.transformToByteArray());
-            if (conteudo.length > TAMANHO_MAXIMO_VIDEO) throw new ServiceUnavailableException('Mídia excede o limite de restauração segura.');
-            restauracao = { chave, conteudo, tipo_conteudo: objeto.ContentType ?? 'application/octet-stream' };
-          } catch (erro) {
-            if (!(typeof erro === 'object' && erro !== null && 'name' in erro && erro.name === 'NoSuchKey')) throw erro;
-          }
-          exclusao_tentada = true;
-          await this.armazenamento.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: chave }));
-        }
-        await repositorio.remove(selecionada);
-        const restantes = await this.listar(repositorio, imovel_id);
-        const nova_capa = selecionada.capa ? restantes.find((midia) => midia.tipo === TipoMidia.IMAGEM)?.id : undefined;
-        if (restantes.length) await repositorio.save(restantes.map((midia, ordem) => Object.assign(midia, { ordem, ...(nova_capa ? { capa: midia.id === nova_capa } : {}), alterado_por: usuario.id })));
-      });
-    } catch (erro) {
-      if (exclusao_tentada && restauracao) {
-        try { await this.armazenamento.send(new PutObjectCommand({ Bucket: BUCKET, Key: restauracao.chave, Body: restauracao.conteudo, ContentType: restauracao.tipo_conteudo })); }
-        catch {
-          this.logger.error(`Falha ao restaurar mídia ${midia_id} após exclusão não concluída; requer reparo operacional.`);
-          throw new ServiceUnavailableException('A exclusão não foi concluída e a restauração do arquivo requer verificação operacional.');
-        }
-      }
-      throw erro;
+    const chave_para_excluir = await this.midias.manager.transaction(async (gerenciador) => {
+      await this.bloquear_imovel(gerenciador, imovel_id, usuario);
+      const repositorio = gerenciador.getRepository(ImovelMidia);
+      const selecionada = await repositorio.createQueryBuilder('midia').addSelect('midia.chave_armazenamento').where('midia.id = :midia_id AND midia.imovel_id = :imovel_id', { midia_id, imovel_id }).getOne();
+      if (!selecionada) throw new NotFoundException('Mídia não encontrada.');
+      await repositorio.remove(selecionada);
+      const restantes = await this.listar(repositorio, imovel_id);
+      const nova_capa = selecionada.capa ? restantes.find((midia) => midia.tipo === TipoMidia.IMAGEM)?.id : undefined;
+      if (restantes.length) await repositorio.save(restantes.map((midia, ordem) => Object.assign(midia, { ordem, ...(nova_capa ? { capa: midia.id === nova_capa } : {}), alterado_por: usuario.id })));
+      return selecionada.chave_armazenamento;
+    });
+    // Exclusão no R2 fora da transação — registro já removido do banco.
+    if (chave_para_excluir) {
+      try { await this.armazenamento.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: chave_para_excluir })); }
+      catch { this.logger.error(`Falha ao excluir objeto ${chave_para_excluir} do R2 para mídia ${midia_id}; requer limpeza operacional.`); }
     }
   }
 

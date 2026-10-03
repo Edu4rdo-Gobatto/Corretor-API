@@ -13,8 +13,9 @@ describe('segurança e integridade das locações', () => {
   const corretor: UsuarioAutenticado = { ...admin, id: 2, cargo: 'CORRETOR' };
   const dto = { numero_contrato: 'LOC-2026-001', imovel_id: 1, locador_id: 1, locatario_id: 2, corretor_id: corretor.id, data_inicio: '2026-01-01', data_fim: '2099-12-31', valor_aluguel: '1000.00', dia_vencimento: 31, taxa_administracao: '10.00', garantia_locaticia: 'Caução', indice_reajuste: 'IPCA', cobranca_iptu_condominio: 'Pagamento direto' };
   function ambiente() {
-    const pessoas = [Object.assign(new Pessoa(), { id: 1, ativo: true, tipo_pessoa: 'PF', cpf_cnpj: '52998224725', nome: 'Locador' }), Object.assign(new Pessoa(), { id: 2, ativo: true, nome: 'Locatário' })];
+    const pessoas = [Object.assign(new Pessoa(), { id: 1, ativo: true, tipo_pessoa: 'PF', cpf_cnpj: '52998224725', nome: 'Locador', corretor_id: corretor.id }), Object.assign(new Pessoa(), { id: 2, ativo: true, nome: 'Locatário', corretor_id: corretor.id })];
     const contratos: Contrato[] = [];
+    const qb = { where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), getExists: jest.fn().mockResolvedValue(false) };
     const gerenciador = {
       query: jest.fn().mockResolvedValue([]),
       findOne: jest.fn((entidade: unknown, opcoes: { where: { id: number } }) => {
@@ -26,11 +27,17 @@ describe('segurança e integridade das locações', () => {
       count: jest.fn().mockResolvedValue(0),
       create: jest.fn((_entidade: unknown, valor: object) => Object.assign(new Contrato(), valor)),
       save: jest.fn((registro: Contrato) => { registro.id ||= 1; contratos.push(registro); return Promise.resolve(registro); }),
+      getRepository: jest.fn((entidade: unknown) => {
+        if (entidade === Contrato) {
+          return { createQueryBuilder: jest.fn(() => qb) };
+        }
+        return {};
+      }),
     };
     const repositorio = { update: jest.fn().mockResolvedValue({ affected: 1 }), findOneBy: jest.fn(() => Promise.resolve(contratos[0] ?? pessoas[1])), findOne: jest.fn(() => Promise.resolve(contratos[0])) };
     const banco = { transaction: (operacao: (m: EntityManager) => Promise<unknown>) => operacao(gerenciador as unknown as EntityManager), query: gerenciador.query, getRepository: jest.fn().mockReturnValue(repositorio) };
     const drive = { criarPastaContrato: jest.fn().mockRejectedValue(new Error('indisponível')) };
-    return { pessoas, contratos, gerenciador, drive, servico: new LocacoesService(banco as unknown as DataSource, drive as unknown as DriveService) };
+    return { pessoas, contratos, gerenciador, drive, qb, servico: new LocacoesService(banco as unknown as DataSource, drive as unknown as DriveService) };
   }
   it('não permite corretor atribuir contrato a outro intermediador', async () => {
     await expect(ambiente().servico.criarContrato({ ...dto, corretor_id: 9 }, corretor)).rejects.toBeInstanceOf(ForbiddenException);
@@ -58,4 +65,19 @@ describe('segurança e integridade das locações', () => {
     expect(drive.criarPastaContrato).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(salvo)).not.toContain('cpf_cnpj');
   });
+
+  it('recusa corretor vinculando pessoa de outro corretor (GAP-01 / A01)', async () => {
+    const { servico, pessoas } = ambiente();
+    pessoas[0].corretor_id = 9;
+    await expect(servico.criarContrato(dto, corretor)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('permite corretor vinculando pessoa própria ou de contrato prévio', async () => {
+    const { servico, pessoas, qb } = ambiente();
+    pessoas[0].corretor_id = 9;
+    qb.getExists.mockResolvedValueOnce(true);
+    const salvo = await servico.criarContrato(dto, corretor);
+    expect(salvo.id).toBe(1);
+  });
 });
+

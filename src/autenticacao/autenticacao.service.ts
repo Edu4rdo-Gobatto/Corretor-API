@@ -6,18 +6,21 @@ import { CorretoresService } from '../corretores/corretores.service';
 import { SenhasService } from '../corretores/senhas.service';
 import { EntrarDto } from './autenticacao.dto';
 import { SessoesService } from './sessoes.service';
+import { TentativasGuard } from './tentativas.guard';
 import { AlterarSenhaDto } from '../corretores/corretores.dto';
 
 @Injectable()
 export class AutenticacaoService {
   private hash_disfarce?: Promise<string>;
-  constructor(private readonly corretores: CorretoresService, private readonly senhas: SenhasService, private readonly jwt: JwtService, private readonly sessoes: SessoesService) {}
+  constructor(private readonly corretores: CorretoresService, private readonly senhas: SenhasService, private readonly jwt: JwtService, private readonly sessoes: SessoesService, private readonly tentativas: TentativasGuard) {}
 
   async entrar(dto: EntrarDto) {
     const corretor = await this.corretores.buscarParaAutenticacao(dto.email);
     const hash_disfarce = await (this.hash_disfarce ??= this.senhas.gerarHash(randomBytes(32).toString('base64url')));
     const senha_valida = await this.senhas.verificar(corretor?.senha_hash ?? hash_disfarce, dto.senha);
     if (!corretor || !corretor.ativo || !senha_valida) throw new UnauthorizedException('E-mail ou senha inválidos.');
+    // GAP-10: login bem-sucedido reseta o contador de tentativas da conta.
+    this.tentativas.resetarConta(dto.email);
     return this.emitirSessao(corretor);
   }
 

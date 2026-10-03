@@ -1,12 +1,23 @@
 # Estado atual — corretor-api
 
-## 2026-10-02 — Auditoria full stack registrada no repositório web
+## 2026-10-02 — Resolução integral dos Gaps de Execução no Backend
 
-Auditoria somente leitura do backend, integrada ao relatório canônico `../Corretor-web/docs/audits/2026-10-02-auditoria-fullstack.md`.
-Achados da API a acompanhar: A01 (alto, autorização por referência de contrato), A02 (buffering de mídia),
-A03 (refresh no reset de senha) e A10 (busca de telefone). A09 é correção conjunta com o frontend; H01 depende de homologar ACL real do Drive.
-Validação da auditoria: typecheck, lint e 25 suítes/173 testes (bootstrap e integração PostgreSQL excluídos);
-sem build ou conexão a banco/serviços nesta tarefa documental. Checklist e critérios ficam no relatório canônico, sem duplicar estado aqui.
+Implementados e validados todos os gaps backend do "Plano de Resolução Integral dos Gaps de Execução":
+- GAP-01 (A01): Validação estrita de autorização em `LocacoesService.validarContrato` — corretores não-ADMIN só vinculam pessoas da própria carteira ou de contratos previamente intermediados.
+- GAP-02 (A02): Criado `PodeEditarImovelGuard` para rejeição antes da alocação de buffer pelo Multer, desacoplamento do envio R2/S3 da transação PostgreSQL com compensação e exclusão direta no R2 sem download em memória.
+- GAP-03 (A03): Revogação atômica de sessões de login em `CorretoresService.atualizar` no reset de senha ou desativação pelo ADMIN.
+- GAP-04 (A09): Ficha interna de imóveis expõe características inativas com anotação `caracteristica_ativa`, preservando vínculos históricos no update.
+- GAP-05 (A10): Busca de telefone em `PessoasService.listar` normalizada com `regexp_replace` para pesquisa por dígitos limpos.
+- GAP-09: Resiliência de cold start Neon em `database.config.ts` (3 retryAttempts, 15s timeout).
+- GAP-10: Reset do rate limiter em `TentativasGuard` após autenticação com sucesso.
+- GAP-11 (OPS-001): Limpeza inicial de sessões expiradas no `onModuleInit` de `SessoesService`.
+
+Validação completa:
+- `npm run typecheck`: aprovado (0 erros).
+- `npx eslint`: aprovado em todos os módulos modificados (0 erros).
+- `npm test`: 26 suítes / 180 testes aprovados (+ 6 novos testes em `pode-editar-imovel.guard.spec.ts`, totalizando 41 testes nas suítes modificadas).
+- `npm run build`: aprovado (build de produção NestJS).
+- Nenhuma migration alterada ou criada. Banco Neon preservado intacto.
 
 ## 2026-09-17 — Claude: banco Neon zerado e contrato v2 aplicado do zero
 

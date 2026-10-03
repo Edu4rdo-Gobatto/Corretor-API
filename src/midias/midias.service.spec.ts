@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { EntityManager, Repository } from 'typeorm';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { Imovel } from '../imoveis/imovel.entity';
@@ -32,14 +32,17 @@ describe('Mídias: transações, autorização e compensação R2', () => {
     remove: jest.fn((item: ImovelMidia) => { registros = registros.filter((existente) => existente.id !== item.id); return Promise.resolve(item); }),
     update: jest.fn((_condicao: unknown, dados: Partial<ImovelMidia>) => { registros.forEach((item) => Object.assign(item, dados)); return Promise.resolve({ affected: registros.length }); }),
     createQueryBuilder: () => consulta,
-    manager: { transaction: async <T>(executar: (gerenciador: EntityManager) => Promise<T>) => {
-      const copia = registros.map((item) => Object.assign(new ImovelMidia(), item));
-      try {
-        const resultado = await executar({ getRepository: (entidade: unknown) => entidade === Imovel ? imoveis : repositorio } as unknown as EntityManager);
-        if (falha_commit) throw new Error('falha commit');
-        return resultado;
-      } catch (erro) { registros = copia; throw erro; }
-    } },
+    manager: {
+      getRepository: (entidade: unknown) => entidade === Imovel ? imoveis : repositorio,
+      transaction: async <T>(executar: (gerenciador: EntityManager) => Promise<T>) => {
+        const copia = registros.map((item) => Object.assign(new ImovelMidia(), item));
+        try {
+          const resultado = await executar({ getRepository: (entidade: unknown) => entidade === Imovel ? imoveis : repositorio } as unknown as EntityManager);
+          if (falha_commit) throw new Error('falha commit');
+          return resultado;
+        } catch (erro) { registros = copia; throw erro; }
+      }
+    },
   };
   const servico = new MidiasService(repositorio as unknown as Repository<ImovelMidia>, armazenamento as unknown as S3Client, new ConfigService({ R2_PUBLIC_URL: 'https://midias.example.test' }));
 
@@ -47,7 +50,7 @@ describe('Mídias: transações, autorização e compensação R2', () => {
     registros = []; falha_save = false; falha_commit = false; sequencia = 0;
     imoveis.findOne.mockResolvedValue(imovel);
     consulta.getOne.mockImplementation(() => Promise.resolve(registros[0] ?? null));
-    armazenamento.send.mockImplementation((comando) => Promise.resolve(comando instanceof GetObjectCommand ? { Body: { transformToByteArray: () => Promise.resolve(jpeg) }, ContentType: 'image/jpeg', ContentLength: jpeg.length } : {}));
+    armazenamento.send.mockImplementation(() => Promise.resolve({}));
   });
 
   it('valida todo o lote antes de enviar e proíbe MIME falsificado', async () => {
@@ -109,24 +112,22 @@ describe('Mídias: transações, autorização e compensação R2', () => {
     registros = [repositorio.create({ tipo: TipoMidia.IMAGEM, capa: true, ordem: 0, chave_armazenamento: 'chave' }), repositorio.create({ tipo: TipoMidia.VIDEO_EMBED, capa: false, ordem: 1 }), repositorio.create({ tipo: TipoMidia.IMAGEM, capa: false, ordem: 2 })];
     await servico.excluir(imovel.id, registros[0].id, usuario);
     expect(registros.map((item) => [item.tipo, item.capa, item.ordem])).toEqual([['VIDEO_EMBED', false, 0], ['IMAGEM', true, 1]]);
-    expect(armazenamento.send.mock.calls.map(([comando]) => (comando as object).constructor.name)).toEqual(['GetObjectCommand', 'DeleteObjectCommand']);
+    expect(armazenamento.send.mock.calls.map(([comando]) => (comando as object).constructor.name)).toEqual(['DeleteObjectCommand']);
   });
 
-  it('restaura arquivo e DB se exclusão falha no commit', async () => {
+  it('DB preservado se exclusão falha no commit e não chama R2', async () => {
     registros = [repositorio.create({ tipo: TipoMidia.IMAGEM, capa: true, ordem: 0, chave_armazenamento: 'chave' })];
     falha_commit = true;
     await expect(servico.excluir(imovel.id, registros[0].id, usuario)).rejects.toThrow('falha commit');
     expect(registros).toHaveLength(1);
-    const restauracao = armazenamento.send.mock.calls[2][0];
-    expect(restauracao).toBeInstanceOf(PutObjectCommand);
-    expect((restauracao as PutObjectCommand).input).toMatchObject({ Key: 'chave', Body: jpeg, ContentType: 'image/jpeg' });
+    expect(armazenamento.send).not.toHaveBeenCalled();
   });
 
-  it('falha no R2 impede remoção do registro', async () => {
+  it('falha no R2 apenas registra log pois registro já foi removido', async () => {
     registros = [repositorio.create({ tipo: TipoMidia.IMAGEM, capa: true, ordem: 0, chave_armazenamento: 'chave' })];
     armazenamento.send.mockRejectedValue(new Error('R2 indisponível'));
-    await expect(servico.excluir(imovel.id, registros[0].id, usuario)).rejects.toThrow('R2 indisponível');
-    expect(repositorio.remove).not.toHaveBeenCalled();
-    expect(registros).toHaveLength(1);
+    await servico.excluir(imovel.id, registros[0].id, usuario);
+    expect(repositorio.remove).toHaveBeenCalled();
+    expect(registros).toHaveLength(0);
   });
 });

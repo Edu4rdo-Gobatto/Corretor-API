@@ -1,12 +1,27 @@
 # Histórico de trabalho dos agentes — corretor-api
 
-## 2026-10-02 — Referência à auditoria full stack
+## 2026-10-02 — Execução integral dos gaps backend da auditoria
 
-Registrada a auditoria concluída do frontend/API no arquivo canônico `../Corretor-web/docs/audits/2026-10-02-auditoria-fullstack.md`.
-Achados backend: A01, A02, A03 e A10; achado integrado A09; hipótese externa H01.
-Validações reportadas pela rodada de auditoria: typecheck/lint aprovados e 25 suítes/173 testes aprovados com bootstrap e integração PostgreSQL excluídos.
-`git diff --check` passou nesta atualização documental. O relatório registra os commits remotos sincronizados antes da publicação.
-Nenhum código, banco, migrations, dados, configuração ou serviço foi alterado nesta tarefa.
+Tarefa: Executar o "Plano de Resolução Integral dos Gaps de Execução" na camada de backend.
+Arquivos alterados:
+- `src/locacoes/locacoes.service.ts` e `locacoes.service.spec.ts` (GAP-01 / A01)
+- `src/midias/pode-editar-imovel.guard.ts`, `pode-editar-imovel.guard.spec.ts`, `midias.controller.ts`, `midias.module.ts`, `midias.service.ts`, `midias.service.spec.ts` (GAP-02 / A02)
+- `src/corretores/corretores.service.ts` e `corretores.service.spec.ts` (GAP-03 / A03)
+- `src/imoveis/imoveis.resposta.ts` e `src/imoveis/imoveis.service.ts` (GAP-04 / A09)
+- `src/pessoas/pessoas.service.ts` e `pessoas.service.spec.ts` (GAP-05 / A10)
+- `src/config/database.config.ts` (GAP-09)
+- `src/autenticacao/tentativas.guard.ts` e `autenticacao.service.ts` (GAP-10)
+- `src/autenticacao/sessoes.service.ts` (GAP-11 / OPS-001)
+
+Testes executados com resultado real:
+- `npm run typecheck` — aprovado (código de saída 0).
+- `npx eslint` nas pastas modificadas — aprovado (código de saída 0).
+- Testes unitários das suítes modificadas (`pode-editar-imovel.guard`, `midias.service`, `locacoes.service`, `pessoas.service`, `corretores.service`) — 41/41 aprovados.
+- `npm test` suíte completa — 26 suítes / 180 testes aprovados (1 suíte de integração PostgreSQL local ignorada por ausência de Docker).
+- `npm run build` — aprovado (código de saída 0).
+
+Pendências:
+- Frontend irmão (`Corretor-web`): GAP-06 (validação de telefone nacional antes do WhatsApp), GAP-07 (reset de página e proteção de CSV) e GAP-08 (busca direta de contrato por ID) pendentes de implementação.
 
 ## 2026-09-17 — Claude — banco Neon zerado e cadeia completa de migrations aplicada
 

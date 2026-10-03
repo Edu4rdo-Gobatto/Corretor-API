@@ -19,7 +19,8 @@
     "migration:show": "ts-node src/commands/migracoes.ts listar",
     "migration:run": "ts-node src/commands/migracoes.ts executar",
     "migration:revert": "ts-node src/commands/migracoes.ts reverter",
-    "bootstrap:admin": "ts-node src/commands/bootstrap-admin.ts"
+    "bootstrap:admin": "ts-node src/commands/bootstrap-admin.ts",
+    "seed": "ts-node src/commands/seed-demonstracao.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

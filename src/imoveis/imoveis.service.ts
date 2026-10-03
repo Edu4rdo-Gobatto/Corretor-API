@@ -141,7 +141,9 @@ export class ImoveisService {
     if (itens.length) {
       const [midias, caracteristicas] = await Promise.all([
         this.midias.find({ where: { imovel_id: In(ids) }, order: { ordem: 'ASC', id: 'ASC' } }),
-        this.caracteristicas.find({ where: { imovel_id: In(ids), ativo: true, caracteristica: { ativo: true } }, relations: { caracteristica: true } }),
+        interno
+          ? this.caracteristicas.find({ where: { imovel_id: In(ids) }, relations: { caracteristica: true } })
+          : this.caracteristicas.find({ where: { imovel_id: In(ids), ativo: true, caracteristica: { ativo: true } }, relations: { caracteristica: true } }),
       ]);
       for (const imovel of itens) { imovel.midias = midias.filter((midia) => midia.imovel_id === imovel.id); imovel.caracteristicas = caracteristicas.filter((vinculo) => vinculo.imovel_id === imovel.id); }
     }
@@ -171,12 +173,16 @@ export class ImoveisService {
   private async salvar_caracteristicas(gerenciador: EntityManager, id: number, dados: CaracteristicaImovelDto[], usuario: UsuarioAutenticado) {
     const ids = dados.map((item) => item.caracteristica_id);
     if (new Set(ids).size !== ids.length) throw new BadRequestException('Características duplicadas.');
-    if (ids.length) {
-      const encontradas = await gerenciador.getRepository(Caracteristica).find({ where: { id: In(ids), ativo: true }, lock: { mode: 'pessimistic_read' } });
-      if (encontradas.length !== ids.length) throw new BadRequestException('Uma ou mais características estão inativas ou não existem.');
-    }
     const repositorio = gerenciador.getRepository(ImovelCaracteristica);
     const anteriores = await repositorio.findBy({ imovel_id: id });
+    if (ids.length) {
+      const encontradas = await gerenciador.getRepository(Caracteristica).find({ where: { id: In(ids) }, lock: { mode: 'pessimistic_read' } });
+      if (encontradas.length !== ids.length) throw new BadRequestException('Uma ou mais características não existem.');
+      // GAP-04: permitir características já vinculadas ao imóvel mesmo inativas; rejeitar apenas novas inativas.
+      const novos_ids = ids.filter(cid => !anteriores.some(a => a.caracteristica_id === cid));
+      const inativos_novos = encontradas.filter(c => !c.ativo && novos_ids.includes(c.id));
+      if (inativos_novos.length) throw new BadRequestException('Uma ou mais características novas estão inativas.');
+    }
     await repositorio.update({ imovel_id: id }, { ativo: false, alterado_por: usuario.id });
     if (dados.length) await repositorio.save(dados.map((item) => repositorio.create({
       ...(anteriores.find((vinculo) => vinculo.caracteristica_id === item.caracteristica_id) ?? { criado_por: usuario.id }),

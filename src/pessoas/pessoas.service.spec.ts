@@ -24,11 +24,19 @@ describe('cadastro único de pessoas', () => {
     const { servico, consulta } = criar();
     await servico.listar(Object.assign(new ConsultaPessoasDto(), { busca: 'Ana (66) 9', status_contato: 'PENDENTE' }), usuario);
     expect(consulta.andWhere).toHaveBeenCalledWith(expect.stringContaining('pessoa.corretor_id = :usuario OR EXISTS'), { usuario: usuario.id });
-    expect(consulta.andWhere).toHaveBeenCalledWith(expect.stringContaining('pessoa.telefone LIKE :digitos'), { termo: '%Ana (66) 9%', digitos: '%669%' });
+    expect(consulta.andWhere).toHaveBeenCalledWith(expect.stringContaining("regexp_replace(pessoa.telefone, '\\D', '', 'g') LIKE :digitos"), { termo: '%Ana (66) 9%', digitos: '%669%' });
     expect(consulta.andWhere).toHaveBeenCalledWith('pessoa.status_contato = :status', { status: 'PENDENTE' });
     consulta.andWhere.mockClear();
     await servico.listar(new ConsultaPessoasDto(), admin);
     expect(consulta.andWhere).not.toHaveBeenCalledWith(expect.stringContaining('pessoa.corretor_id = :usuario'), expect.anything());
+  });
+  it('normaliza busca por telefone pesquisando apenas dígitos (GAP-05 / A10)', async () => {
+    const { servico, consulta } = criar();
+    await servico.listar(Object.assign(new ConsultaPessoasDto(), { busca: '(65) 99999-9999' }), usuario);
+    expect(consulta.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining("regexp_replace(pessoa.telefone, '\\D', '', 'g') LIKE :digitos"),
+      expect.objectContaining({ digitos: '%65999999999%' }),
+    );
   });
   it('recusa período invertido e acesso a pessoa invisível', async () => {
     const { servico } = criar();
@@ -70,3 +78,4 @@ describe('cadastro único de pessoas', () => {
     await expect(servico.atualizar(5, { nome: 'Outra' }, usuario)).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+

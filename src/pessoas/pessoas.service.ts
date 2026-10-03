@@ -64,7 +64,7 @@ export class PessoasService {
     if (consulta.busca) {
       const termo = `%${escaparBusca(consulta.busca)}%`;
       const digitos = consulta.busca.replace(/\D/g, '');
-      busca.andWhere('(pessoa.nome ILIKE :termo OR pessoa.email ILIKE :termo' + (digitos ? ' OR pessoa.telefone LIKE :digitos OR pessoa.cpf_cnpj LIKE :digitos' : '') + ')', { termo, digitos: `%${digitos}%` });
+      busca.andWhere('(pessoa.nome ILIKE :termo OR pessoa.email ILIKE :termo' + (digitos ? " OR regexp_replace(pessoa.telefone, '\\D', '', 'g') LIKE :digitos OR pessoa.cpf_cnpj LIKE :digitos" : '') + ')', { termo, digitos: `%${digitos}%` });
     }
     const [itens, total] = await busca.orderBy('pessoa.criado_em', 'DESC').addOrderBy('pessoa.id', 'DESC')
       .skip((consulta.pagina - 1) * consulta.limite).take(consulta.limite).getManyAndCount();

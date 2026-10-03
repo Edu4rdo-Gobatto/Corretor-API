@@ -13,6 +13,8 @@ export class SessoesService implements OnModuleInit, OnModuleDestroy {
   constructor(@InjectRepository(SessaoLogin) private readonly sessoes: Repository<SessaoLogin>) {}
 
   onModuleInit(): void {
+    // GAP-11: expurgar sessões expiradas no boot da API.
+    void this.limparExpiradas().catch(() => this.logger.error('Falha na limpeza inicial de sessões expiradas.'));
     this.temporizador = setInterval(() => {
       void this.limparExpiradas().catch(() => this.logger.error('Falha na limpeza de sessões expiradas; nova tentativa na próxima hora.'));
     }, 60 * 60 * 1000);

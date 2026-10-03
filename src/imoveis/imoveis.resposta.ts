@@ -28,6 +28,9 @@ export function resposta_imovel_publico(imovel: Imovel) {
 export function resposta_imovel(imovel: Imovel) {
   return {
     ...resposta_imovel_publico(imovel),
+    // GAP-04: no painel, todas as características aparecem, com anotação de ativo.
+    caracteristicas: (imovel.caracteristicas ?? [])
+      .map((vinculo) => ({ caracteristica_id: vinculo.caracteristica_id, nome: vinculo.caracteristica?.nome ?? null, icone: vinculo.caracteristica?.icone ?? null, valor: vinculo.valor, caracteristica_ativa: vinculo.caracteristica?.ativo ?? false })),
     proprietario_id: imovel.proprietario_id,
     proprietario: imovel.proprietario ? { id: imovel.proprietario.id, nome: imovel.proprietario.nome } : null,
     exclusividade: imovel.exclusividade, exclusividade_ate: imovel.exclusividade_ate, data_captacao: imovel.data_captacao,
