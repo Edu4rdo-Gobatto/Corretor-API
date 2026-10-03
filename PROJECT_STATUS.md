@@ -1,5 +1,13 @@
 # Estado atual — corretor-api
 
+## 2026-10-02 — Auditoria full stack registrada no repositório web
+
+Auditoria somente leitura do backend, integrada ao relatório canônico `../Corretor-web/docs/audits/2026-10-02-auditoria-fullstack.md`.
+Achados da API a acompanhar: A01 (alto, autorização por referência de contrato), A02 (buffering de mídia),
+A03 (refresh no reset de senha) e A10 (busca de telefone). A09 é correção conjunta com o frontend; H01 depende de homologar ACL real do Drive.
+Validação da auditoria: typecheck, lint e 25 suítes/173 testes (bootstrap e integração PostgreSQL excluídos);
+sem build ou conexão a banco/serviços nesta tarefa documental. Checklist e critérios ficam no relatório canônico, sem duplicar estado aqui.
+
 ## 2026-09-17 — Claude: banco Neon zerado e contrato v2 aplicado do zero
 
 Área assumida: banco de dados do Neon (`corretor-db`) e validação de build/execução local. Concluído.

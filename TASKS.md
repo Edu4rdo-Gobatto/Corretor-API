@@ -4,6 +4,13 @@ Status possíveis: `aberta`, `em andamento`, `em revisão`, `bloqueada`, `conclu
 Quem assume uma tarefa escreve o próprio nome em Responsável e reflete isso no `PROJECT_STATUS.md`.
 Tarefas do front ficam em `../Corretor-web/TASKS.md`.
 
+## AUDIT-001 — Correções backend da auditoria full stack — aberta
+
+Relatório canônico, evidências, critérios de conclusão e checklist marcável:
+`../Corretor-web/docs/audits/2026-10-02-auditoria-fullstack.md`.
+Itens backend: A01, A02, A03, A10; colaboração frontend/API em A09; homologação de infraestrutura em H01.
+Não duplicar o estado das caixas aqui: atualizar a checklist do relatório após implementar e validar cada item.
+
 ---
 
 ## BACKEND-V2-001 — Ids inteiros, pessoas unificadas e ficha do imóvel
