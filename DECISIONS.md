@@ -1,5 +1,11 @@
 # Decisões técnicas — corretor-api
 
+## 2026-10-04 — Listagem interna de imóveis ativa por padrão e mensagens de unicidade em contratos
+
+- Imóveis internos ativos por padrão: `ImoveisService.listar` aplica `imovel.ativo = true` por padrão quando `consulta.ativo` é `undefined`. Imóveis desativados só são listados quando `consulta.ativo === false` for requisitado expressamente.
+- Filtro de imóveis sem contrato ativo: aceitos os parâmetros opcionais `sem_contrato_ativo` e `apenas_disponiveis` em `ConsultaInternaImoveisDto`, aplicando filtro `NOT EXISTS (SELECT 1 FROM contrato c WHERE c.imovel_id = imovel.id AND c.status = 'ATIVO')` para viabilizar telas de contratação sem risco de violação do índice único parcial.
+- Mensagens de erro 409 em contratos: `LocacoesService.transacao` inspeciona a constraint disparada no erro PostgreSQL `23505` (`contrato_numero_contrato_key` vs `unico_contrato_ativo_imovel`) para retornar mensagens claras ao usuário final em vez da mensagem genérica anterior.
+
 ## 2026-10-03 — Remover os arquivos de teste
 
 Por pedido explícito do dono, excluir todos os fontes `*.test.*` e `*.spec.*` dos dois repositórios.

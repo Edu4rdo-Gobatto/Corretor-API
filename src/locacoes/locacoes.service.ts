@@ -30,7 +30,18 @@ export class LocacoesService {
         return operacao(gerenciador);
       });
     } catch (erro) {
-      if (erro && typeof erro === 'object' && 'code' in erro && erro.code === '23505') throw new ConflictException('Número de contrato já cadastrado ou imóvel com contrato ativo.');
+      if (erro && typeof erro === 'object' && 'code' in erro && erro.code === '23505') {
+        const c1 = (erro as { constraint?: unknown }).constraint;
+        const c2 = (erro as { driverError?: { constraint?: unknown } }).driverError?.constraint;
+        const constraint = typeof c1 === 'string' ? c1 : typeof c2 === 'string' ? c2 : '';
+        if (constraint === 'contrato_numero_contrato_key' || constraint.includes('numero_contrato')) {
+          throw new ConflictException('O número de contrato informado já está cadastrado.');
+        }
+        if (constraint === 'unico_contrato_ativo_imovel') {
+          throw new ConflictException('Este imóvel já possui um contrato ativo em vigor. Encerre o contrato anterior antes de cadastrar um novo.');
+        }
+        throw new ConflictException('Número de contrato já cadastrado ou imóvel com contrato ativo.');
+      }
       throw erro;
     }
   }

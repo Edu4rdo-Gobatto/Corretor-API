@@ -1,5 +1,18 @@
 # Estado atual — corretor-api
 
+## 2026-10-04 — Melhorias na listagem interna de imóveis e mensagens de erro de contrato
+
+Área assumida: `imoveis` e `locacoes`. Concluído.
+- `src/imoveis/imoveis.service.ts`: definido `ativo = true` como padrão na listagem interna (`listar_internos` / `GET /admin/imoveis`) quando `consulta.ativo` for `undefined`. Apenas traz inativos se `consulta.ativo === false` for passado explicitamente.
+- `src/imoveis/imoveis.dto.ts` e `src/imoveis/imoveis.service.ts`: adicionados parâmetros opcionais `sem_contrato_ativo: boolean` e `apenas_disponiveis: boolean` em `ConsultaInternaImoveisDto`, filtrando imóveis que não possuem contrato com `status = 'ATIVO'` (`NOT EXISTS (SELECT 1 FROM contrato c WHERE c.imovel_id = imovel.id AND c.status = 'ATIVO')`), viabilizando seleção em telas de novos contratos.
+- `src/locacoes/locacoes.service.ts`: tratamento diferenciado no catch do código de erro PostgreSQL `23505` inspecionando `constraint`:
+  - `contrato_numero_contrato_key` ou contendo `numero_contrato` -> `ConflictException("O número de contrato informado já está cadastrado.")`.
+  - `unico_contrato_ativo_imovel` -> `ConflictException("Este imóvel já possui um contrato ativo em vigor. Encerre o contrato anterior antes de cadastrar um novo.")`.
+  - Outras constraints mantêm a mensagem genérica.
+
+Validação: `npm run typecheck`, `npm run lint` e `npm run build` aprovados (0 erros, 0 avisos).
+Sem commit/push/deploy ou alterações em migrations/banco.
+
 ## 2026-10-03 — Remoção de testes por solicitação do dono
 
 Removidos 28 arquivos `*.test.*`/`*.spec.*` desta API e 46 do frontend irmão. Código de produção preservado.

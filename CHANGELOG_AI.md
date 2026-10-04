@@ -1,5 +1,24 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-10-04 — Melhorias na listagem interna de imóveis e mensagens de erro de contrato
+
+Pedido do dono:
+1. Definir `ativo: true` como padrão na listagem interna de imóveis (`GET /admin/imoveis`), trazendo inativos apenas sob `consulta.ativo === false` explícito; e adicionar parâmetro opcional (`sem_contrato_ativo` / `apenas_disponiveis`) para filtrar imóveis sem contrato ativo (`status = 'ATIVO'`).
+2. Diferenciar mensagem 409 de violação de unicidade (`23505`) no cadastro/atualização de contratos conforme a constraint violada (`contrato_numero_contrato_key` vs `unico_contrato_ativo_imovel`).
+3. Executar typecheck e lint.
+
+Arquivos alterados:
+- `src/imoveis/imoveis.dto.ts`: adicionados campos opcionais `apenas_disponiveis` e `sem_contrato_ativo` com `@Transform(booleano) @IsBoolean()`.
+- `src/imoveis/imoveis.service.ts`: filtro `imovel.ativo = :ativo` com `consulta.ativo ?? true` no modo interno; cláusula `NOT EXISTS` para `contrato` com `status = 'ATIVO'` quando `sem_contrato_ativo` ou `apenas_disponiveis` forem solicitados.
+- `src/locacoes/locacoes.service.ts`: inspeção de `constraint` no erro `23505` retornando mensagens específicas para número de contrato duplicado (`contrato_numero_contrato_key` ou contendo `numero_contrato`) e imóvel com contrato ativo (`unico_contrato_ativo_imovel`).
+- `PROJECT_STATUS.md`, `DECISIONS.md` e este `CHANGELOG_AI.md`.
+
+Validação real:
+- `npm run typecheck`: aprovado (0 erros).
+- `npm run lint`: aprovado (0 erros, 0 avisos).
+- `npm run build`: aprovado (build de produção NestJS).
+Sem alterações em banco, migrations ou envio de commit/push.
+
 ## 2026-10-03 — Remoção dos arquivos de teste
 
 Por solicitação do dono, removidos os 28 arquivos `*.test.*`/`*.spec.*` deste repositório e os 46 equivalentes

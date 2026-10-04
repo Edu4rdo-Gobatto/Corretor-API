@@ -105,10 +105,13 @@ export class ImoveisService {
     const base = this.imoveis.createQueryBuilder('imovel').innerJoin('imovel.corretor', 'corretor');
     if (interno) {
       if (consulta.id) base.andWhere('imovel.id = :id', { id: consulta.id });
-      if (consulta.ativo !== undefined) base.andWhere('imovel.ativo = :ativo', { ativo: consulta.ativo });
+      base.andWhere('imovel.ativo = :ativo', { ativo: consulta.ativo ?? true });
       if (consulta.status) base.andWhere('imovel.status = :status', { status: consulta.status });
       if (consulta.corretor_id) base.andWhere('imovel.corretor_id = :corretor', { corretor: consulta.corretor_id });
       if (consulta.proprietario_id) base.andWhere('imovel.proprietario_id = :proprietario', { proprietario: consulta.proprietario_id });
+      if (consulta.sem_contrato_ativo || consulta.apenas_disponiveis) {
+        base.andWhere("NOT EXISTS (SELECT 1 FROM contrato c WHERE c.imovel_id = imovel.id AND c.status = 'ATIVO')");
+      }
     } else {
       base.andWhere(RESTRICAO_PUBLICA, { disponivel: StatusImovel.DISPONIVEL });
     }

@@ -72,6 +72,8 @@ export class ConsultaImoveisDto {
 export class ConsultaInternaImoveisDto extends ConsultaImoveisDto {
   @IsOptional() @IsEnum(StatusImovel) status?: StatusImovel;
   @IsOptional() @Transform(booleano) @IsBoolean() ativo?: boolean;
+  @IsOptional() @Transform(booleano) @IsBoolean() apenas_disponiveis?: boolean;
+  @IsOptional() @Transform(booleano) @IsBoolean() sem_contrato_ativo?: boolean;
   @IsOptional() @IdRegistro() corretor_id?: number;
   @IsOptional() @IdRegistro() proprietario_id?: number;
   @IsOptional() @IdRegistro() id?: number;
