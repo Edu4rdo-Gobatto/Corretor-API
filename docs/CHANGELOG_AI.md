@@ -1,5 +1,27 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-10-04 — Padronização e centralização plana da documentação em docs/
+
+Pedido do dono:
+1. Centralizar estritamente todos os arquivos `.md` do repositório dentro da pasta `docs/` em estrutura estritamente plana (sem subdiretórios dentro de `docs/` e sem arquivos `.md` soltos na raiz).
+2. Remover pastas de configuração de agentes isoladas (`.claude/`) e subpastas de documentação.
+3. Registrar a regra oficial de centralização no topo de `docs/DECISIONS.md`.
+4. Atualizar referências internas de agentes em `docs/AGENTS.md` e `docs/CLAUDE.md`.
+5. Limpar o histórico antigo de tarefas em `docs/TASKS.md`, mantendo seções de Pendências Operacionais e Lançamento e Sugestões e Backlog Futuro.
+6. Executar typecheck e lint.
+
+Arquivos alterados/movidos:
+- Todos os `.md` consolidados exclusivamente em `docs/`.
+- Removida pasta `.claude/`.
+- `docs/DECISIONS.md`: regra oficial registrada.
+- `docs/AGENTS.md` e `docs/CLAUDE.md`: referências atualizadas com prefixo `docs/`.
+- `docs/TASKS.md`: reestruturado e limpo em conformidade com o front-end.
+- `docs/PROJECT_STATUS.md` e `docs/CHANGELOG_AI.md`: atualizados.
+
+Validação:
+- `npm run typecheck`: aprovado (0 erros).
+- `npm run lint`: aprovado (0 erros, 0 avisos).
+
 ## 2026-10-04 — Melhorias na listagem interna de imóveis e mensagens de erro de contrato
 
 Pedido do dono:

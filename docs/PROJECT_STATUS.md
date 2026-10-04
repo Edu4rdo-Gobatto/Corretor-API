@@ -1,5 +1,15 @@
 # Estado atual — corretor-api
 
+## 2026-10-04 — Padronização e centralização plana da documentação em docs/ (Antigravity)
+
+Área assumida: documentação (`docs/`). Concluído.
+- Centralização estrita em `docs/` em estrutura 100% plana, sem arquivos `.md` soltos na raiz e sem subpastas dentro de `docs/`.
+- Removida pasta de configuração isolada de agentes `.claude/`.
+- Registrada regra oficial no topo de `docs/DECISIONS.md`.
+- Atualizadas referências internas dos agentes em `docs/AGENTS.md` e `docs/CLAUDE.md`.
+- Limpeza e reestruturação de `docs/TASKS.md` em duas seções focadas: "Pendências Operacionais e Lançamento" e "Sugestões de Melhorias e Backlog Futuro".
+- Validação: `npm run typecheck` e `npm run lint` aprovados (0 erros, 0 avisos).
+
 ## 2026-10-04 — Melhorias na listagem interna de imóveis e mensagens de erro de contrato
 
 Área assumida: `imoveis` e `locacoes`. Concluído.

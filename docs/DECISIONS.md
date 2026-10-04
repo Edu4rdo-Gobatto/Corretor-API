@@ -1,5 +1,12 @@
 # Decisões técnicas — corretor-api
 
+## 2026-10-04 — Centralização de documentação em estrutura plana na pasta docs/ (Antigravity)
+
+- **Centralização de documentação em estrutura plana na pasta docs/:**
+  Todos os arquivos de documentação markdown (`.md`), incluindo instruções de agentes (`AGENTS.md`, `CLAUDE.md`), histórico (`CHANGELOG_AI.md`), decisões (`DECISIONS.md`), status (`PROJECT_STATUS.md`), tarefas (`TASKS.md`) e guias devem residir exclusivamente dentro da pasta `docs/` em estrutura estritamente plana (sem subpastas). Nenhum arquivo `.md` deve ser criado na raiz ou em pastas ocultas.
+- **Motivo:** Decisão explícita do proprietário para organizar a navegação humana e padronizar com a estrutura recém-adotada no front-end (`Corretor-web`), eliminando arquivos markdown dispersos na raiz do repositório e em múltiplas árvores de diretórios.
+- **O que não fazer:** Não recriar arquivos `.md` soltos na raiz nem subdiretórios dentro de `docs/`. Todos os agentes de IA devem ler e manter a documentação diretamente em `docs/*.md`.
+
 ## 2026-10-04 — Listagem interna de imóveis ativa por padrão e mensagens de unicidade em contratos
 
 - Imóveis internos ativos por padrão: `ImoveisService.listar` aplica `imovel.ativo = true` por padrão quando `consulta.ativo` é `undefined`. Imóveis desativados só são listados quando `consulta.ativo === false` for requisitado expressamente.
