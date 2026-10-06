@@ -104,8 +104,9 @@ Convenções:
 - `POST /autenticacao/entrar` recebe `{ "email", "senha" }` e responde `{ token_acesso, tipo_token, corretor }`.
 - O token de acesso é um JWT HS256 de 15 minutos, emissor `corretor-api`, audiência `corretor-web`. O front o
   mantém só em memória e o envia em `Authorization: Bearer`.
-- O token de renovação vai no cookie `corretor_renovacao` (HttpOnly, Secure, SameSite=Strict, 30 dias). O banco
-  guarda só o SHA-256. Cada renovação consome o token com `DELETE ... RETURNING` e emite outro.
+- O token de sessão vai no cookie `corretor_renovacao` (HttpOnly, Secure, SameSite=Strict, sem data: some ao fechar
+  o navegador). O banco guarda só o SHA-256. A sessão expira após 4h sem requisições autenticadas; cada requisição
+  reinicia a contagem (gravada no máximo a cada 5 min) e a renovação estende a validade sem trocar o token.
 - O cargo é relido do banco a cada requisição: desativar ou rebaixar um corretor vale na hora.
 - Trocar a própria senha revoga todas as sessões do corretor. A redefinição feita pelo ADMIN não revoga.
 - O cookie é sempre `Secure`, então o login pelo navegador exige HTTPS, inclusive em desenvolvimento.

@@ -1534,7 +1534,7 @@
       "ADMIN",
       "CORRETOR"
     ],
-    "cookie": "corretor_renovacao; HttpOnly; Secure; SameSite=Strict; 30 dias",
+    "cookie": "corretor_renovacao; HttpOnly; Secure; SameSite=Strict; cookie de sessao; expira apos 4h sem requisicoes",
     "token_persistido": "SHA-256; consumo atomico DELETE RETURNING"
   },
   "media_pipeline": {

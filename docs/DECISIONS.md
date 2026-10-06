@@ -1,5 +1,25 @@
 # Decisões técnicas — corretor-api
 
+## 2026-10-06 — Sessão expira por inatividade (4h) e token de sessão fixo (Claude)
+
+Decisão do dono: a sessão cai após **4 horas sem requisições**; cada requisição reinicia a contagem; **sem limite
+absoluto**; **fechar o navegador encerra a sessão**. Substitui a decisão de 2026-09-11 (refresh de 30 dias rotativo).
+
+- Cookie `corretor_renovacao` sem `maxAge` (cookie de sessão), ainda `HttpOnly`, `Secure`, `SameSite=Strict`.
+- `sessoes_login.expira_em = agora + 4h` no login. `POST /autenticacao/renovar` faz `UPDATE ... RETURNING` estendendo a
+  validade **sem trocar o token** e emite só um JWT novo. `AtividadeSessaoInterceptor` (global, roda após os guards)
+  estende a validade em toda requisição autenticada, gravando no máximo a cada 5 min.
+- Sair revoga a linha; trocar a própria senha revoga todas as do corretor (sem mudança).
+
+Motivo: dois bugs com a mesma causa. (1) Cookie de 30 dias que se renovava a cada abertura do painel: o login nunca
+expirava, nem desligando o PC. (2) A rotação de uso único (`DELETE ... RETURNING`) derrubava o login com F5 seguido: o
+navegador abortava o `fetch` depois que o servidor já tinha apagado o token antigo e antes de receber o novo; a carga
+seguinte enviava um token inexistente → 401. A rotação não detectava reuso, então não trazia ganho que justificasse.
+
+Não fazer: voltar a rotacionar o token na renovação sem tolerância a respostas abortadas; dar `maxAge` ao cookie;
+gravar atividade a cada requisição sem o intervalo mínimo; mover a gravação de atividade para o `AutenticacaoGuard`
+(o `CorretoresModule` usa o guard sem importar `AutenticacaoModule`, por causa do ciclo de módulos).
+
 ## 2026-10-04 — Centralização de documentação em estrutura plana na pasta docs/ (Antigravity)
 
 - **Centralização de documentação em estrutura plana na pasta docs/:**
@@ -178,6 +198,8 @@ Não fazer:
 - Não tentar redefinir senha pelo comando: ele não faz isso.
 
 ## 2026-09-11 — Sessão com access token curto e refresh rotativo
+
+> **Substituída em 2026-10-06** (sessão por inatividade de 4h, token fixo, cookie de sessão). Mantido para histórico.
 
 Decisão (herdada do código e confirmada em homologação): access token JWT HS256 de 15 minutos, mantido apenas em memória
 no front, e refresh token opaco de 30 dias em cookie `httpOnly`, `SameSite=Strict`, guardado no banco apenas como SHA-256,

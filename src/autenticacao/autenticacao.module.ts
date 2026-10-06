@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CorretoresModule } from '../corretores/corretores.module';
+import { AtividadeSessaoInterceptor } from './atividade-sessao.interceptor';
 import { AutenticacaoController } from './autenticacao.controller';
 import { AutenticacaoGuard } from './autenticacao.guard';
 import { AutenticacaoService } from './autenticacao.service';
@@ -23,7 +25,8 @@ import { TentativasGuard } from './tentativas.guard';
     }) }),
   ],
   controllers: [AutenticacaoController],
-  providers: [AutenticacaoService, SessoesService, EstrategiaJwt, AutenticacaoGuard, CargosGuard, OrigemGuard, TentativasGuard],
+  providers: [AutenticacaoService, SessoesService, EstrategiaJwt, AutenticacaoGuard, CargosGuard, OrigemGuard, TentativasGuard,
+    { provide: APP_INTERCEPTOR, useClass: AtividadeSessaoInterceptor }],
   exports: [AutenticacaoGuard, CargosGuard],
 })
 export class AutenticacaoModule {}

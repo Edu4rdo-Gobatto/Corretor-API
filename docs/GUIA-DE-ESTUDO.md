@@ -761,10 +761,14 @@ conferir e dura pouco. O token de renovação é usado raramente, então pode se
 **`POST /autenticacao/renovar`:**
 
 1. Lê o cookie à mão (não há `cookie-parser`).
-2. `SessoesService.consumir` executa **um único comando**: `DELETE ... WHERE token_hash = ... RETURNING ...`.
-   Se duas renovações chegarem juntas com o mesmo cookie, só uma recebe a linha. A outra leva 401.
-   O token de renovação é de **uso único** e é trocado a cada renovação.
-3. Emite um par novo.
+2. `SessoesService.renovar` executa **um único comando**: `UPDATE ... SET expira_em = agora + 4h WHERE token_hash = ...
+   AND expira_em > agora RETURNING corretor_id`. O token **não muda**: renovar duas vezes com o mesmo cookie (F5
+   seguido, duas abas) dá o mesmo resultado.
+3. Emite só um token de acesso novo.
+
+**Inatividade:** o `AtividadeSessaoInterceptor` roda depois dos guards e, em toda requisição autenticada, empurra o
+`expira_em` para agora + 4h (no máximo uma escrita a cada 5 min). Sem uso por 4h, a sessão cai. O cookie não tem data,
+então fechar o navegador também encerra a sessão.
 
 **Por que SHA-256 no token e Argon2 na senha?** Argon2 é lento de propósito, contra quem testa milhões de senhas
 humanas. Um token de 384 bits aleatórios não tem dicionário para testar. E o hash do token é a chave primária da
@@ -1065,8 +1069,9 @@ Digite o código. Não cole.
 3. **O JWT carrega o cargo. Por que rebaixar um ADMIN tem efeito imediato?**
    Porque a `EstrategiaJwt` relê o corretor no banco a cada requisição e usa o cargo de lá, não o do token.
 
-4. **Por que o token de renovação é de uso único mesmo com várias instâncias da API?**
-   Porque o consumo é um único `DELETE ... RETURNING` no banco. O PostgreSQL garante que só uma requisição recebe a linha.
+4. **Por que o token de sessão não é trocado a cada renovação?**
+   Porque a troca de uso único derrubava o login no F5: o navegador abortava a resposta depois que o servidor já tinha
+   apagado o token antigo. Estender a validade com um `UPDATE` é idempotente e não perde nada se a resposta não chegar.
 
 5. **Por que o hash do token é SHA-256 e o da senha é Argon2id?**
    Senha humana precisa de hash lento contra dicionário. Token aleatório de 384 bits não tem dicionário e precisa de

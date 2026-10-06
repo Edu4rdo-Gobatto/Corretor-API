@@ -7,7 +7,7 @@ import { EntrarDto } from './autenticacao.dto';
 import { AutenticacaoGuard } from './autenticacao.guard';
 import { AutenticacaoService } from './autenticacao.service';
 import { OrigemGuard } from './origem.guard';
-import { DURACAO_SESSAO_MS } from './sessoes.service';
+import { COOKIE_SESSAO, lerCookieSessao, opcoesCookieSessao } from './cookie-sessao';
 import { TentativasGuard } from './tentativas.guard';
 
 type RequisicaoAutenticada = Request & { user: UsuarioAutenticado };
@@ -23,13 +23,13 @@ export class AutenticacaoController {
 
   @Post('renovar') @HttpCode(HttpStatus.OK) @Header('Cache-Control', 'no-store') @UseGuards(OrigemGuard)
   async renovar(@Req() requisicao: Request, @Res({ passthrough: true }) resposta: Response) {
-    return this.definirSessao(await this.autenticacao.renovar(this.lerCookie(requisicao)), resposta);
+    return this.definirSessao(await this.autenticacao.renovar(lerCookieSessao(requisicao)), resposta);
   }
 
   @Post('sair') @HttpCode(HttpStatus.NO_CONTENT) @Header('Cache-Control', 'no-store') @UseGuards(OrigemGuard)
   async sair(@Req() requisicao: Request, @Res({ passthrough: true }) resposta: Response) {
-    await this.autenticacao.sair(this.lerCookie(requisicao));
-    resposta.clearCookie('corretor_renovacao', this.opcoesCookie());
+    await this.autenticacao.sair(lerCookieSessao(requisicao));
+    resposta.clearCookie(COOKIE_SESSAO, opcoesCookieSessao());
   }
 
   @Get('eu') @Header('Cache-Control', 'no-store') @UseGuards(AutenticacaoGuard)
@@ -41,14 +41,9 @@ export class AutenticacaoController {
   @Patch('eu/senha') @Header('Cache-Control', 'no-store') @UseGuards(AutenticacaoGuard, OrigemGuard)
   alterarSenha(@Req() requisicao: RequisicaoAutenticada, @Body() dto: AlterarSenhaDto) { return this.autenticacao.alterarSenha(requisicao.user.id, dto); }
 
-  private lerCookie(requisicao: Request): string {
-    const prefixo = 'corretor_renovacao=';
-    return requisicao.headers.cookie?.split(';').map(parte => parte.trim()).find(parte => parte.startsWith(prefixo))?.slice(prefixo.length) ?? '';
-  }
-  private opcoesCookie() { return { httpOnly: true, sameSite: 'strict' as const, secure: true, path: '/' }; }
   private definirSessao(sessao: Awaited<ReturnType<AutenticacaoService['entrar']>>, resposta: Response) {
     const { token_renovacao, ...dados } = sessao;
-    resposta.cookie('corretor_renovacao', token_renovacao, { ...this.opcoesCookie(), maxAge: DURACAO_SESSAO_MS });
+    resposta.cookie(COOKIE_SESSAO, token_renovacao, opcoesCookieSessao());
     return dados;
   }
 }

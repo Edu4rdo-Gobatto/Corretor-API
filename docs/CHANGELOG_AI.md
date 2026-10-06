@@ -1,5 +1,26 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-10-06 — Sessão por inatividade de 4h e fim do logout por F5 (Claude)
+
+Pedido do dono: o login não expirava (nem fechando o navegador ou desligando o PC) e F5 repetido derrubava a sessão.
+
+Causa: cookie de renovação de 30 dias, renovado a cada abertura do painel, e rotação de uso único que se perdia quando o
+navegador abortava a resposta do `renovar` no F5.
+
+Arquivos alterados:
+- `src/autenticacao/sessoes.service.ts`: `INATIVIDADE_SESSAO_MS` (4h); `consumir` → `renovar` (`UPDATE ... RETURNING`,
+  token fixo); novo `registrarAtividade` (no máximo uma escrita a cada 5 min).
+- `src/autenticacao/atividade-sessao.interceptor.ts` (novo): interceptor global que registra a atividade em requisição autenticada.
+- `src/autenticacao/cookie-sessao.ts` (novo): leitura e opções do cookie, agora sem `maxAge`.
+- `src/autenticacao/autenticacao.controller.ts`, `autenticacao.service.ts`, `autenticacao.module.ts`: ajustes para o acima.
+- Docs: `DECISIONS.md`, `README.md`, `GUIA-DE-ESTUDO.md`, `corretor-spec.json` (API e web).
+
+Sem migration: a coluna `expira_em` já existia. Sessões ativas antes do deploy passam a valer 4h na primeira renovação.
+
+Validação:
+- `npm run typecheck`, `npm run lint` e `npm run build`: aprovados.
+- Teste no navegador (F5 seguido, fechar navegador, inatividade): pendente com o dono.
+
 ## 2026-10-04 — Padronização e centralização plana da documentação em docs/
 
 Pedido do dono:
