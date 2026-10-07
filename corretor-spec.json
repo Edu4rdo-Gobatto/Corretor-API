@@ -1525,6 +1525,17 @@
     "logout": "POST /autenticacao/sair",
     "perfil": "GET/PATCH /autenticacao/eu",
     "senha": "PATCH /autenticacao/eu/senha",
+    "foto_perfil": {
+      "atualizacao": "PATCH /autenticacao/eu; JSON ou multipart, mantendo Corretor",
+      "campo_multipart": "foto",
+      "tipos": ["image/jpeg", "image/png", "image/webp"],
+      "max_bytes": 10485760,
+      "exclusividade": "arquivo e url_foto explicita juntos retornam 400",
+      "leitura": "GET /corretores/:id/foto; ativo, R2 privado ou redirect HTTPS",
+      "consistencia": "Put antes da transacao; compensar novo se DB falhar; excluir anterior propria apos commit",
+      "referencia_obsoleta": "URL gerenciada antiga sem upload novo retorna 409",
+      "schema": "url_foto preservada; sem migration"
+    },
     "resposta": [
       "token_acesso",
       "tipo_token",
@@ -1536,6 +1547,13 @@
     ],
     "cookie": "corretor_renovacao; HttpOnly; Secure; SameSite=Strict; cookie de sessao; expira apos 4h sem requisicoes",
     "token_persistido": "SHA-256; consumo atomico DELETE RETURNING"
+  },
+  "refinamento_interface_2026_10_06": {
+    "contatos": "abas Pendentes, Atendidos e Finalizados; paginas independentes e filtros comuns",
+    "perfil": "Dados e foto / Seguranca em duas colunas a partir de 58rem; arquivo ou URL persistido ao salvar",
+    "filtros": "selecoes imediatas, texto apos 350ms; normalizar, validar e descartar respostas antigas",
+    "catalogo": "campos controlados, replace automatico, historico na paginacao; preservar foco e SSR",
+    "entrega": "local nos dois repositorios, sem commit/push/deploy/migrations"
   },
   "media_pipeline": {
     "bucket_name": "corretor-midia",

@@ -20,6 +20,20 @@ Sem migration: a coluna `expira_em` já existia. Sessões ativas antes do deploy
 Validação:
 - `npm run typecheck`, `npm run lint` e `npm run build`: aprovados.
 - Teste no navegador (F5 seguido, fechar navegador, inatividade): pendente com o dono.
+## 2026-10-06 — Codex: contrato aditivo para foto do perfil
+
+Arquivos: autenticação (controller/module), corretores (service/module e novos FotosCorretorService /
+FotoCorretorController), comum/ArmazenamentoModule e adaptação de mídia/quota. Sem novas dependências
+ou migrations; DTO, JSON, url_foto e Corretor preservados. Multipart exclusivo, leitura por id ativo,
+Put antes de DB, compensação e limpeza após commit. URL gerenciada obsoleta protegida com 409.
+
+Validação: typecheck/lint/build aprovados; Jest sem testes fonte (passWithNoTests). HTTP efêmero
+22 cenários + reprodução de abas concorrentes aprovados. QA frontend simulado: 23 cenários/32 capturas.
+R2 temporário real: Put/Get/Delete e GET 404 após limpeza aprovados; nenhuma mutação de perfil no Neon.
+Homologação ponta a ponta e dispositivo real pendentes. Seis páginas do System Design verificadas
+no frontend irmão, template original intacto. Contexto, contrato, índices e especificação atualizados.
+Alterações anteriores staged/untracked (seed catálogo, package e docs) preservadas.
+Sem commit, push, deploy, schema ou migrations. Nenhuma suíte rastreada criada.
 
 ## 2026-10-04 — Padronização e centralização plana da documentação em docs/
 

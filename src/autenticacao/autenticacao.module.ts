@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ArmazenamentoModule } from '../comum/armazenamento.module';
 import { ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule, JwtSignOptions } from '@nestjs/jwt';
@@ -17,7 +18,7 @@ import { SessoesService } from './sessoes.service';
 import { TentativasGuard } from './tentativas.guard';
 
 @Module({
-  imports: [CorretoresModule, TypeOrmModule.forFeature([SessaoLogin]), PassportModule,
+  imports: [ArmazenamentoModule, CorretoresModule, TypeOrmModule.forFeature([SessaoLogin]), PassportModule,
     JwtModule.registerAsync({ inject: [ConfigService], useFactory: (configuracao: ConfigService) => ({
       secret: configuracao.getOrThrow<string>('JWT_SECRET'), signOptions: {
         expiresIn: configuracao.getOrThrow<JwtSignOptions['expiresIn']>('JWT_EXPIRES_IN'), algorithm: 'HS256', issuer: 'corretor-api', audience: 'corretor-web',

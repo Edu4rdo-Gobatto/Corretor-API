@@ -1,4 +1,7 @@
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Patch, Post, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ArmazenamentoLimitado, RecepcaoMidiasInterceptor } from '../midias/recepcao-midias';
+import { ArquivoMidia, TAMANHO_MAXIMO_IMAGEM } from '../midias/validacao-arquivo';
 import { Request, Response } from 'express';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { AlterarSenhaDto, AtualizarPerfilDto } from '../corretores/corretores.dto';
@@ -36,7 +39,8 @@ export class AutenticacaoController {
   eu(@Req() requisicao: RequisicaoAutenticada) { return this.corretores.buscarPorId(requisicao.user.id); }
 
   @Patch('eu') @Header('Cache-Control', 'no-store') @UseGuards(AutenticacaoGuard, OrigemGuard)
-  atualizarPerfil(@Req() requisicao: RequisicaoAutenticada, @Body() dto: AtualizarPerfilDto) { return this.corretores.atualizarPerfil(requisicao.user.id, dto); }
+  @UseInterceptors(RecepcaoMidiasInterceptor, FileInterceptor('foto', { storage: new ArmazenamentoLimitado(TAMANHO_MAXIMO_IMAGEM), limits: { fileSize: TAMANHO_MAXIMO_IMAGEM, files: 1, fields: 4, fieldSize: 2048, parts: 6, headerPairs: 100 } }))
+  atualizarPerfil(@Req() requisicao: RequisicaoAutenticada, @Body() dto: AtualizarPerfilDto, @UploadedFile() foto?: ArquivoMidia) { return this.corretores.atualizarPerfil(requisicao.user.id, dto, foto); }
 
   @Patch('eu/senha') @Header('Cache-Control', 'no-store') @UseGuards(AutenticacaoGuard, OrigemGuard)
   alterarSenha(@Req() requisicao: RequisicaoAutenticada, @Body() dto: AlterarSenhaDto) { return this.autenticacao.alterarSenha(requisicao.user.id, dto); }

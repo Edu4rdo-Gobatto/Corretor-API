@@ -1,5 +1,21 @@
 # Estado atual — corretor-api
 
+## 2026-10-06 — Codex: upload e leitura da foto do perfil
+
+Contrato aditivo local: PATCH JSON/multipart e GET público /corretores/:id/foto. Cliente R2 e quota
+de recepção compartilhados com imóveis; validação de sessão/origem/arquivo, transação curta,
+compensação e limpeza segura. url_foto e schema mantidos. URL gerenciada antiga rejeitada com 409.
+
+Typecheck, lint e build aprovados. Jest com passWithNoTests confirma ausência de fontes, não cobertura.
+22 cenários HTTP efêmeros com controllers/services reais e banco/R2/auth simulados, mais concorrência
+de foto, aprovados. Frontend integrado em QA Chrome simulado; 23 cenários e 32 capturas.
+R2 real: objeto isolado enviado, lido e apagado; GET após exclusão retorna 404. Sem gravar avatar no Neon;
+login/DB/storage juntos e dispositivo físico permanecem sem homologação.
+
+Contrato em `2026-10-06-foto-perfil.md`; System Design no frontend irmão, seis páginas inspecionadas.
+Preexistentes staged/untracked de catálogo e documentação preservados. Sem novas dependências,
+schema, migrations, commit, push ou deploy.
+
 ## 2026-10-04 — Padronização e centralização plana da documentação em docs/ (Antigravity)
 
 Área assumida: documentação (`docs/`). Concluído.

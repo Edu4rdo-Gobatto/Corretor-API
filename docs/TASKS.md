@@ -1,5 +1,17 @@
 # Tarefas — corretor-api
 
+## FOTO-PERFIL-20261006 — Upload e leitura controlada
+
+- **Responsável:** Codex.
+- **Status:** concluída localmente; homologação real do perfil separada.
+- [x] PATCH JSON/multipart exclusivo, sessão/origem, quantidade/tamanho/assinatura.
+- [x] Storage/quota compartilhados, Put antes de transação e compensação/limpeza por proprietário.
+- [x] GET público por corretor ativo, R2 privado ou redirect HTTPS; sem chave arbitrária.
+- [x] Preservar Corretor/url_foto/schema e trabalho anterior; proteger contra referência obsoleta.
+- [x] Tipos, lint, build, HTTP efêmero, R2 temporário real e documentação.
+- [ ] Homologar um perfil real com login, upload, banco, proxy e atualização da sessão.
+- [ ] Definir monitoramento/limpeza operacional de objetos órfãos e publicar somente se autorizado.
+
 Status possíveis: `aberta`, `em andamento`, `em revisão`, `bloqueada`, `concluída`.
 Quem assume uma tarefa escreve o próprio nome em Responsável e reflete isso no `docs/PROJECT_STATUS.md`.
 Tarefas do front ficam em `../Corretor-web/docs/TASKS.md`.

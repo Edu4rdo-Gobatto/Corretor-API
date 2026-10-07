@@ -11,8 +11,9 @@ import { ImovelMidia, TipoMidia } from './imovel-midia.entity';
 import { CriarVideoEmbedDto, ReordenarMidiasDto } from './midias.dto';
 import { ArquivoMidia, validar_arquivo } from './validacao-arquivo';
 import { normalizar_video_embed } from './video-embed';
+import { R2_MIDIAS } from '../comum/armazenamento.module';
 
-export const R2_MIDIAS = 'R2_MIDIAS';
+export { R2_MIDIAS } from '../comum/armazenamento.module';
 const BUCKET = 'corretor-midia';
 
 @Injectable()

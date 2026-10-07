@@ -1,4 +1,6 @@
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { FotosCorretorService } from './fotos-corretor.service';
+import { ArquivoMidia } from '../midias/validacao-arquivo';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, QueryFailedError, Repository } from 'typeorm';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
@@ -10,7 +12,8 @@ import { SessaoLogin } from '../autenticacao/sessao-login.entity';
 
 @Injectable()
 export class CorretoresService {
-  constructor(@InjectRepository(Corretor) private readonly corretores: Repository<Corretor>, private readonly senhas: SenhasService) {}
+  // O CLI de bootstrap pode criar contas sem instanciar o adaptador de fotos.
+  constructor(@InjectRepository(Corretor) private readonly corretores: Repository<Corretor>, private readonly senhas: SenhasService, private readonly fotos?: FotosCorretorService) {}
 
   buscarParaAutenticacao(email: string): Promise<Corretor | null> {
     return this.corretores.findOne({ where: { email: email.trim().toLowerCase() }, select: this.camposComSenha() });
@@ -46,20 +49,25 @@ export class CorretoresService {
     });
   }
 
-  async atualizar(id: number, dto: AtualizarCorretorDto, usuario: UsuarioAutenticado) {
+  async atualizar(id: number, dto: AtualizarCorretorDto, usuario: UsuarioAutenticado, fotoEnviada = false) {
     const senha_hash = dto.senha === undefined ? undefined : await this.senhas.gerarHash(dto.senha);
-    return this.corretores.manager.transaction(async gerente => {
+    let fotoAnterior: string | null = null;
+    const salvo = await this.corretores.manager.transaction(async gerente => {
       // A trava antecede a leitura e a contagem para serializar rebaixamentos entre instâncias.
       await gerente.query('SELECT pg_advisory_xact_lock(741901)');
       const repositorio = gerente.getRepository(Corretor);
       const corretor = await repositorio.findOneBy({ id });
       if (!corretor) throw new NotFoundException('Corretor não encontrado.');
+      if (!fotoEnviada && dto.url_foto !== corretor.url_foto && this.fotos?.chave(dto.url_foto, id)) {
+        throw new ConflictException('A foto foi atualizada. Atualize o perfil ou envie a imagem novamente.');
+      }
       const remove_admin = corretor.ativo && corretor.cargo === CargoCorretor.ADMIN
         && (dto.ativo === false || (dto.cargo !== undefined && dto.cargo !== CargoCorretor.ADMIN));
       if (remove_admin && await repositorio.countBy({ ativo: true, cargo: CargoCorretor.ADMIN }) <= 1) {
         throw new ConflictException('Não é possível desativar ou rebaixar o último administrador ativo.');
       }
       const campos = ['nome', 'email', 'cpf', 'whatsapp', 'creci', 'cargo', 'url_foto', 'ativo'] as const;
+      if (dto.url_foto !== undefined && dto.url_foto !== corretor.url_foto) fotoAnterior = corretor.url_foto;
       const alteracoes = Object.fromEntries(campos.filter(campo => dto[campo] !== undefined).map(campo => [campo, dto[campo]]));
       Object.assign(corretor, alteracoes, senha_hash === undefined ? {} : { senha_hash }, { alterado_por: usuario.id });
       // GAP-03: revogar sessões quando ADMIN redefine senha ou desativa corretor.
@@ -72,14 +80,20 @@ export class CorretoresService {
       }
       return this.salvar(repositorio, corretor);
     });
+    await this.fotos?.excluir(fotoAnterior, id);
+    return salvo;
   }
 
   desativar(id: number, usuario: UsuarioAutenticado) { return this.atualizar(id, { ativo: false }, usuario); }
 
-  async atualizarPerfil(id: number, dto: AtualizarPerfilDto) {
+  async atualizarPerfil(id: number, dto: AtualizarPerfilDto, foto?: ArquivoMidia) {
     const corretor = await this.buscarAtivoPorId(id);
     if (!corretor) throw new UnauthorizedException('Sessão inválida.');
-    return this.atualizar(id, { nome: dto.nome, whatsapp: dto.whatsapp, creci: dto.creci, url_foto: dto.url_foto }, corretor);
+    if (foto && dto.url_foto !== undefined) throw new BadRequestException('Envie uma foto ou uma URL, nunca as duas opções juntas.');
+    if (foto && !this.fotos) throw new ServiceUnavailableException('O serviço de fotos está indisponível.');
+    const url = foto ? await this.fotos!.enviar(id, foto) : undefined;
+    try { return await this.atualizar(id, { nome: dto.nome, whatsapp: dto.whatsapp, creci: dto.creci === '' ? null : dto.creci, url_foto: url ?? dto.url_foto }, corretor, Boolean(url)); }
+    catch (erro) { if (url) await this.fotos?.excluir(url, id); throw erro; }
   }
 
   async alterarSenha(id: number, dto: AlterarSenhaDto) {

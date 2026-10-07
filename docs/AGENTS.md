@@ -1,5 +1,18 @@
 # Instruções do projeto — corretor-api
 
+## 2026-10-06 — Contrato vigente da foto do perfil
+
+Plano do dono autoriza refinamento no frontend/API, com entrega local sem commit/push/deploy/migrations.
+Ler `2026-10-06-foto-perfil.md` e `INDICE.md`. PATCH /autenticacao/eu mantém JSON e aceita multipart
+com um campo foto JPG/PNG/WebP <=10 MiB, exclusivo com url_foto explícita. Preservar autenticação,
+OrigemGuard, validação e contrato Corretor. Storage e quota são compartilhados por ArmazenamentoModule,
+sem dependência circular. Put antes da transação; novo objeto compensado se DB falhar; anterior gerenciado
+do proprietário excluído somente após sucesso. Não apagar URLs externas/objetos de terceiros.
+GET público /corretores/:id/foto consulta corretor ativo e sua referência atual; nenhuma chave arbitrária.
+URL gerenciada obsoleta recebe 409. Não reenviar foto sem alteração no cliente. Bucket privado preservado.
+Alterações anteriores staged/untracked do catálogo foram mantidas. QA novo é efêmero no frontend irmão;
+sem recriar suítes. R2 temporário real aprovado; perfil real no Neon não homologado nesta entrega.
+
 ## Contexto
 
 API REST do sistema de corretor de imóveis comerciais. NestJS 11 sobre Express, TypeScript estrito,
@@ -132,7 +145,7 @@ Endpoints e regras detalhadas estão no `docs/README.md` e, com o estado atual, 
 | Serviço | Situação | Observação |
 |---|---|---|
 | Neon (PostgreSQL 16) | ativo, com as migrations aplicadas | região fixa; conexão direta, sem pooler |
-| Cloudflare R2 | ativo, bucket `corretor-midia` | URL pública `r2.dev` é limitada e serve para desenvolvimento |
+| Cloudflare R2 | ativo, bucket `corretor-midia` | URL `r2.dev` respondeu 401 em leitura pública; não habilitar o bucket sem decisão |
 | Render (API) | não criado | próximo marco |
 | Vercel (front) | não criado | próximo marco |
 
@@ -143,3 +156,15 @@ Credenciais ficam apenas no `.env` local e, quando houver deploy, no painel de c
 O pedido integral do dono em docs/2026-09-13-backend-integral.md prevalece sobre instruções antigas conflitantes deste arquivo. Contrato e operação atual: docs/2026-09-14-backend-portugues.md. Backend em português, auditoria universal, soft delete, dados pessoais em colunas sem cifra; documentos novos no Drive compartilhado privado e receita em comissões. Modelos antigos só permanecem nas migrations/histórico.
 
 Migration 1789516800000 exige complementos reais e backup; use apenas os comandos npm documentados (executor sanitizado). Não editar migrations aplicadas nem imprimir dados privados. A chave antiga é necessária só para decifrar o legado na migração. Nenhuma migration/deploy automático. Cookie Secure exige HTTPS no navegador. Adaptar frontend e health check /api/v1/saude antes da publicação conjunta. main e regra de confirmação antes de commit continuam vigentes.
+
+## 2026-10-03 — Carga persistente do catálogo
+
+`npm run seed:catalogo:simular` é somente leitura; `npm run seed:catalogo:executar` exige backup
+completo verificado e pasta local com ACL restrita. Use conexão Neon direta (`--conexao-direta true`)
+para a trava de sessão. Não imprimir `.env`, senha, CPF ou journal. O lote criou 12 imóveis
+ilustrativos, 36 mídias e ADMIN Codice. Preços, áreas, características e endereços são sintéticos e
+não provam disponibilidade comercial; confira `docs/2026-10-03-fontes-catalogo.md`. Uploads têm
+hashes conferidos no R2; por HTTP 401 na URL pública vigente, `imoveis_midias.url` aponta às fontes
+HTTPS licenciadas de `images.unsplash.com`. Não mudar a política do bucket nesta carga. Reexecução
+ignora anúncios concluídos e pode reconciliar URLs somente quando chaves e ordem do journal conferem.
+O snapshot confirmou que todas as linhas preexistentes foram preservadas.

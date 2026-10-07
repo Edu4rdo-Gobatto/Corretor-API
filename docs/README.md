@@ -46,6 +46,16 @@ obrigatórias e o Neon acessível: não existe modo sem banco, e Postgres local 
 | Aplicar migrations | `npm run migration:run` | sim, com `MIGRACAO_BACKUP_ARQUIVO` |
 | Reverter a última migration | `npm run migration:revert` | sim, com `MIGRACAO_BACKUP_ARQUIVO` |
 | Criar o primeiro ADMIN | `npm run bootstrap:admin` | sim |
+| Simular carga persistente do catálogo | `npm run seed:catalogo:simular -- --conexao-direta true --diretorio-privado <pasta>` | sim, leitura direta do Neon |
+| Executar/retomar a carga do catálogo | `npm run seed:catalogo:executar -- --conexao-direta true --diretorio-privado <pasta> --backup <arquivo>` | sim, Neon, R2 e backup obrigatório |
+
+O lote `catalogo:2026-10-03` é conteúdo ilustrativo persistente, não um modo alternativo da API.
+Antes de executar, crie a pasta privada fora de sincronização em nuvem, restrinja sua ACL e faça
+backup completo validado do banco exato. A pasta guarda credenciais geradas, journal e cache de
+imagens para retomada; nunca a compartilhe. Consulte
+[`docs/2026-10-03-fontes-catalogo.md`](docs/2026-10-03-fontes-catalogo.md) para fontes/licenças e a
+natureza sintética dos anúncios. A URL pública configurada do R2 respondeu 401: o comando mantém
+cópias no R2 e usa a URL Unsplash da foto no catálogo sem abrir o bucket.
 
 Antes de qualquer commit: `npm run typecheck`, `npm run lint` e `npm test`.
 
@@ -200,3 +210,11 @@ sobre banco vazio.
 | [AGENTS.md](AGENTS.md) | regras e protocolo de trabalho |
 
 Documentos em `docs/specs/`, `docs/plans/` e os handoffs anteriores a 16/09 são históricos.
+
+## Foto do perfil — refinamento local de 06/10/2026
+
+[Contrato e validação](2026-10-06-foto-perfil.md), [índice](INDICE.md) e
+[System Design no frontend](../../Corretor-web/docs/2026-10-06-system-design.docx).
+O PATCH aceita JSON/multipart; GET por id serve foto pelo R2 privado. Sem migration ou configuração
+nova. Rodar `npm ci` e `npm run start:dev` com o ambiente existente; frontend em `../Corretor-web`.
+R2 real temporário aprovado, sem homologação de perfil no banco. Entrega permanece local.

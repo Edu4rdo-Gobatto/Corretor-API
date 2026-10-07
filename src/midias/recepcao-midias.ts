@@ -26,7 +26,7 @@ export class ArmazenamentoLimitado {
     };
     const receber = (chunk: Buffer) => {
       const total = (this.totais.get(requisicao) ?? 0) + chunk.length;
-      if (total > this.limite) { terminar(new PayloadTooLargeException('O lote de mídia deve ter no máximo 60 MB.')); return; }
+      if (total > this.limite) { terminar(new PayloadTooLargeException(`O envio deve ter no máximo ${Math.round(this.limite / 1024 / 1024)} MB.`)); return; }
       this.totais.set(requisicao, total);
       tamanho += chunk.length;
       chunks.push(chunk);

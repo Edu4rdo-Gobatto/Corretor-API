@@ -19,6 +19,21 @@ seguinte enviava um token inexistente → 401. A rotação não detectava reuso,
 Não fazer: voltar a rotacionar o token na renovação sem tolerância a respostas abortadas; dar `maxAge` ao cookie;
 gravar atividade a cada requisição sem o intervalo mínimo; mover a gravação de atividade para o `AutenticacaoGuard`
 (o `CorretoresModule` usa o guard sem importar `AutenticacaoModule`, por causa do ciclo de módulos).
+## 2026-10-06 — Foto do perfil sem alteração de schema
+
+- Pedido aprovado autoriza dois repositórios e proíbe publicação/migrations nesta entrega.
+- Manter url_foto HTTPS; uploads usam chave aleatória corretores/{id}/{uuid}.jpg|png|webp. A leitura
+  pública consulta só referência atual de corretor ativo e usa R2 privado ou redirect HTTPS externo.
+- ArmazenamentoModule compartilha cliente R2 e RecepcaoMidiasInterceptor com imóveis. Guards vêm antes
+  da recepção: JWT/origem; no máximo um arquivo <=10 MiB, limite de campos/partes e assinatura/MIME.
+- Put fora da transação; atualizar dentro da transação curta com lock existente. Compensar objeto novo
+  se DB falhar; excluir anterior próprio somente após commit. Exclusão falha gera log de órfão.
+- URL gerenciada diferente da atual só pode ser a recém-enviada nesta requisição. Rejeitar referência
+  obsoleta com 409 evita que uma aba antiga ressuscite uma foto já apagada e remova a atual.
+- Dependência de fotos é opcional no construtor TS para preservar CLIs existentes que instanciam
+  CorretoresService com dois argumentos; Nest continua fornecendo o adaptador no runtime normal.
+- Sem testes fonte por decisão do dono. HTTP/browser com banco simulado e R2 real temporário são
+  provas distintas; não equivalem à homologação de perfil no Neon. Documentação anterior preservada.
 
 ## 2026-10-04 — Centralização de documentação em estrutura plana na pasta docs/ (Antigravity)
 
