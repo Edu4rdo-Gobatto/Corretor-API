@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AutenticacaoModule } from './autenticacao/autenticacao.module';
 import { CorretoresModule } from './corretores/corretores.module';
 import { CadastrosModule } from './cadastros/cadastros.module';
+import { CadastrosContratoModule } from './cadastros-contrato/cadastros-contrato.module';
 import { ImoveisModule } from './imoveis/imoveis.module';
 import { MidiasModule } from './midias/midias.module';
 import { PessoasModule } from './pessoas/pessoas.module';
@@ -18,7 +19,7 @@ import { validateEnvironment } from './config/env.validation';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, cache: true, validate: validateEnvironment }),
     TypeOrmModule.forRootAsync({ inject: [ConfigService], useFactory: createDatabaseOptions }),
-    ScheduleModule.forRoot(), AutenticacaoModule, CorretoresModule, CadastrosModule,
+    ScheduleModule.forRoot(), AutenticacaoModule, CorretoresModule, CadastrosModule, CadastrosContratoModule,
     ImoveisModule, MidiasModule, PessoasModule, LocacoesModule, ComissoesModule, SaudeModule,
   ],
 })

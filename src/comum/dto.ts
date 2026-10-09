@@ -2,8 +2,8 @@ import { applyDecorators } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsInt, Max, Min } from 'class-validator';
 
-/** Identificador inteiro positivo, aceito como número no corpo ou como texto na query. */
-export const IdRegistro = (): PropertyDecorator => applyDecorators(Type(() => Number), IsInt(), Min(1));
+/** Identificador inteiro positivo (int4), aceito como número no corpo ou como texto na query. */
+export const IdRegistro = (): PropertyDecorator => applyDecorators(Type(() => Number), IsInt(), Min(1), Max(2147483647));
 
 export const aparar = ({ value }: { value: unknown }): unknown => typeof value === 'string' ? value.trim() : value;
 export const booleano = ({ value }: { value: unknown }): unknown => value === 'true' ? true : value === 'false' ? false : value;

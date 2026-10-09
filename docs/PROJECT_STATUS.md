@@ -22,6 +22,10 @@
 - Sessão de 4h por inatividade, sem rotação do token; revogação na troca de senha, no reset pelo ADMIN e na desativação.
 - Foto do perfil por upload multipart e leitura pública em `GET /corretores/:id/foto`.
 - CRECI validado, `tipo_id` em lista e `GET /admin/comissoes/pessoas-elegiveis` (09/10).
+- Comissão editável com plano versionado, histórico imutável e trava otimista; índices de reajuste e tipos de
+  contrato com snapshot no contrato; ids limitados a int4 (09/10, local, sem commit). Migration
+  `1789689600000-comissao-versionada-cadastros-contrato` validada só em PostgreSQL descartável: 17/17 na migration,
+  62/62 no QA HTTP e 37/37 no navegador. Ver [2026-10-09-comissao-versionada-cadastros-contrato.md](2026-10-09-comissao-versionada-cadastros-contrato.md).
 - Correções da auditoria full stack de 02 e 03/10 (A01, A02, A03, A09, A10).
 - Typecheck, lint e build aprovados em 09/10. QA efêmero de 09/10: 78/78 na API e 63/63 no navegador, com
   PostgreSQL descartável em Docker.
@@ -36,6 +40,8 @@
 ### Bloqueios e dependências
 
 - O `6b987a5` não foi publicado. O front de 09/10 depende dele: a API precisa sair antes (DEPLOY-001).
+- A migration de comissão versionada e cadastros de contrato não foi aplicada no Neon. Exige backup verificado e
+  autorização; o front correspondente não salva contratos contra a API antiga (MIGRATION-20261009).
 - `npm test` sai com código 1 porque não há suítes (TEST-API).
 - Regras de encerramento e renovação de contratos e a validação contábil das comissões aguardam o dono (RENTAL-004).
 - Aviso de novo contato aguarda a escolha do canal (NOTIFY-001).
@@ -60,3 +66,4 @@ Tarefas em [TASKS.md](TASKS.md). Detalhes de cada entrega em [CHANGELOG_AI.md](C
 | 06/10 | Sessão de 4h por inatividade (`46f2235`) e foto do perfil (`86ecf29`). |
 | 08/10 | Render recebe o `86ecf29`; foto do perfil passa a responder no ambiente de teste. |
 | 09/10 | CRECI, `tipo_id` em lista e pessoas elegíveis (`6b987a5`). Documentação revista para o estado atual. |
+| 09/10 | Comissão versionada, índices de reajuste e tipos de contrato, migration nova; entrega local, sem commit. |

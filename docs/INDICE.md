@@ -21,6 +21,7 @@
 
 ## Entregas datadas em vigor
 
+- [2026-10-09-comissao-versionada-cadastros-contrato.md](2026-10-09-comissao-versionada-cadastros-contrato.md): comissão editável e versionada, índices de reajuste, tipos de contrato e migration de 09/10 (local).
 - [2026-10-09-seis-pontos.md](2026-10-09-seis-pontos.md): CRECI, `tipo_id` em lista e pessoas elegíveis da comissão.
 - [2026-10-06-foto-perfil.md](2026-10-06-foto-perfil.md): contrato do upload e da leitura da foto do perfil.
 - [2026-10-03-fontes-catalogo.md](2026-10-03-fontes-catalogo.md): fontes, licenças e composição da carga do catálogo.

@@ -20,6 +20,18 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
   - Validar pelo front: catálogo com vários tipos e seletor de pessoas da comissão.
   - Registrar o commit implantado e a data no `PROJECT_STATUS.md`.
 
+### MIGRATION-20261009 — Aplicar comissão versionada e cadastros de contrato
+- **Status:** aberta (aguardando autorização)
+- **Responsável:** a definir
+- **Contexto:** a migration `1789689600000-comissao-versionada-cadastros-contrato` e o código correspondente estão
+  só no checkout local, sem commit. Validação feita em PostgreSQL descartável. Detalhes em
+  [2026-10-09-comissao-versionada-cadastros-contrato.md](2026-10-09-comissao-versionada-cadastros-contrato.md).
+- **Critérios de conclusão:**
+  - Commit autorizado pelo dono.
+  - Backup completo do Neon verificado e `MIGRACAO_BACKUP_ARQUIVO` apontando para ele.
+  - `npm run migration:run` aplicado; `migration:show` sem pendências; revisões v1 criadas para todas as comissões.
+  - API publicada antes do front; ADMIN cadastra tipos de contrato e índices de reajuste antes de criar contratos.
+
 ### TEST-API — `npm test` falha sem suítes
 - **Status:** aberta
 - **Responsável:** a definir

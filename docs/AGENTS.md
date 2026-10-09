@@ -54,9 +54,10 @@ unset PGURL
 **Banco de dados**
 - Só Neon. `DATABASE_URL` exige host `*.neon.tech`, usuário, senha, banco e `sslmode=require|verify-ca|verify-full`,
   aceitando só os parâmetros `sslmode` e `channel_binding`. Não existe modo sem banco.
-- Há 11 arquivos de migration e 10 registrados em `src/database/registros.ts`. O banco foi recriado em 17/09 com as
-  10. A `1789084805000-hardening` fica fora do registro; não aplicar por suposição.
-- Não edite, renomeie nem apague migration existente: crie uma nova. As duas últimas recusam reversão.
+- Há 12 arquivos de migration e 11 registrados em `src/database/registros.ts`. O banco foi recriado em 17/09 com as
+  10 primeiras; a `1789689600000-comissao-versionada-cadastros-contrato` (09/10) ainda não foi aplicada no Neon
+  (MIGRATION-20261009). A `1789084805000-hardening` fica fora do registro; não aplicar por suposição.
+- Não edite, renomeie nem apague migration existente: crie uma nova. As três últimas recusam reversão.
 - `synchronize` e `migrationsRun` continuam `false`.
 - Faça backup antes de qualquer mudança estrutural e registre no `CHANGELOG_AI.md`.
 - O banco contém o administrador real e a carga do catálogo de 03/10. Não apague dados sem autorização explícita.
@@ -121,9 +122,9 @@ Não deixe os dois agentes editando a mesma área ao mesmo tempo.
 src/
   main.ts            # helmet, GlobalExceptionFilter, prefixo /api/v1 (aceita rotas sem prefixo), trust proxy 1,
                      # ValidationPipe global, CORS por ALLOWED_ORIGINS com credenciais, listen 0.0.0.0:PORT
-  app.module.ts      # ConfigModule validado, TypeORM assíncrono, ScheduleModule e 9 módulos de domínio
+  app.module.ts      # ConfigModule validado, TypeORM assíncrono, ScheduleModule e 10 módulos de domínio
   config/            # env.validation.ts (16 variáveis) e database.config.ts (TLS verificado, retryAttempts 3)
-  database/          # data-source.ts do CLI, registros.ts (10 migrations), migrations/ (11 arquivos), log-seguro.ts
+  database/          # data-source.ts do CLI, registros.ts (11 migrations), migrations/ (12 arquivos), log-seguro.ts
   commands/          # executor de migrations, bootstrap do ADMIN e carga do catálogo
   comum/             # auditoria, validadores, decorators de DTO, datas e ArmazenamentoModule (cliente R2 e cota de 2 uploads)
   common/filters/    # filtro global de exceções
@@ -131,11 +132,12 @@ src/
                      # estratégia JWT, sessoes_login e AtividadeSessaoInterceptor global (inatividade de 4h)
   corretores/        # CRUD de corretores (ADMIN), Argon2id em senhas.service.ts, último ADMIN, foto do perfil
   cadastros/         # tipos, finalidades e características
+  cadastros-contrato/ # índices de reajuste e tipos de contrato (ADMIN) e opções ativas autenticadas
   imoveis/           # catálogo público por slug e gestão interna; filtros, ordenação e ficha interna
   midias/            # upload ao R2, embeds YouTube/Vimeo, ordem, capa e exclusão
   pessoas/           # contato do site com LGPD, cadastro manual e limite de 5 envios por minuto
   locacoes/          # contratos, expiração por cron e pasta no Drive
-  comissoes/         # comissões, parcelas, baixa, cron de atraso e pessoas elegíveis
+  comissoes/         # comissões, plano versionado, revisões, parcelas, baixa, cron de atraso e pessoas elegíveis
   drive/             # cliente do Google Drive e registro de pastas (entra via locacoes)
   saude/             # GET /saude
   testing/           # schedule.mock.ts, resto da configuração do Jest

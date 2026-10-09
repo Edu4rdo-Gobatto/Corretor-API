@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
-import { IdRegistro, aparar } from '../comum/dto';
+import { IdRegistro, aparar, definido, informado } from '../comum/dto';
 import { DataCivilValida } from '../comum/validacao';
 import { ConsultaLocacoesDto } from '../locacoes/locacoes.dto';
 
@@ -29,9 +29,21 @@ export class CriarComissaoDto {
   @DataCivilValida() primeiro_vencimento!: string;
   @IsOptional() @IsString() @MaxLength(10000) observacoes?: string | null;
 }
+/**
+ * Edição, arquivamento e reativação. `versao_registro` é a versão lida pelo cliente; divergente responde 409.
+ * Campos financeiros e de vínculo seguem as regras do POST e só valem enquanto não houver recebimento.
+ */
 export class AlterarComissaoDto {
-  @ValidateIf((_objeto, valor: unknown) => valor !== undefined) @IsBoolean() ativo?: boolean;
+  @IsInt() @Min(1) @Max(2147483647) versao_registro!: number;
+  @ValidateIf(definido) @IsBoolean() ativo?: boolean;
   @IsOptional() @IsString() @MaxLength(10000) observacoes?: string | null;
+  @ValidateIf(definido) @IsIn(['LOCACAO', 'VENDA']) tipo_operacao?: 'LOCACAO' | 'VENDA';
+  @ValidateIf(informado) @IdRegistro() contrato_id?: number | null;
+  @ValidateIf(definido) @IdRegistro() imovel_id?: number;
+  @ValidateIf(definido) @IdRegistro() pessoa_id?: number;
+  @ValidateIf(definido) @Matches(/^(?:0|[1-9]\d{0,9})\.\d{2}$/) valor_total?: string;
+  @ValidateIf(definido) @IsInt() @Min(1) @Max(600) quantidade_parcelas?: number;
+  @ValidateIf(definido) @DataCivilValida() primeiro_vencimento?: string;
 }
 export class PagarParcelaDto {
   @IsIn([true]) confirmar_pagamento!: true;

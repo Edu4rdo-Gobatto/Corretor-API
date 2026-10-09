@@ -110,7 +110,9 @@ rotas também respondem sem `/api/v1`. São 62 rotas.
 | Mídias | `POST /admin/imoveis/:imovel_id/midias` (multipart `arquivos`); `POST .../video-embed`; `PATCH .../ordem`; `PATCH .../:midia_id/capa`; `DELETE .../:midia_id` | responsável pelo imóvel ou ADMIN |
 | Pessoas | `POST /pessoas`; `GET` e `POST /admin/pessoas`; `GET`, `PATCH` e `DELETE /admin/pessoas/:id` | site com consentimento; no painel, as próprias e as dos contratos intermediados |
 | Contratos | `GET` e `POST /admin/contratos`; `GET`, `PATCH` e `DELETE /admin/contratos/:id`; `POST /admin/contratos/:id/pasta-drive` | intermediador ou ADMIN |
-| Comissões | `GET` e `POST /admin/comissoes`; `GET /admin/comissoes/pessoas-elegiveis`; `GET`, `PATCH` e `DELETE /admin/comissoes/:id`; `PATCH /admin/comissoes/parcelas/:id/pagamento` | ADMIN, ou corretor responsável pelo imóvel e pela pessoa |
+| Comissões | `GET` e `POST /admin/comissoes`; `GET /admin/comissoes/pessoas-elegiveis`; `GET` e `PATCH /admin/comissoes/:id` (com `versao_registro`; arquivar é `PATCH {ativo:false}`); `GET /admin/comissoes/:id/revisoes`; `PATCH /admin/comissoes/parcelas/:id/pagamento` | ADMIN, ou corretor responsável pelo imóvel e pela pessoa |
+| Cadastros de contrato | `GET`, `POST` e `PATCH /admin/indices-reajuste` e `/admin/tipos-contrato` (desativar é `PATCH {ativo:false}`) | ADMIN |
+| Opções de contrato | `GET /cadastros/indices-reajuste` e `/cadastros/tipos-contrato` (só ativos) | ADMIN e CORRETOR |
 
 Convenções:
 
@@ -174,15 +176,17 @@ src/
 - `synchronize` e `migrationsRun` são `false`. O schema só muda por migration explícita.
 - Migration aplicada nunca é editada, renomeada ou apagada: crie uma nova e registre-a em
   `src/database/registros.ts`.
-- Há 11 arquivos em `src/database/migrations/`. Dez estão registrados no CLI. A `1789084805000-hardening` está
-  fora do registro e nunca roda.
-- As duas últimas (`1789516800000-modelo-portugues` e `1789603200000-ids-inteiros-pessoas`) recusam reversão.
-  Voltar atrás exige restaurar backup.
+- Há 12 arquivos em `src/database/migrations/`. Onze estão registrados no CLI. A `1789084805000-hardening` está
+  fora do registro e nunca roda. A `1789689600000-comissao-versionada-cadastros-contrato` (09/10) ainda não foi
+  aplicada no Neon.
+- As três últimas (`1789516800000-modelo-portugues`, `1789603200000-ids-inteiros-pessoas` e
+  `1789689600000-comissao-versionada-cadastros-contrato`) recusam reversão. Voltar atrás exige restaurar backup.
 - As migrations de 13/09 e 16/09 arquivam o modelo anterior nos schemas `legado_20260913` e `legado_20260916`,
   hoje vazios.
 - Tabelas atuais: `corretores`, `sessoes_login`, `tipos_imovel`, `finalidades_imovel`, `caracteristicas`,
   `imoveis_caracteristicas`, `imoveis`, `imoveis_midias`, `pessoas`, `contrato`, `comissoes`,
-  `parcelas_comissao`, `pastas_drive` e `typeorm_migrations`.
+  `parcelas_comissao`, `pastas_drive` e `typeorm_migrations`. Com a migration de 09/10: `comissao_revisoes`,
+  `indices_reajuste` e `tipos_contrato`.
 - Toda tabela de negócio tem `criado_em`, `alterado_em`, `criado_por` e `alterado_por`.
 
 ### Backup

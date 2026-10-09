@@ -90,3 +90,27 @@ Validação: typecheck, lint e build aprovados. `npm test` termina com "No tests
 Neon ou ao R2.
 
 Pendências: publicar a API antes do front (DEPLOY-001).
+
+## 09/10/2026 — Comissão versionada, cadastros de contrato e entrega local (Claude)
+
+Entregue (local, sem commit, push, deploy ou Neon):
+- Migration `1789689600000-comissao-versionada-cadastros-contrato`: versões de plano e de registro, unicidade das
+  parcelas por plano, `comissao_revisoes` imutável com backfill v1, `indices_reajuste`, `tipos_contrato` e snapshot no
+  `contrato`.
+- Comissão: `PATCH` completo com `versao_registro`, mudanças efetivas, bloqueio após recebimento, novo plano por
+  mudança financeira, reativação com revalidação, baixa de plano substituído 409, `GET /:id/revisoes`, `DELETE` removido.
+- Módulo `cadastros-contrato`: CRUD ADMIN e opções ativas autenticadas.
+- Contratos: tipo e índice obrigatórios no `POST`; legado classificado na edição; snapshot só quando o id muda.
+- `IdRegistro` limitado a int4.
+
+Arquivos: `src/database/migrations/1789689600000-*`, `src/database/registros.ts`, `src/app.module.ts`,
+`src/comissoes/*` (entidades, `revisao-comissao.entity.ts`, DTO, service, controller, module),
+`src/cadastros-contrato/*`, `src/locacoes/{contrato.entity,locacoes.dto,locacoes.service}.ts`, `src/comum/dto.ts`,
+`corretor-spec.json` e documentação.
+
+Validação: typecheck, lint e build aprovados; `npm test` não executado (sem suítes). Migration em PostgreSQL 16
+descartável com legados: 17/17. QA HTTP com módulos reais: 62/62 (inclui 6/6 corridas de edição × baixa). Navegador
+com a API completa: 37/37. Roteiros fora do repositório.
+
+Pendências: MIGRATION-20261009 (backup verificado, migration no Neon, API antes do front, cadastrar tipos e índices).
+

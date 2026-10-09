@@ -7,6 +7,29 @@ O texto completo das versões anteriores está no histórico do Git.
 
 ## Decisões em vigor
 
+### 09/10 — Comissão com plano versionado e trava otimista
+- Toda alteração de comissão (`PATCH`) envia `versao_registro`; versão divergente responde 409. Baixa efetiva também
+  incrementa a versão. Só mudanças efetivas contam.
+- Mudança financeira ou de vínculo cria outro plano (`versao_plano`); o anterior fica guardado e inativo, nunca é
+  apagado. Revisões em `comissao_revisoes` são imutáveis (trigger). Depois de qualquer recebimento, só observações,
+  arquivamento e reativação.
+- Arquivar é `PATCH {ativo:false}`; `DELETE /admin/comissoes/:id` foi removido.
+- Não: recalcular parcelas ou pagamentos existentes; editar ou apagar revisões; aceitar PATCH sem versão.
+- Registro da migration `1789689600000-comissao-versionada-cadastros-contrato` (não aplicada no Neon em 09/10).
+
+### 09/10 — Índices de reajuste e tipos de contrato com snapshot
+- Cadastros próprios do ADMIN, fora das classificações do catálogo público e do SSR; nomes únicos sem acento/caixa,
+  inclusive inativos; desativação lógica.
+- O contrato guarda o nome do tipo e o nome, a periodicidade e a regra do índice no momento da escolha; só refaz o
+  snapshot quando o id muda. O texto `indice_reajuste` vira cópia do nome do índice.
+- Contrato legado mantém o texto até ser classificado; por decisão do dono, qualquer edição de contrato legado exige
+  classificar (o arquivamento não).
+- Não: calcular ou alterar aluguel a partir do índice; atualizar contratos ao renomear o cadastro.
+
+### 09/10 — Ids limitados a int4 nos DTOs
+`IdRegistro` passou a ter `Max(2147483647)`, como já tinha `ListaIds`. Ids maiores respondem 400 em vez de erro do banco.
+
+
 ### 11/09 — Princípios do projeto e alternativas descartadas
 - Custo $0 durante a validação: nada pago entra até haver cliente pagante.
 - Banco sempre online, no Neon. Nunca Postgres local.

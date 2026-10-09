@@ -1564,6 +1564,19 @@
     "campos_numericos": "sem setinhas nativas de incremento; limites, step, teclado e foco preservados",
     "entrega": "local nos dois repositorios, sem migrations, dependencias, commit, push ou deploy; publicar a API antes do frontend"
   },
+  "comissao_versionada_cadastros_contrato_2026_10_09": {
+    "comissao_edicao": "PATCH /admin/comissoes/:id exige versao_registro e aceita os campos do POST (tipo_operacao, contrato_id, imovel_id, pessoa_id, valor_total, quantidade_parcelas, primeiro_vencimento, observacoes) mais ativo; compara mudancas efetivas (valores iguais nao contam); versao divergente -> 409; DELETE /admin/comissoes/:id removido (arquivar = PATCH {ativo:false})",
+    "comissao_bloqueio": "com qualquer parcela PAGO, mudancas financeiras e de vinculo -> 409; observacoes, arquivamento e reativacao continuam; arquivada aceita so observacoes e reativacao; reativacao revalida imovel, pessoa e contrato ativos e autorizados (409) e reativa so o plano vigente",
+    "comissao_plano": "comissoes.versao_plano e versao_registro; parcelas_comissao.versao_plano com UNIQUE (comissao_id, versao_plano, numero_parcela); mudanca financeira/vinculo cria novo plano e inativa o anterior sem apagar; listagens, saldos e atrasos usam so o plano vigente; baixa de parcela de plano substituido -> 409; baixa efetiva incrementa versao_registro, replay com o mesmo comprovante continua idempotente",
+    "comissao_revisoes": "tabela comissao_revisoes imutavel (trigger recusa UPDATE/DELETE): versao_plano, operacao, vinculos, valor_total, quantidade_parcelas, primeiro_vencimento, autor_id, origem CRIACAO|EDICAO|MIGRACAO; legados v1 com autor nulo e origem MIGRACAO; GET /admin/comissoes/:id/revisoes com a mesma autorizacao da ficha",
+    "comissao_travas": "transacao com advisory lock comissoes:integridade; ordem contratos -> imoveis -> pessoas, ids ordenados; recebimento reconferido dentro da transacao",
+    "cadastros_contrato": "indices_reajuste (nome, periodicidade_meses 1..600, regra opcional, ativo) e tipos_contrato (nome, descricao opcional, ativo); nome unico sem acento/caixa inclusive entre inativos (409); CRUD ADMIN em /admin/indices-reajuste e /admin/tipos-contrato com paginacao e busca, desativacao logica por PATCH {ativo}; opcoes ativas autenticadas (ADMIN e CORRETOR) em /cadastros/indices-reajuste e /cadastros/tipos-contrato; fora do catalogo publico e do SSR; catalogos comecam vazios",
+    "contrato_classificacao": "POST /admin/contratos exige tipo_contrato_id e indice_reajuste_id ativos; texto indice_reajuste deixa de ser aceito do cliente e passa a ser copia do nome do indice; snapshot tipo_contrato_nome, indice_reajuste_nome, indice_reajuste_periodicidade_meses e indice_reajuste_regra refeito so quando o id muda; referencia desativada permanece; contrato legado (referencias nulas) mantem o texto ate ser classificado e precisa ser classificado em qualquer edicao, exceto o arquivamento",
+    "ids": "IdRegistro limitado a 2147483647 (int4) em todos os DTOs, inclusive imovel_id e pessoa_id de pessoas-elegiveis",
+    "interface": "edicao de comissao reutiliza o formulario de registro; com recebimento ou arquivada mostra so observacoes; ficha com arquivar/reativar confirmados e historico do plano; Cadastros em /admin/cadastros/:categoria com grupos Imoveis e Contratos; slogan padrao 'Imoveis para alugar e comprar em Juara-MT e regiao' no h1, rodape e title da home",
+    "limites": "comissao continua receita manual da imobiliaria; reajustes nao calculam nem alteram aluguel; tipos classificam contratos de locacao",
+    "entrega": "migration 1789689600000-comissao-versionada-cadastros-contrato; local nos dois repositorios, sem commit, push, deploy ou Neon; aplicar no Neon so com backup verificado e publicar a API antes do frontend"
+  },
   "media_pipeline": {
     "bucket_name": "corretor-midia",
     "endpoint": "/admin/imoveis/:imovel_id/midias",

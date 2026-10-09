@@ -22,7 +22,15 @@ export class Contrato extends Auditoria {
   @Column({ type: 'int' }) dia_vencimento!: number;
   @Column({ type: 'numeric', precision: 5, scale: 2 }) taxa_administracao!: string;
   @Column({ type: 'text' }) garantia_locaticia!: string;
+  /** Texto exibido do reajuste: livre nos contratos legados; nos classificados, cópia do nome do índice. */
   @Column({ type: 'text' }) indice_reajuste!: string;
+  // Referência ao cadastro + snapshot do momento da escolha; renomear o cadastro não altera o contrato.
+  @Column({ type: 'integer', nullable: true }) tipo_contrato_id!: number | null;
+  @Column({ type: 'text', nullable: true }) tipo_contrato_nome!: string | null;
+  @Column({ type: 'integer', nullable: true }) indice_reajuste_id!: number | null;
+  @Column({ type: 'text', nullable: true }) indice_reajuste_nome!: string | null;
+  @Column({ type: 'int', nullable: true }) indice_reajuste_periodicidade_meses!: number | null;
+  @Column({ type: 'text', nullable: true }) indice_reajuste_regra!: string | null;
   @Column({ type: 'text' }) cobranca_iptu_condominio!: string;
   @Column({ type: 'text', nullable: true }) url_pasta_drive!: string | null;
   @Column({ type: 'text', default: 'PENDENTE' }) status_pasta_drive!: 'PENDENTE' | 'CRIADA' | 'FALHOU';
@@ -38,6 +46,9 @@ export function resposta_contrato(contrato: Contrato) {
     locatario_id: contrato.locatario_id, corretor_id: contrato.corretor_id, data_inicio: contrato.data_inicio, data_fim: contrato.data_fim,
     valor_aluguel: contrato.valor_aluguel, dia_vencimento: contrato.dia_vencimento, taxa_administracao: contrato.taxa_administracao,
     garantia_locaticia: contrato.garantia_locaticia, indice_reajuste: contrato.indice_reajuste, cobranca_iptu_condominio: contrato.cobranca_iptu_condominio,
+    tipo_contrato_id: contrato.tipo_contrato_id, tipo_contrato_nome: contrato.tipo_contrato_nome,
+    indice_reajuste_id: contrato.indice_reajuste_id, indice_reajuste_nome: contrato.indice_reajuste_nome,
+    indice_reajuste_periodicidade_meses: contrato.indice_reajuste_periodicidade_meses, indice_reajuste_regra: contrato.indice_reajuste_regra,
     url_pasta_drive: contrato.url_pasta_drive, status_pasta_drive: contrato.status_pasta_drive, status: contrato.status,
     observacoes: contrato.observacoes, ativo: contrato.ativo, criado_em: contrato.criado_em, alterado_em: contrato.alterado_em,
     imovel_titulo: contrato.imovel?.titulo ?? null, locador_nome: contrato.locador?.nome ?? null, locatario_nome: contrato.locatario?.nome ?? null,
