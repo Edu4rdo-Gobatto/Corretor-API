@@ -115,7 +115,7 @@ export class ImoveisService {
     } else {
       base.andWhere(RESTRICAO_PUBLICA, { disponivel: StatusImovel.DISPONIVEL });
     }
-    if (consulta.tipo_id) base.andWhere('imovel.tipo_id = :tipo', { tipo: consulta.tipo_id });
+    if (consulta.tipo_id?.length) base.andWhere('imovel.tipo_id IN (:...tipos)', { tipos: [...new Set(consulta.tipo_id)] });
     if (consulta.finalidade_id) base.andWhere('imovel.finalidade_id = :finalidade', { finalidade: consulta.finalidade_id });
     if (consulta.cidade) base.andWhere('imovel.cidade ILIKE :cidade', { cidade: escaparBusca(consulta.cidade) });
     if (consulta.bairro) base.andWhere('imovel.bairro ILIKE :bairro', { bairro: `%${escaparBusca(consulta.bairro)}%` });

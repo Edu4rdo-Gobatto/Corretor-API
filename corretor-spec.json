@@ -197,7 +197,8 @@
           "name": "creci",
           "type": "text",
           "nullable": true,
-          "pk": false
+          "pk": false,
+          "note": "2026-10-09: escrita aceita somente numeros com sufixo J ou F opcional no final (ex.: 15776, 15776F), maiusculo; vazio vira null; omitido no PATCH preserva; registros antigos fora da regra sao lidos e preservados"
         },
         {
           "name": "cargo",
@@ -1554,6 +1555,14 @@
     "filtros": "selecoes imediatas, texto apos 350ms; normalizar, validar e descartar respostas antigas",
     "catalogo": "campos controlados, replace automatico, historico na paginacao; preservar foco e SSR",
     "entrega": "local nos dois repositorios, sem commit/push/deploy/migrations"
+  },
+  "correcoes_2026_10_09": {
+    "creci": "DTO-base de corretor (criar, atualizar e perfil JSON/multipart): ^\\d+[JF]?$ apos trim/maiusculas, ate 50; vazio -> null; ausente no PATCH mantem; frontend bloqueia insercao/colagem invalida e permite apagar legado",
+    "catalogo_tipo_id": "GET /imoveis e /admin/imoveis: tipo_id aceita um id ou CSV de ate 20 inteiros positivos; duplicados removidos; IN parametrizado; invalido -> 400; cadastro do imovel continua com tipo_id unico",
+    "comissao_pessoas_elegiveis": "GET /admin/comissoes/pessoas-elegiveis?imovel_id=&busca=&pagina=1&limite=10&pessoa_id= (autenticado): pessoas ativas do mesmo corretor do imovel e sem vinculo com outro imovel; itens {id, nome}; imovel inativo -> lista vazia; imovel inexistente ou de outro corretor -> 404; POST continua validando",
+    "tema_claro": "fundo #DCE5F0, superficie #EAF0F7, campo #E2EAF4, suave #CFDCEB, texto secundario #4B5A70, borda de controle #63758E, divisoria #B6C5D8, linhas #E4EBF4/#D8E2EF, destaque #C7D7EA, cabecalho #CCD8E7; escuro inalterado",
+    "campos_numericos": "sem setinhas nativas de incremento; limites, step, teclado e foco preservados",
+    "entrega": "local nos dois repositorios, sem migrations, dependencias, commit, push ou deploy; publicar a API antes do frontend"
   },
   "media_pipeline": {
     "bucket_name": "corretor-midia",

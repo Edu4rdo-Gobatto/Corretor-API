@@ -9,7 +9,7 @@ import { Contrato } from '../locacoes/contrato.entity';
 import { DATA_ATUAL_SQL, hojeCivil } from '../comum/datas';
 import { Comissao } from './comissao.entity';
 import { ParcelaComissao } from './parcela-comissao.entity';
-import { AlterarComissaoDto, ConsultaComissoesDto, CriarComissaoDto, PagarParcelaDto } from './comissoes.dto';
+import { AlterarComissaoDto, ConsultaComissoesDto, ConsultaPessoasElegiveisDto, CriarComissaoDto, PagarParcelaDto } from './comissoes.dto';
 import { distribuirParcelas, vencimentoMensal } from './parcelamento';
 
 const formatarCentavos = (valor: bigint): string => `${valor / 100n}.${String(valor % 100n).padStart(2, '0')}`;
@@ -88,6 +88,27 @@ export class ComissoesService {
     const [itens, total] = await busca.orderBy('comissao.criado_em', 'DESC').addOrderBy('comissao.id', 'ASC').skip((consulta.pagina - 1) * consulta.limite).take(consulta.limite).getManyAndCount();
     const parcelas = itens.length ? await this.banco.getRepository(ParcelaComissao).find({ where: { comissao_id: In(itens.map(item => item.id)) }, order: { numero_parcela: 'ASC' } }) : [];
     return { itens: itens.map(item => this.resposta(item, parcelas.filter(parcela => parcela.comissao_id === item.id))), total, pagina: consulta.pagina, limite: consulta.limite, total_paginas: Math.ceil(total / consulta.limite) };
+  }
+
+  /** Mesmas regras de pessoa do `criar`, aplicadas antes da paginação; o POST continua conferindo tudo. */
+  async pessoasElegiveis(consulta: ConsultaPessoasElegiveisDto, usuario: UsuarioAutenticado) {
+    const imovel = await this.banco.getRepository(Imovel).findOneBy({ id: consulta.imovel_id });
+    if (!imovel || (usuario.cargo !== 'ADMIN' && imovel.corretor_id !== usuario.id)) throw new NotFoundException('Imóvel não encontrado.');
+    const pagina = { pagina: consulta.pagina, limite: consulta.limite };
+    if (!imovel.ativo) return { itens: [], total: 0, ...pagina, total_paginas: 0 };
+    const busca = this.banco.getRepository(Pessoa).createQueryBuilder('pessoa').select(['pessoa.id', 'pessoa.nome', 'pessoa.criado_em'])
+      .where('pessoa.ativo = true AND pessoa.corretor_id = :corretor', { corretor: imovel.corretor_id })
+      .andWhere('(pessoa.imovel_id IS NULL OR pessoa.imovel_id = :imovel)', { imovel: imovel.id });
+    if (consulta.pessoa_id) busca.andWhere('pessoa.id = :pessoa', { pessoa: consulta.pessoa_id });
+    if (consulta.busca) {
+      const termo = `%${escaparBusca(consulta.busca)}%`;
+      const digitos = consulta.busca.replace(/\D/g, '');
+      const telefone = /^(?:55)(?:\d{10}|\d{11})$/.test(digitos) ? digitos.slice(2) : digitos;
+      busca.andWhere('(pessoa.nome ILIKE :termo OR pessoa.email ILIKE :termo' + (digitos ? " OR regexp_replace(pessoa.telefone, '\\D', '', 'g') LIKE :telefone OR pessoa.cpf_cnpj LIKE :digitos" : '') + ')', { termo, telefone: `%${telefone}%`, digitos: `%${digitos}%` });
+    }
+    const [itens, total] = await busca.orderBy('pessoa.criado_em', 'DESC').addOrderBy('pessoa.id', 'DESC')
+      .skip((consulta.pagina - 1) * consulta.limite).take(consulta.limite).getManyAndCount();
+    return { itens: itens.map(({ id, nome }) => ({ id, nome })), total, ...pagina, total_paginas: Math.ceil(total / consulta.limite) };
   }
 
   private resposta(comissao: Comissao, parcelas: ParcelaComissao[]) {

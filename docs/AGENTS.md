@@ -1,5 +1,15 @@
 # Instruções do projeto — corretor-api
 
+## 2026-10-09 — Correção dos seis pontos (Claude)
+
+Plano autorizado pelo dono nos dois repositórios; estado e validação em `2026-10-09-seis-pontos.md`. CRECI segue
+`^\d+[JF]?$` (maiúsculo, opcional, até 50) no DTO-base da API e em `CampoCreci`/`servicos/creci.ts` no web; vazio vira
+null, ausente no PATCH preserva, legado fora da regra é lido e só muda quando editado. `tipo_id` da listagem aceita
+um id ou CSV de até 20 (cadastro continua único). `GET /admin/comissoes/pessoas-elegiveis` fica antes de `:id` e
+filtra antes da paginação; o POST mantém as checagens. Tema claro azul-acinzentado só por tokens; escuro inalterado.
+Campos number sem setinhas. `content.js` é de extensão do Chrome. Sem migrations, dependências, suítes novas,
+commit, push ou deploy; publicar a API antes do frontend. QA efêmero com Postgres em Docker e Chrome, fora dos repositórios.
+
 ## 2026-10-06 — Contrato vigente da foto do perfil
 
 Plano do dono autoriza refinamento no frontend/API, com entrega local sem commit/push/deploy/migrations.

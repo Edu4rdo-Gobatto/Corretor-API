@@ -1,5 +1,15 @@
 # Tarefas — corretor-api
 
+## SEIS-PONTOS-20261009 — CRECI, catálogo por tipos e clientes da comissão (API)
+
+- **Responsável:** Claude.
+- **Status:** concluída localmente; publicação depende de autorização.
+- [x] CRECI `^\d+[JF]?$` no DTO-base: maiúsculo, vazio → null, PATCH sem campo preserva, legado lido intacto.
+- [x] `tipo_id` com um id ou CSV de até 20, sem duplicados, `IN` parametrizado, 400 para inválidos; público e admin.
+- [x] `GET /admin/comissoes/pessoas-elegiveis` antes de `:id`, filtrado antes da paginação, permissões atuais.
+- [x] Typecheck, lint, build e QA efêmero com ValidationPipe real e PostgreSQL descartável (78/78).
+- [ ] Publicar a API (antes do frontend) quando o dono autorizar.
+
 ## FOTO-PERFIL-20261006 — Upload e leitura controlada
 
 - **Responsável:** Codex.

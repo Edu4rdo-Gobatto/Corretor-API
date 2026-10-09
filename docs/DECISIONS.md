@@ -1,5 +1,17 @@
 # Decisões técnicas — corretor-api
 
+## 2026-10-09 — CRECI, `tipo_id` em lista e clientes elegíveis da comissão (Claude)
+
+- **CRECI**: regra no `CriarCorretorDto` (herdada por atualização e perfil) — `@Transform` trim/maiúsculas/vazio→null,
+  `@ValidateIf(informado)` e `@Matches(/^\d+[JF]?$/)`. Sem migration: valores antigos fora da regra continuam no banco
+  e nas respostas; só um novo envio é validado. Não normalizar removendo caracteres (ex.: `12x34` → `1234`).
+- **Contrato `tipo_id`** (GET `/imoveis` e `/admin/imoveis`): um id ou CSV de até 20 (`ListaIds` em `comum/dto.ts`,
+  int4 positivo). Duplicados removidos no serviço; parâmetro repetido continua 400. O tipo do cadastro segue único.
+- **Contrato novo** `GET /admin/comissoes/pessoas-elegiveis`: aplica no SQL as mesmas regras de pessoa do `criar`
+  (ativa, mesmo corretor do imóvel, vínculo vazio ou igual) antes de paginar; imóvel inativo → vazio; inexistente ou de
+  outro corretor → 404. Itens só `{id, nome}`. Não remover as checagens do POST: a consulta é auxílio de interface.
+- Não fazer: aceitar `tipo_id` sem limite de itens, mover a rota para depois de `:id` ou expor dados pessoais na lista.
+
 ## 2026-10-06 — Sessão expira por inatividade (4h) e token de sessão fixo (Claude)
 
 Decisão do dono: a sessão cai após **4 horas sem requisições**; cada requisição reinicia a contagem; **sem limite

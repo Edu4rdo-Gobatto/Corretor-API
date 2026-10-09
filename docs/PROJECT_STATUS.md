@@ -1,5 +1,15 @@
 # Estado atual — corretor-api
 
+## 2026-10-09 — Claude: correção dos seis pontos (API)
+
+Concluído localmente. CRECI validado no DTO-base (criar, atualizar, perfil JSON/multipart); `tipo_id` em CSV no
+catálogo público e admin; novo `GET /admin/comissoes/pessoas-elegiveis`. Typecheck, lint e build aprovados; `npm test`
+sem suítes ("No tests found"). QA efêmero 78/78 com módulos reais, ValidationPipe do main.ts, JWT real e PostgreSQL 16
+descartável em Docker; navegador 63/63 integrado ao frontend. Neon/R2 não acessados. Arquivos: `src/comum/dto.ts`,
+`src/corretores/corretores.dto.ts`, `src/imoveis/imoveis.dto.ts`, `src/imoveis/imoveis.service.ts`,
+`src/comissoes/comissoes.{controller,dto,service}.ts`, `corretor-spec.json`, docs. Próximo passo: revisão do dono e,
+se autorizado, publicar a API antes do frontend. Detalhes: `2026-10-09-seis-pontos.md`.
+
 ## 2026-10-06 — Codex: upload e leitura da foto do perfil
 
 Contrato aditivo local: PATCH JSON/multipart e GET público /corretores/:id/foto. Cliente R2 e quota

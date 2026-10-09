@@ -1,5 +1,21 @@
 # Histórico de trabalho dos agentes — corretor-api
 
+## 2026-10-09 — Correção dos seis pontos, lado API (Claude)
+
+Arquivos: `src/comum/dto.ts` (`ListaIds`), `src/corretores/corretores.dto.ts` (CRECI), `src/imoveis/imoveis.dto.ts` e
+`imoveis.service.ts` (`tipo_id` em CSV com `IN`), `src/comissoes/comissoes.{controller,dto,service}.ts` (pessoas
+elegíveis), `corretor-spec.json` (nota do CRECI e `correcoes_2026_10_09`, cópia idêntica no web), docs de contexto e
+`2026-10-09-seis-pontos.md`.
+
+Validação real:
+- `npm run typecheck`, `npm run lint`, `npm run build`: aprovados.
+- `npm test`: "No tests found", exit 1 — suítes removidas em `ab59472`, não recriadas.
+- QA efêmero no scratchpad (fora do repo): Nest com módulos compilados, ValidationPipe do `main.ts`, login JWT real,
+  PostgreSQL 16 em contêiner descartável. 78/78 (1 falha inicial era slug errado no próprio roteiro). Navegador
+  integrado ao web: 63/63.
+- Sem acesso ao Neon/R2, sem dados financeiros gravados, sem migrations, dependências, commit, push ou deploy.
+Pendências: publicar a API antes do frontend se autorizado; homologação com dados reais.
+
 ## 2026-10-06 — Sessão por inatividade de 4h e fim do logout por F5 (Claude)
 
 Pedido do dono: o login não expirava (nem fechando o navegador ou desligando o PC) e F5 repetido derrubava a sessão.

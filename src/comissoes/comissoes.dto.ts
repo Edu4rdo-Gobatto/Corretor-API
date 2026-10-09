@@ -1,6 +1,6 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
-import { IdRegistro } from '../comum/dto';
+import { IdRegistro, aparar } from '../comum/dto';
 import { DataCivilValida } from '../comum/validacao';
 import { ConsultaLocacoesDto } from '../locacoes/locacoes.dto';
 
@@ -9,6 +9,15 @@ export class ConsultaComissoesDto extends ConsultaLocacoesDto {
   @IsOptional() @IdRegistro() pessoa_id?: number;
   @IsOptional() @IdRegistro() contrato_id?: number;
   @IsOptional() @IsIn(['LOCACAO', 'VENDA']) tipo_operacao?: 'LOCACAO' | 'VENDA';
+}
+/** Clientes que o POST aceitaria para o imóvel: ativos, mesmo corretor e sem vínculo com outro imóvel. */
+export class ConsultaPessoasElegiveisDto {
+  @IdRegistro() imovel_id!: number;
+  @IsOptional() @Transform(aparar) @IsString() @MaxLength(200) busca?: string;
+  @Type(() => Number) @IsInt() @Min(1) pagina = 1;
+  @Type(() => Number) @IsInt() @Min(1) @Max(100) limite = 10;
+  /** Revalida uma pessoa já escolhida antes do registro. */
+  @IsOptional() @IdRegistro() pessoa_id?: number;
 }
 export class CriarComissaoDto {
   @IsIn(['LOCACAO', 'VENDA']) tipo_operacao!: 'LOCACAO' | 'VENDA';
