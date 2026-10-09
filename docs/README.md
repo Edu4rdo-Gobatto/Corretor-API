@@ -177,8 +177,8 @@ src/
 - Migration aplicada nunca é editada, renomeada ou apagada: crie uma nova e registre-a em
   `src/database/registros.ts`.
 - Há 12 arquivos em `src/database/migrations/`. Onze estão registrados no CLI. A `1789084805000-hardening` está
-  fora do registro e nunca roda. A `1789689600000-comissao-versionada-cadastros-contrato` (09/10) ainda não foi
-  aplicada no Neon.
+  fora do registro e nunca roda. A `1789689600000-comissao-versionada-cadastros-contrato` foi aplicada no Neon em
+  09/10.
 - As três últimas (`1789516800000-modelo-portugues`, `1789603200000-ids-inteiros-pessoas` e
   `1789689600000-comissao-versionada-cadastros-contrato`) recusam reversão. Voltar atrás exige restaurar backup.
 - As migrations de 13/09 e 16/09 arquivam o modelo anterior nos schemas `legado_20260913` e `legado_20260916`,

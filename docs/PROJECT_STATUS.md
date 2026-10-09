@@ -40,8 +40,8 @@
 ### Bloqueios e dependências
 
 - O `6b987a5` não foi publicado. O front de 09/10 depende dele: a API precisa sair antes (DEPLOY-001).
-- A migration de comissão versionada e cadastros de contrato não foi aplicada no Neon. Exige backup verificado e
-  autorização; o front correspondente não salva contratos contra a API antiga (MIGRATION-20261009).
+- A migration de comissão versionada e cadastros de contrato foi aplicada no Neon em 09/10 (sem backup, por decisão do
+  dono). A API `6305355` ainda precisa ser publicada; o front correspondente não salva contratos contra a API antiga.
 - `npm test` sai com código 1 porque não há suítes (TEST-API).
 - Regras de encerramento e renovação de contratos e a validação contábil das comissões aguardam o dono (RENTAL-004).
 - Aviso de novo contato aguarda a escolha do canal (NOTIFY-001).

@@ -114,3 +114,14 @@ com a API completa: 37/37. Roteiros fora do repositório.
 
 Pendências: MIGRATION-20261009 (backup verificado, migration no Neon, API antes do front, cadastrar tipos e índices).
 
+## 09/10/2026 — Migration de comissão versionada aplicada no Neon (Claude)
+
+- Commits do dono: API `6305355`, front `40f635b` e `7cf5e6a`.
+- `migration:show` antes: só `ComissaoVersionadaCadastrosContrato1789689600000` pendente. Aplicada com
+  `migration:run`; **sem backup**, por decisão do dono (a trava `MIGRACAO_BACKUP_ARQUIVO` recebeu um arquivo marcador).
+- Conferência: 4 comissões, 18 parcelas e 3 contratos, as mesmas contagens de antes; 4 revisões v1 (`MIGRACAO`);
+  versões todas em 1; 3 contratos legados sem referência; catálogos de índices e tipos vazios; trigger de imutabilidade
+  presente; `migration:show` sem pendências.
+
+Pendências: publicar a API `6305355` antes do front; cadastrar tipos de contrato e índices de reajuste.
+

@@ -55,8 +55,7 @@ unset PGURL
 - Só Neon. `DATABASE_URL` exige host `*.neon.tech`, usuário, senha, banco e `sslmode=require|verify-ca|verify-full`,
   aceitando só os parâmetros `sslmode` e `channel_binding`. Não existe modo sem banco.
 - Há 12 arquivos de migration e 11 registrados em `src/database/registros.ts`. O banco foi recriado em 17/09 com as
-  10 primeiras; a `1789689600000-comissao-versionada-cadastros-contrato` (09/10) ainda não foi aplicada no Neon
-  (MIGRATION-20261009). A `1789084805000-hardening` fica fora do registro; não aplicar por suposição.
+  10 primeiras; a `1789689600000-comissao-versionada-cadastros-contrato` foi aplicada no Neon em 09/10. A `1789084805000-hardening` fica fora do registro; não aplicar por suposição.
 - Não edite, renomeie nem apague migration existente: crie uma nova. As três últimas recusam reversão.
 - `synchronize` e `migrationsRun` continuam `false`.
 - Faça backup antes de qualquer mudança estrutural e registre no `CHANGELOG_AI.md`.

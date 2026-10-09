@@ -21,7 +21,8 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
   - Registrar o commit implantado e a data no `PROJECT_STATUS.md`.
 
 ### MIGRATION-20261009 — Aplicar comissão versionada e cadastros de contrato
-- **Status:** aberta (aguardando autorização)
+- **Status:** migration aplicada no Neon em 09/10 (Claude), sem backup por decisão do dono; falta publicar a API
+  `6305355` e cadastrar tipos e índices
 - **Responsável:** a definir
 - **Contexto:** a migration `1789689600000-comissao-versionada-cadastros-contrato` e o código correspondente estão
   só no checkout local, sem commit. Validação feita em PostgreSQL descartável. Detalhes em
