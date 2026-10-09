@@ -1,13 +1,12 @@
 # Guia de estudo — corretor-api
 
 > Documento de estudo do dono do projeto, feito para ser carregado no NotebookLM.
-> Escrito em 17/09/2026 a partir do **código atual** da `main` (contrato v2: ids inteiros, cadastro único de pessoas).
-> Onde este guia e o código discordarem, o código ganha.
+> Escrito em 17/09/2026 a partir do código da `main` (contrato v2: ids inteiros, cadastro único de pessoas) e
+> revisto em 09/10/2026 sobre o commit `6b987a5`. Onde este guia e o código discordarem, o código ganha.
 >
-> **Pode carregar junto no NotebookLM** o `README.md` e o `docs/ENTENDENDO-O-BACKEND.md`: os dois foram
-> reescritos em 17/09/2026 para o contrato v2. O README resume a operação; o ENTENDENDO é a referência técnica
-> módulo por módulo. **Não carregue** `docs/specs/`, `docs/plans/` nem os handoffs anteriores a 16/09: descrevem
-> modelos antigos (UUID, `clientes`, `partes_locacao`) e vão confundir as respostas.
+> **Pode carregar junto no NotebookLM** o `README.md` e o `ENTENDENDO-O-BACKEND.md`, ambos revistos em 09/10/2026.
+> O README resume a operação; o ENTENDENDO é a referência técnica módulo por módulo. Os resumos datados de 13, 14 e
+> 16/09 são histórico: servem para entender a evolução, não o estado atual.
 
 ---
 
@@ -23,7 +22,7 @@
 8. Os seis fluxos que você precisa saber narrar
 9. Segurança: a corrente de proteções
 10. Decisões e seus porquês
-11. Como o projeto se testa
+11. Testes: sem suítes desde 03/10
 12. Operação: comandos, ambiente, migrations
 13. O que está torto no projeto hoje
 14. Plano de estudo em quatro semanas
@@ -36,9 +35,9 @@
 
 Você pediu para ouvir de forma dura. Então vamos lá.
 
-**Este sistema não é seu ainda.** Ele tem 88 arquivos de produção, cerca de 3.600 linhas de código, 10 migrations,
-integração com três serviços externos (Neon, Cloudflare R2, Google Drive) e 175 testes automatizados. Você
-aprovou cada pedaço e não sabe explicar a maioria deles. Um sistema que você não consegue explicar é um sistema
+**Este sistema não é seu ainda.** Ele tem 101 arquivos TypeScript, cerca de 5.300 linhas de código, 10 migrations
+registradas e integração com três serviços externos (Neon, Cloudflare R2, Google Drive). Desde 03/10 não tem nenhum
+teste automatizado. Você aprovou cada pedaço e não sabe explicar a maioria deles. Um sistema que você não consegue explicar é um sistema
 que aconteceu perto de você, não um sistema que você construiu.
 
 **Vibe-coding te deu velocidade e te tirou o controle.** Veja o que os próprios registros do projeto mostram:
@@ -67,7 +66,8 @@ O que falta é vocabulário e repetição, e isso se recupera com horas de estud
    Se você só lê, vai reconhecer o código e continuar sem conseguir produzi-lo.
 5. **Use a IA como professor, não como executor, durante o estudo.** Peça explicação, peça para ela
    corrigir o seu código, peça para ela te fazer perguntas. Não peça para ela fazer o exercício.
-6. **Toda vez que o agente disser "concluído", confira você mesmo.** Rode `npm test`. Abra o endpoint.
+6. **Toda vez que o agente disser "concluído", confira você mesmo.** Rode `npm run typecheck`, `npm run lint` e
+   `npm run build`. Abra o endpoint.
    Os registros deste projeto já mostraram que "concluído" nem sempre é verdade.
 
 Você está cursando Sistemas de Informação e tem um sistema real nas mãos. Isso é uma vantagem enorme sobre
@@ -132,31 +132,33 @@ Não existe cadastro público de corretor. O primeiro ADMIN nasce por linha de c
 - **Cloudflare R2**: armazenamento de arquivos compatível com a API do Amazon S3. Por isso o código usa
   `@aws-sdk/client-s3`, mesmo não sendo Amazon. Bucket fixo: `corretor-midia`.
 - **Google Drive**: pastas privadas para os documentos de cada contrato, criadas automaticamente.
-- **Render** (API) e **Vercel** (front) são os destinos de publicação. O Render hoje roda um commit antigo,
-  incompatível com o banco atual, e não está em uso.
+- **Render** (API) e **Vercel** (front) hospedam o ambiente de teste. O último deploy registrado da API é de 08/10,
+  no commit `86ecf29`.
 
-### O estado atual, em 17/09/2026
+### O estado atual, em 09/10/2026
 
-- Banco do Neon recriado do zero com as 10 migrations. Contém só o administrador (id 1) e os cadastros
-  iniciais de tipos e finalidades.
-- API validada localmente segundo o registro de 17/09: typecheck, lint, build e testes; saúde, catálogo e login
-  respondem. Veja na seção 11 o resultado da execução de testes feita para este guia.
-- Pendências abertas: aviso de novo contato ao corretor, regras de acesso a locações e comissões,
-  publicação coordenada com o front, CPF real do administrador.
+- Banco do Neon recriado do zero em 17/09 com as 10 migrations. Em 03/10 recebeu a carga ilustrativa do catálogo:
+  12 imóveis, 36 mídias e um segundo ADMIN.
+- Typecheck, lint e build aprovados em 09/10. Não há suítes de teste (seção 11).
+- Pendências abertas: publicar o commit de 09/10 no ambiente de teste, aviso de novo contato ao corretor,
+  encerramento e renovação de contratos, dados reais do administrador. Lista completa no `TASKS.md`.
 
 ### As rotas (prefixo `/api/v1`)
 
 | Área | Rotas | Acesso |
 |---|---|---|
 | Saúde | `GET /saude` | público |
-| Sessão | `POST /autenticacao/entrar`, `/renovar`, `/sair`; `GET/PATCH /autenticacao/eu`; `PATCH /autenticacao/eu/senha` | público ou JWT |
+| Sessão | `POST /autenticacao/entrar`, `/renovar`, `/sair`; `GET/PATCH /autenticacao/eu` (o `PATCH` aceita JSON ou multipart com `foto`); `PATCH /autenticacao/eu/senha` | público ou JWT |
+| Foto do corretor | `GET /corretores/:id/foto` | público |
 | Corretores | `GET/POST /admin/corretores`; `GET/PATCH/DELETE /admin/corretores/:id` | ADMIN |
 | Classificações | `GET /tipos-imovel`, `/finalidades-imovel`, `/caracteristicas`; CRUD sob `/admin/...` | leitura pública; escrita ADMIN |
 | Imóveis | `GET /imoveis`, `GET /imoveis/:slug`; `GET/POST /admin/imoveis`; `GET/PATCH/DELETE /admin/imoveis/:id` | público ou JWT |
 | Mídias | `POST /admin/imoveis/:imovel_id/midias` e variações de embed, ordem, capa e exclusão | dono do imóvel ou ADMIN |
 | Pessoas | `POST /pessoas` (site); `GET/POST /admin/pessoas`; `GET/PATCH/DELETE /admin/pessoas/:id` | público ou JWT |
 | Contratos | `GET/POST /admin/contratos`; `GET/PATCH/DELETE /admin/contratos/:id`; `POST /admin/contratos/:id/pasta-drive` | JWT |
-| Comissões | `GET/POST /admin/comissoes`; `GET/PATCH/DELETE /admin/comissoes/:id`; `PATCH /admin/comissoes/parcelas/:id/pagamento` | JWT |
+| Comissões | `GET/POST /admin/comissoes`; `GET /admin/comissoes/pessoas-elegiveis`; `GET/PATCH/DELETE /admin/comissoes/:id`; `PATCH /admin/comissoes/parcelas/:id/pagamento` | JWT |
+
+São 62 rotas no total.
 
 Um detalhe do `main.ts`: um middleware acrescenta `/api/v1` a qualquer URL que chegue sem ele.
 Por isso `/saude` e `/api/v1/saude` funcionam igual. Isso existe para o proxy do front.
@@ -243,8 +245,8 @@ Se você já viu **Spring Boot** (Java) na faculdade, o Nest é praticamente a m
 
 1. **Estrutura obrigatória.** Todo módulo segue `entity + dto + service + controller + module`. Com vários
    agentes de IA escrevendo código, isso impede que cada um invente uma arquitetura.
-2. **Injeção de dependência.** O service recebe o repositório pronto no construtor. Nos testes, você troca o
-   repositório real por um falso sem mudar uma linha do service. É o que permite 175 testes sem banco.
+2. **Injeção de dependência.** O service recebe o repositório pronto no construtor. Num teste, daria para trocar o
+   repositório real por um falso sem mudar uma linha do service. Até 03/10 o projeto testava assim, sem banco.
 3. **Declarativo.** Proteger uma rota é escrever `@UseGuards(AutenticacaoGuard)`. Validar um campo é escrever
    `@IsEmail()`. A regra fica visível ao lado do que ela protege.
 4. **Ecossistema oficial.** `@nestjs/config`, `@nestjs/typeorm`, `@nestjs/jwt`, `@nestjs/passport`,
@@ -317,19 +319,21 @@ grava os tipos dos parâmetros como metadado, e o Nest os lê em execução. Sem
 **Provider com token próprio.** Quando o que você injeta não é uma classe sua, você cria um token:
 
 ```ts
-// src/midias/midias.module.ts
-providers: [MidiasService, {
+// src/comum/armazenamento.module.ts
+@Module({ providers: [RecepcaoMidiasInterceptor, {
   provide: R2_MIDIAS,
   inject: [ConfigService],
   useFactory: (configuracao: ConfigService) => new S3Client({ ... }),
-}]
+}], exports: [R2_MIDIAS, RecepcaoMidiasInterceptor] })
+export class ArmazenamentoModule {}
 
 // src/midias/midias.service.ts
 constructor(@Inject(R2_MIDIAS) private readonly armazenamento: S3Client) {}
 ```
 
-O cliente do R2 é criado uma vez, com as credenciais do ambiente, e injetado onde for pedido. Nos testes,
-basta trocar esse provider por um falso.
+O cliente do R2 é criado uma vez, com as credenciais do ambiente, e injetado onde for pedido: nas mídias dos imóveis
+e na foto do perfil. Como o módulo é um só, o `RecepcaoMidiasInterceptor` também é um só, e a cota de 2 uploads
+simultâneos vale para os dois.
 
 #### Controller
 
@@ -432,8 +436,13 @@ Padrões que se repetem no projeto e valem entender:
 
 #### Interceptor
 
-Envolve a execução do handler, antes e depois. O único do projeto é o `FilesInterceptor` do upload de mídia,
-que lê o multipart com o Multer, guarda os arquivos **em memória** e limita tamanho e quantidade.
+Envolve a execução do handler, antes e depois. O projeto tem três:
+
+- **`AtividadeSessaoInterceptor`**, global (`APP_INTERCEPTOR` no `AutenticacaoModule`): em toda requisição
+  autenticada, estende a sessão de 4h. Roda depois dos guards, quando `request.user` já existe.
+- **`RecepcaoMidiasInterceptor`**: recusa com 429 se já houver 2 uploads em andamento no processo.
+- **`FilesInterceptor`** e **`FileInterceptor`** do Nest: leem o multipart com o Multer, guardam os arquivos
+  **em memória** e limitam tamanho e quantidade.
 
 #### Exception filter
 
@@ -453,10 +462,10 @@ acrescenta `/api/v1`, e o CORS.
 #### Ciclo de vida e agendamento
 
 - **`OnModuleInit` / `OnModuleDestroy`**: métodos chamados quando o módulo sobe e desce. O `SessoesService` usa
-  para ligar e desligar a limpeza horária de sessões expiradas.
+  para limpar as sessões expiradas no boot e para ligar e desligar a limpeza horária (`setInterval`).
 - **`enableShutdownHooks()`** no `main.ts` garante que esses métodos rodem quando o processo recebe sinal de parada.
-- **`@Cron('0 * * * *')`** de `@nestjs/schedule`: executa um método a cada hora. Usado para encerrar contratos
-  vencidos e marcar parcelas atrasadas.
+- **`@Cron`** de `@nestjs/schedule`, no fuso `America/Cuiaba`: `'0 * * * *'` encerra contratos vencidos na hora
+  cheia; `'5 * * * *'` marca parcelas atrasadas no minuto 5 de cada hora.
 - **`NestFactory.createApplicationContext`** (em `commands/bootstrap-admin.ts`): sobe o Nest **sem servidor HTTP**,
   só para usar os services num script de linha de comando.
 
@@ -465,7 +474,7 @@ acrescenta `/api/v1`, e o CORS.
 ```text
 1. Middleware do Express  (helmet, reescrita de URL, CORS, leitura do corpo JSON)
 2. Guards                 (autenticação, cargo, origem, limite)
-3. Interceptors (antes)   (upload de arquivos)
+3. Interceptors (antes)   (atividade da sessão, cota e leitura do upload)
 4. Pipes                  (ValidationPipe, ParseIntPipe)
 5. Handler do controller  → service → banco / R2 / Drive
 6. Interceptors (depois)
@@ -499,7 +508,7 @@ execução**, porque a coluna não existe no banco.
 **Regra inegociável:** migration aplicada **nunca** é editada, renomeada ou apagada. Para mudar o schema, cria-se
 uma migration nova. Editar uma aplicada deixa o histórico do banco real diferente do código.
 
-### As 10 migrations e a história do schema
+### As migrations e a história do schema
 
 | Migration | O que fez |
 |---|---|
@@ -509,7 +518,7 @@ uma migration nova. Editar uma aplicada deixa o histórico do banco real diferen
 | `1789603200000-ids-inteiros-pessoas` | troca UUID por inteiro, funde clientes e partes em `pessoas` e arquiva o anterior em `legado_20260916` |
 
 Existe ainda `1789084805000-hardening.ts` no disco, **fora** da lista registrada em `src/database/registros.ts`.
-Ela nunca roda. As duas últimas migrations recusam reversão (`down` lança erro): voltar atrás exige restaurar backup.
+Ela nunca roda. São 11 arquivos e 10 registrados. As duas últimas migrations recusam reversão (`down` lança erro): voltar atrás exige restaurar backup.
 
 Em 17/09/2026 o banco foi zerado e as 10 rodaram do zero, então os schemas `legado_*` existem e estão vazios.
 
@@ -618,21 +627,21 @@ src/
   main.ts            ponto de entrada: helmet, filtro de erros, prefixo, CORS, ValidationPipe, porta
   app.module.ts      módulo raiz: configuração validada, TypeORM, agendador e os nove módulos
   config/            validação das variáveis de ambiente e opções de conexão com TLS
-  comum/             auditoria, validadores de CPF/CNPJ/telefone/data, decorators de DTO, datas
+  comum/             auditoria, validadores, decorators de DTO, datas e ArmazenamentoModule (cliente R2)
   common/filters/    o filtro global de exceções
-  autenticacao/      login, renovação, saída, perfil, guards, estratégia JWT, sessões
-  corretores/        CRUD de corretores (ADMIN), hash de senha, proteção do último ADMIN
+  autenticacao/      login, renovação, saída, perfil, guards, estratégia JWT, sessões, interceptor de atividade
+  corretores/        CRUD de corretores (ADMIN), hash de senha, último ADMIN, foto do perfil
   cadastros/         tipos, finalidades e características do catálogo
   imoveis/           catálogo público e gestão interna, filtros, ordenação, slug
   midias/            upload para o R2, vídeos do YouTube/Vimeo, ordem, capa, exclusão
   pessoas/           contato do site com LGPD e cadastro manual de pessoas
   locacoes/          contratos de locação e integração com o Drive
-  comissoes/         comissões e parcelas
+  comissoes/         comissões, parcelas e pessoas elegíveis
   drive/             cliente HTTP do Google Drive e registro de pastas
   saude/             GET /saude, que testa o banco com SELECT 1
   database/          DataSource do CLI, registro de migrations, logger que não vaza dados
-  commands/          bootstrap do primeiro ADMIN e executor de migrations
-  testing/           substituto do agendador nos testes
+  commands/          bootstrap do primeiro ADMIN, executor de migrations e carga do catálogo
+  testing/           mock do agendador, resto da configuração do Jest
 ```
 
 ### `config/`
@@ -652,7 +661,9 @@ Detalhados no fluxo de login (seção 8). Destaques:
 - `SenhasService` é o **único** lugar que gera e confere hash, com Argon2id.
 - `perfilCorretor()` monta a resposta **campo a campo**, sem o hash.
 - Trocar a própria senha revoga **todas** as sessões do corretor. Redefinir a senha de outro corretor pelo ADMIN
-  (`PATCH /admin/corretores/:id`) **não** revoga.
+  (`PATCH /admin/corretores/:id`) ou desativá-lo também revoga.
+- A foto do perfil chega por multipart no `PATCH /autenticacao/eu` e é servida em `GET /corretores/:id/foto`.
+- O CRECI aceita só números com `J` ou `F` opcional no final.
 
 ### `cadastros/`
 
@@ -666,8 +677,8 @@ A leitura pública mostra só os ativos. Duplicata de nome ou slug responde 409,
 - O público força `ativo = true AND status = 'DISPONIVEL' AND corretor.ativo = true`.
 - **Qualquer corretor autenticado lê todos os imóveis internos**, mas só o dono ou ADMIN altera (403 para os outros).
 - **Slug = título normalizado + id** (`galpao-na-br-163-42`). Muda quando o título muda. A rota pública localiza
-  pelo número no fim, então links antigos continuam funcionando. Para saber o id antes do INSERT, o service
-  pede o próximo valor da sequência com `nextval`.
+  pelo número no fim, então links antigos continuam funcionando. O INSERT vai sem id e com um slug provisório; o
+  slug definitivo é gravado logo depois, na mesma transação, com o id que o banco gerou.
 - **Duas funções de resposta**: `resposta_imovel_publico` e `resposta_imovel` (interna, com proprietário,
   matrícula, chaves e observações). Campo interno nunca sai na rota pública.
 - O preço usado em filtro e ordenação depende da finalidade: venda usa `valor_venda`, locação usa
@@ -682,6 +693,7 @@ A leitura pública mostra só os ativos. Duplicata de nome ou slug responde 409,
 - Vídeos do YouTube e Vimeo são normalizados para a URL de embed, comparando o host por igualdade exata.
   `youtube.com.site-falso.net` não passa. YouTube vira `youtube-nocookie.com`.
 - A primeira imagem vira capa. Apagar a capa promove a próxima imagem.
+- O arquivo vai ao R2 **antes** da transação do banco, e a transação fica curta.
 
 ### `pessoas/`
 
@@ -711,6 +723,7 @@ A leitura pública mostra só os ativos. Duplicata de nome ou slug responde 409,
   Vencimento dia 31 em fevereiro cai no último dia do mês, sem empurrar os meses seguintes.
 - Baixa manual exige `confirmar_pagamento: true` e uma referência do comprovante. Repetir a mesma baixa é
   **idempotente** (não dá erro); baixar com comprovante diferente dá 409.
+- `GET /admin/comissoes/pessoas-elegiveis` lista só as pessoas que o `POST` aceitaria para o imóvel escolhido.
 
 ### `database/` e `commands/`
 
@@ -733,7 +746,7 @@ conferir e dura pouco. O token de renovação é usado raramente, então pode se
 | | Token de acesso | Token de renovação |
 |---|---|---|
 | Formato | JWT assinado (HS256) | 48 bytes aleatórios |
-| Duração | 15 minutos | 30 dias |
+| Duração | 15 minutos | cai após 4h sem uso |
 | Onde o front guarda | só na memória | cookie `corretor_renovacao` HttpOnly |
 | Onde o servidor guarda | em lugar nenhum | SHA-256 na tabela `sessoes_login` |
 | Revogável | não, só expira | sim, apagando a linha |
@@ -803,15 +816,17 @@ tabela, então precisa ser determinístico para busca. SHA-256 é a ferramenta c
 
 `POST /api/v1/admin/imoveis/42/midias` com multipart `arquivos`
 
-1. `AutenticacaoGuard`, depois o `FilesInterceptor` lê os arquivos para a memória, com limites.
-2. Cada arquivo é validado por assinatura de bytes e tamanho.
-3. Abre uma transação e **trava o imóvel** (`pessimistic_write`); confere se o usuário é dono ou ADMIN.
-4. Envia cada arquivo ao R2 e anota a chave numa lista.
-5. Grava as linhas de `imoveis_midias`.
-6. **Se qualquer coisa falhar**, apaga do R2 todas as chaves da lista. Isso se chama **compensação**: banco e R2
-   não compartilham transação, então o código desfaz à mão o que já tinha feito fora do banco.
-7. A exclusão faz o caminho inverso: baixa uma cópia do arquivo, apaga no R2, apaga a linha; se o banco falhar,
-   devolve a cópia ao R2.
+1. `AutenticacaoGuard` e `PodeEditarImovelGuard`: só o dono do imóvel ou ADMIN passa, antes de ler qualquer byte.
+2. `RecepcaoMidiasInterceptor`: se já houver 2 uploads em andamento, 429.
+3. O `FilesInterceptor` lê os arquivos para a memória, com limites de quantidade, tamanho e soma do lote.
+4. Cada arquivo é validado por assinatura de bytes e tamanho.
+5. Envia cada arquivo ao R2, **fora de transação**, e anota a chave numa lista.
+6. Abre uma transação curta, **trava o imóvel** (`pessimistic_write`), confere de novo a permissão e grava as linhas
+   de `imoveis_midias`.
+7. **Se o envio ou a gravação falharem**, apaga do R2 todas as chaves da lista. Isso se chama **compensação**: banco
+   e R2 não compartilham transação, então o código desfaz à mão o que já tinha feito fora do banco.
+8. A exclusão apaga a linha na transação e, depois do commit, o objeto no R2. Não baixa cópia. Se o R2 falhar, o
+   objeto fica órfão e o erro vai para o log.
 
 Nada é gravado no disco do servidor, porque o disco do Render é apagado a cada reinício.
 
@@ -854,7 +869,7 @@ Segurança aqui não é uma parede, é uma sobreposição de camadas. Cada uma c
 | `ValidationPipe` com whitelist | `main.ts` | *mass assignment*: mandar `cargo`, `senha_hash`, `ativo` onde não pode |
 | Argon2id e `select: false` | `SenhasService`, entities | vazamento de senha mesmo com o banco exposto |
 | Hash de disfarce no login | `AutenticacaoService` | descobrir quais e-mails existem pelo tempo de resposta |
-| Par de tokens e cookie HttpOnly | autenticação | XSS roubando sessão longa |
+| Token de acesso curto e cookie HttpOnly | autenticação | XSS roubando a sessão |
 | `SameSite=Strict` e `OrigemGuard` | cookie e guard | CSRF, com uma defesa no navegador e outra no servidor |
 | Limites de tentativa | `TentativasGuard`, `LimitePessoasGuard` | força bruta e spam de contatos |
 | Cargo relido do banco | `EstrategiaJwt` | JWT que não pode ser revogado |
@@ -897,8 +912,9 @@ Segurança aqui não é uma parede, é uma sobreposição de camadas. Cada uma c
 | Ids inteiros | ids curtos, busca por "#42", URLs legíveis | UUID em tudo (usado até 16/09) |
 | Cadastro único de pessoas | o lead vira cliente, proprietário ou inquilino sem duplicar | tabelas separadas por papel |
 | Exclusão lógica | preservar histórico de contratos e comissões | `DELETE` físico |
+| Sem suítes de teste (03/10) | pedido do dono | manter as suítes antigas |
 | Dados pessoais sem criptografia de coluna | criptografia de coluna impede índice e busca `ILIKE`; TLS e disco cifrado do Neon cobrem o resto | AES por coluna (usado no modelo antigo) |
-| Access token curto e refresh rotativo em cookie | revogação e resistência a XSS | token longo em `localStorage` |
+| Token de acesso curto e sessão de 4h por inatividade em cookie, sem rotação | revogação, resistência a XSS e F5 sem perder o login | token longo em `localStorage`; token de renovação de uso único e validade longa (usado até 06/10) |
 | Cargo relido do banco a cada requisição | revogação imediata de privilégio | confiar no cargo do JWT |
 | Documentos de contrato no Google Drive | a imobiliária já trabalha no Drive; bucket privado evitado | documentos no R2 |
 | Trabalho direto na `main` | projeto pequeno, agentes um de cada vez | branches paralelas |
@@ -908,38 +924,26 @@ O `DECISIONS.md` tem cada uma com data e a lista do que **não** fazer. Leia dep
 
 ---
 
-## 11. Como o projeto se testa
+## 11. Testes: sem suítes desde 03/10
 
-**Ferramentas:** Jest com `ts-jest`. Os arquivos `*.spec.ts` ficam ao lado do código. `npm test` roda tudo em série
-(`--runInBand`). O registro de 17/09 anota 175 testes aprovados. Na execução de 17/09 feita para este guia, 174 passaram
-e 1 falhou por **tempo esgotado**: o `bootstrap.spec.ts` sobe o `main.ts` num subprocesso com limite de 15 segundos, e
-nesta máquina (Windows com a pasta no OneDrive) a subida passou disso. Não é erro de lógica, mas é um teste instável.
-A suíte de integração é ignorada sem banco local.
+Em 03/10/2026, por pedido do dono, todos os arquivos `*.spec.ts` foram apagados (`ab59472`). A decisão registrada é
+não recriar suítes sem novo pedido.
 
-**Quatro tipos de teste convivem:**
+O que sobrou:
 
-1. **Unitários de service com mocks.** Ex.: `pessoas/pessoas.service.spec.ts`. O repositório é um objeto falso com
-   `jest.fn()`, e o teste confere **que SQL o service montou** e **o que ele tentou gravar**.
-2. **HTTP com aplicação Nest real.** Ex.: `autenticacao/autenticacao.http.spec.ts`. Sobe o Nest de verdade numa porta
-   aleatória e troca só o repositório:
-   ```ts
-   Test.createTestingModule({ imports: [ConfigModule.forRoot({...}), AutenticacaoModule] })
-     .overrideProvider(getRepositoryToken(Corretor)).useValue(repositorio)
-   ```
-   Rotas, guards, pipes e regras são reais; só o banco é falso. Isso é a injeção de dependência pagando a conta.
-3. **Processo real.** `bootstrap.spec.ts` executa o `main.ts` num subprocesso sem variáveis de ambiente e prova que
-   o processo morre **antes** de conectar e **sem** imprimir segredos.
-4. **Integração com PostgreSQL real.** `database/modelo-portugues.integracao.spec.ts` roda as migrations com dados
-   sintéticos e testa o fluxo HTTP inteiro. Só roda com `TESTE_LOCAL_DATABASE_URL` (Docker) ou banco de homologação.
+- `jest.config.cjs`, sem `passWithNoTests`. Por isso `npm test` termina com "No tests found" e código 1.
+- Os scripts `test` e `test:watch` e as dependências do Jest.
+- `src/testing/schedule.mock.ts`, que o Jest usava no lugar de `@nestjs/schedule` para os `@Cron` não dispararem.
 
-**Peculiaridade:** o `jest.config.cjs` troca `@nestjs/schedule` por `src/testing/schedule.mock.ts`, para que os `@Cron`
-não disparem durante os testes.
+Como cada entrega é validada hoje: `npm run typecheck`, `npm run lint`, `npm run build` e um QA efêmero, fora do
+repositório, com a aplicação real e um PostgreSQL descartável em Docker. O QA prova a entrega daquele dia; ele não
+fica no repositório para pegar regressões depois.
 
-**Duplicação perigosa:** a configuração do `ValidationPipe` está escrita no `main.ts` e de novo nos testes HTTP.
-Mudar uma sem a outra deixa os testes verdes validando outra coisa.
+**O que nada verifica automaticamente:** upload real no R2, criação real de pasta no Drive e a cadeia de migrations
+sobre banco vazio.
 
-**O que os testes não provam:** upload real no R2, criação real de pasta no Drive e a cadeia completa de migrations
-sobre banco vazio. Essas partes foram verificadas à mão, uma vez.
+**Para estudar:** sem testes, a forma de conferir um comportamento é ler o código e chamar a rota. Os exercícios
+da seção 14 seguem esse caminho.
 
 ---
 
@@ -953,14 +957,15 @@ sobre banco vazio. Essas partes foram verificadas à mão, uma vez.
 | Desenvolver com recarga | `npm run start:dev` | sim |
 | Compilar | `npm run build` | não |
 | Rodar o compilado | `npm run start:prod` | sim |
-| Testes | `npm test` | não |
 | Lint | `npm run lint` | não |
 | Tipos | `npm run typecheck` | não |
 | Ver migrations pendentes | `npm run migration:show` | sim |
 | Aplicar migrations | `npm run migration:run` | sim, com `MIGRACAO_BACKUP_ARQUIVO` |
+| Reverter a última migration | `npm run migration:revert` | sim, com `MIGRACAO_BACKUP_ARQUIVO` |
 | Criar o primeiro ADMIN | `npm run bootstrap:admin` | sim |
 
-Antes de qualquer commit: `npm run typecheck`, `npm run lint` e `npm test`. Os três.
+Antes de qualquer commit: `npm run typecheck`, `npm run lint` e `npm run build`. Os três.
+`npm test` existe, mas falha com "No tests found" porque não há suítes.
 
 ### Variáveis de ambiente
 
@@ -972,7 +977,7 @@ Antes de qualquer commit: `npm run typecheck`, `npm run lint` e `npm test`. Os t
 | `PORT`, `NODE_ENV`, `JWT_EXPIRES_IN`, `ALLOWED_ORIGINS` | porta, ambiente, duração do token, origens do front | têm padrão |
 | `R2_REQUEST_TIMEOUT_MS`, `R2_CONNECTION_TIMEOUT_MS` | timeouts do R2 | têm padrão |
 | `GOOGLE_DRIVE_*` (quatro) | integração com o Drive | opcionais, mas as quatro juntas |
-| `MIGRACAO_BACKUP_ARQUIVO`, `MIGRACAO_COMPLEMENTOS_ARQUIVO` | executor de migrations | só na linha de comando |
+| `MIGRACAO_BACKUP_ARQUIVO`, `MIGRACAO_COMPLEMENTOS_ARQUIVO`, `LEADS_ENCRYPTION_KEY` | executor de migrations e migração do legado | só na linha de comando |
 | `BOOTSTRAP_ADMIN_*` | criar o primeiro ADMIN | só uma vez; **apagar depois** |
 
 O `.env` nunca vai para o Git. Nenhum valor de segredo aparece em log, teste ou mensagem.
@@ -981,8 +986,8 @@ O `.env` nunca vai para o Git. Nenhum valor de segredo aparece em log, teste ou 
 
 - Backup antes de qualquer mudança estrutural no banco.
 - Nunca editar migration aplicada.
-- Nunca publicar a API sozinha: o contrato v2 quebra o front antigo. API e front sobem juntos, e o health check
-  do Render aponta para `/api/v1/saude`.
+- Na publicação, a API sai antes do front: o front de 09/10 depende de rotas novas. O health check do Render
+  aponta para `/api/v1/saude`.
 - Nunca rodar `migration:revert` em produção sem backup e autorização.
 
 ---
@@ -998,20 +1003,19 @@ Isto é o que um revisor sênior apontaria. Saber disso é parte de ser dono. To
    devolve a entidade inteira (`{ ...comissao }`) e o `criar` devolve a entity direto. Hoje não vaza nada sensível,
    mas qualquer coluna nova sairá na resposta automaticamente.
 4. **Dois mecanismos de agendamento.** Sessões usam `setInterval` no `SessoesService`; contratos e comissões usam
-   `@Cron`. O `DECISIONS.md` de 12/09 diz para **não** usar `setInterval`, e a tarefa OPS-001 ainda aparece aberta
-   embora a limpeza já exista no código.
+   `@Cron`. Funciona, mas são duas formas para o mesmo tipo de problema.
 5. **Dependência instalada e não usada:** `@aws-sdk/lib-storage` está no `package.json` e nenhum arquivo a importa.
 6. **Migration órfã:** `1789084805000-hardening.ts` está no disco e fora do registro.
-7. **Documentação histórica misturada com a atual:** o `README.md` e o `docs/ENTENDENDO-O-BACKEND.md` foram
-   atualizados em 17/09, mas o handoff de 14/09 ainda diz que trocar senha mantém as sessões, e o código atual
-   revoga. Documento velho ensina errado; confira a data antes de confiar.
-8. **Redefinição de senha pelo ADMIN não revoga sessões** do corretor alvo, ao contrário da troca da própria senha.
+7. **Jest sem suítes.** `npm test` falha com "No tests found", e sobram `jest.config.cjs`, `src/testing/` e a
+   variável `TESTE_LOCAL_DATABASE_URL` no `.env.example` (tarefa TEST-API).
+8. **Objetos órfãos no R2.** Se apagar no R2 falhar depois do commit, o erro só vai ao log; não há conciliação.
 9. **Linhas muito longas.** Muitos arquivos têm vários decorators e instruções numa linha só, sem formatador
    automático (Prettier). Funciona, mas é difícil de ler e revisar. Isso é custo real para quem estuda.
 10. **Limites de tentativa em memória**, com o risco de trancar o login ao encher o mapa (seção 9).
-11. **O Render publicado roda o contrato antigo** e não funciona contra o banco atual.
-12. **Teste instável por tempo.** O `bootstrap.spec.ts` tem limite de 15 segundos para subir a aplicação num
-    subprocesso e falha em máquinas lentas, como esta pasta sincronizada pelo OneDrive.
+11. **A `main` está à frente do ambiente de teste.** O commit de 09/10 não foi publicado; o último deploy registrado
+    é o `86ecf29`, em 08/10.
+12. **A foto no catálogo público sai crua.** `resposta_imovel_publico` devolve `corretor.url_foto` (a URL do R2), não
+    a rota `/corretores/:id/foto`. O front contorna montando a URL pelo id do corretor.
 
 ---
 
@@ -1029,7 +1033,8 @@ Digite o código. Não cole.
 - Dia 4: seção 5 até "Guard". Exercício: crie um `GET /ping` num módulo novo que devolve `{ ok: true }`.
 - Dia 5: continue a seção 5. Exercício: proteja o `/ping` com `AutenticacaoGuard` e depois com `@Cargos('ADMIN')`.
   Teste com e sem token.
-- Fim de semana: rode `npm test`. Leia um teste HTTP inteiro, `autenticacao.http.spec.ts`.
+- Fim de semana: leia `autenticacao.controller.ts`, `sessoes.service.ts` e `atividade-sessao.interceptor.ts` inteiros.
+  Explique em voz alta por que a sessão cai após 4h sem uso e por que o F5 não derruba o login.
 
 ### Semana 2 — Dados
 
@@ -1039,8 +1044,10 @@ Digite o código. Não cole.
   resposta. Veja o 400 quando falta no DTO.
 - Dia 3: leia `pessoas.service.ts`. Desenhe no papel a consulta que `visiveis()` monta para um CORRETOR.
 - Dia 4: leia `corretores.service.ts`. Explique a condição de corrida do último ADMIN e como o advisory lock resolve.
-- Dia 5: leia `parcelamento.ts`. Exercício: calcule à mão R$ 1.000,00 em 3 parcelas e confira com um teste.
-- Fim de semana: escreva um teste unitário novo para `distribuirParcelas`.
+- Dia 5: leia `parcelamento.ts`. Exercício: calcule à mão R$ 1.000,00 em 3 parcelas e confira seguindo o código
+  linha a linha.
+- Fim de semana: escreva no papel três casos-limite de `distribuirParcelas` e de `vencimentoMensal` (1 parcela,
+  600 parcelas, primeiro vencimento no dia 31) e diga, lendo o código, o resultado de cada um.
 
 ### Semana 3 — Fluxos
 
@@ -1094,7 +1101,7 @@ Digite o código. Não cole.
     A pasta é criada depois de gravar o contrato. A falha vira `status_pasta_drive = FALHOU` e existe rota de nova tentativa.
 
 11. **Como o upload evita arquivos órfãos no R2 quando o banco falha?**
-    Compensação: guarda as chaves enviadas e apaga todas do R2 no `catch`.
+    Compensação: envia ao R2 antes da transação, guarda as chaves e, se a gravação falhar, apaga todas do R2.
 
 12. **O que acontece com um endpoint novo sem `@UseGuards`?**
     Fica público. Não existe guard global.

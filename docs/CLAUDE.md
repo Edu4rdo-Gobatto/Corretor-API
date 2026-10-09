@@ -1,4 +1,4 @@
-@docs/AGENTS.md
+@AGENTS.md
 
 # Instruções específicas do Claude
 
@@ -11,14 +11,13 @@ Antes de responder ou modificar arquivos:
 
 Durante o trabalho:
 
-- Não confie no `docs/README.md` nem no `docs/PLANO-PROJETO-CORRETOR.md` para afirmar o que existe:
-  a fonte de verdade é o código.
+- Não confie em documento para afirmar o que existe: a fonte de verdade é o código.
 - Mudanças em migration, variável de ambiente ou contrato de endpoint exigem registro em `docs/DECISIONS.md`.
 
 Quando terminar:
 
 - Atualize o status da tarefa em `docs/PROJECT_STATUS.md` e `docs/TASKS.md`.
 - Registre decisões arquiteturais em `docs/DECISIONS.md`.
-- Liste em `docs/CHANGELOG_AI.md` os testes executados e o resultado real, incluindo falhas.
+- Acrescente ao `docs/CHANGELOG_AI.md` a validação executada e o resultado real, incluindo falhas.
 - Não considere uma tarefa concluída só porque o código compila: use os critérios de conclusão da tarefa.
-- Diga o que ficou sem cobertura de teste e o que depende de serviço externo.
+- Diga o que ficou sem validação e o que depende de serviço externo.

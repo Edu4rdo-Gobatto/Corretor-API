@@ -1,513 +1,92 @@
 # Histórico de trabalho dos agentes — corretor-api
 
-## 2026-10-09 — Correção dos seis pontos, lado API (Claude)
-
-Arquivos: `src/comum/dto.ts` (`ListaIds`), `src/corretores/corretores.dto.ts` (CRECI), `src/imoveis/imoveis.dto.ts` e
-`imoveis.service.ts` (`tipo_id` em CSV com `IN`), `src/comissoes/comissoes.{controller,dto,service}.ts` (pessoas
-elegíveis), `corretor-spec.json` (nota do CRECI e `correcoes_2026_10_09`, cópia idêntica no web), docs de contexto e
-`2026-10-09-seis-pontos.md`.
-
-Validação real:
-- `npm run typecheck`, `npm run lint`, `npm run build`: aprovados.
-- `npm test`: "No tests found", exit 1 — suítes removidas em `ab59472`, não recriadas.
-- QA efêmero no scratchpad (fora do repo): Nest com módulos compilados, ValidationPipe do `main.ts`, login JWT real,
-  PostgreSQL 16 em contêiner descartável. 78/78 (1 falha inicial era slug errado no próprio roteiro). Navegador
-  integrado ao web: 63/63.
-- Sem acesso ao Neon/R2, sem dados financeiros gravados, sem migrations, dependências, commit, push ou deploy.
-Pendências: publicar a API antes do frontend se autorizado; homologação com dados reais.
-
-## 2026-10-06 — Sessão por inatividade de 4h e fim do logout por F5 (Claude)
-
-Pedido do dono: o login não expirava (nem fechando o navegador ou desligando o PC) e F5 repetido derrubava a sessão.
-
-Causa: cookie de renovação de 30 dias, renovado a cada abertura do painel, e rotação de uso único que se perdia quando o
-navegador abortava a resposta do `renovar` no F5.
-
-Arquivos alterados:
-- `src/autenticacao/sessoes.service.ts`: `INATIVIDADE_SESSAO_MS` (4h); `consumir` → `renovar` (`UPDATE ... RETURNING`,
-  token fixo); novo `registrarAtividade` (no máximo uma escrita a cada 5 min).
-- `src/autenticacao/atividade-sessao.interceptor.ts` (novo): interceptor global que registra a atividade em requisição autenticada.
-- `src/autenticacao/cookie-sessao.ts` (novo): leitura e opções do cookie, agora sem `maxAge`.
-- `src/autenticacao/autenticacao.controller.ts`, `autenticacao.service.ts`, `autenticacao.module.ts`: ajustes para o acima.
-- Docs: `DECISIONS.md`, `README.md`, `GUIA-DE-ESTUDO.md`, `corretor-spec.json` (API e web).
-
-Sem migration: a coluna `expira_em` já existia. Sessões ativas antes do deploy passam a valer 4h na primeira renovação.
-
-Validação:
-- `npm run typecheck`, `npm run lint` e `npm run build`: aprovados.
-- Teste no navegador (F5 seguido, fechar navegador, inatividade): pendente com o dono.
-## 2026-10-06 — Codex: contrato aditivo para foto do perfil
-
-Arquivos: autenticação (controller/module), corretores (service/module e novos FotosCorretorService /
-FotoCorretorController), comum/ArmazenamentoModule e adaptação de mídia/quota. Sem novas dependências
-ou migrations; DTO, JSON, url_foto e Corretor preservados. Multipart exclusivo, leitura por id ativo,
-Put antes de DB, compensação e limpeza após commit. URL gerenciada obsoleta protegida com 409.
-
-Validação: typecheck/lint/build aprovados; Jest sem testes fonte (passWithNoTests). HTTP efêmero
-22 cenários + reprodução de abas concorrentes aprovados. QA frontend simulado: 23 cenários/32 capturas.
-R2 temporário real: Put/Get/Delete e GET 404 após limpeza aprovados; nenhuma mutação de perfil no Neon.
-Homologação ponta a ponta e dispositivo real pendentes. Seis páginas do System Design verificadas
-no frontend irmão, template original intacto. Contexto, contrato, índices e especificação atualizados.
-Alterações anteriores staged/untracked (seed catálogo, package e docs) preservadas.
-Sem commit, push, deploy, schema ou migrations. Nenhuma suíte rastreada criada.
-
-## 2026-10-04 — Padronização e centralização plana da documentação em docs/
-
-Pedido do dono:
-1. Centralizar estritamente todos os arquivos `.md` do repositório dentro da pasta `docs/` em estrutura estritamente plana (sem subdiretórios dentro de `docs/` e sem arquivos `.md` soltos na raiz).
-2. Remover pastas de configuração de agentes isoladas (`.claude/`) e subpastas de documentação.
-3. Registrar a regra oficial de centralização no topo de `docs/DECISIONS.md`.
-4. Atualizar referências internas de agentes em `docs/AGENTS.md` e `docs/CLAUDE.md`.
-5. Limpar o histórico antigo de tarefas em `docs/TASKS.md`, mantendo seções de Pendências Operacionais e Lançamento e Sugestões e Backlog Futuro.
-6. Executar typecheck e lint.
-
-Arquivos alterados/movidos:
-- Todos os `.md` consolidados exclusivamente em `docs/`.
-- Removida pasta `.claude/`.
-- `docs/DECISIONS.md`: regra oficial registrada.
-- `docs/AGENTS.md` e `docs/CLAUDE.md`: referências atualizadas com prefixo `docs/`.
-- `docs/TASKS.md`: reestruturado e limpo em conformidade com o front-end.
-- `docs/PROJECT_STATUS.md` e `docs/CHANGELOG_AI.md`: atualizados.
-
-Validação:
-- `npm run typecheck`: aprovado (0 erros).
-- `npm run lint`: aprovado (0 erros, 0 avisos).
-
-## 2026-10-04 — Melhorias na listagem interna de imóveis e mensagens de erro de contrato
-
-Pedido do dono:
-1. Definir `ativo: true` como padrão na listagem interna de imóveis (`GET /admin/imoveis`), trazendo inativos apenas sob `consulta.ativo === false` explícito; e adicionar parâmetro opcional (`sem_contrato_ativo` / `apenas_disponiveis`) para filtrar imóveis sem contrato ativo (`status = 'ATIVO'`).
-2. Diferenciar mensagem 409 de violação de unicidade (`23505`) no cadastro/atualização de contratos conforme a constraint violada (`contrato_numero_contrato_key` vs `unico_contrato_ativo_imovel`).
-3. Executar typecheck e lint.
-
-Arquivos alterados:
-- `src/imoveis/imoveis.dto.ts`: adicionados campos opcionais `apenas_disponiveis` e `sem_contrato_ativo` com `@Transform(booleano) @IsBoolean()`.
-- `src/imoveis/imoveis.service.ts`: filtro `imovel.ativo = :ativo` com `consulta.ativo ?? true` no modo interno; cláusula `NOT EXISTS` para `contrato` com `status = 'ATIVO'` quando `sem_contrato_ativo` ou `apenas_disponiveis` forem solicitados.
-- `src/locacoes/locacoes.service.ts`: inspeção de `constraint` no erro `23505` retornando mensagens específicas para número de contrato duplicado (`contrato_numero_contrato_key` ou contendo `numero_contrato`) e imóvel com contrato ativo (`unico_contrato_ativo_imovel`).
-- `PROJECT_STATUS.md`, `DECISIONS.md` e este `CHANGELOG_AI.md`.
-
-Validação real:
-- `npm run typecheck`: aprovado (0 erros).
-- `npm run lint`: aprovado (0 erros, 0 avisos).
-- `npm run build`: aprovado (build de produção NestJS).
-Sem alterações em banco, migrations ou envio de commit/push.
-
-## 2026-10-03 — Remoção dos arquivos de teste
-
-Por solicitação do dono, removidos os 28 arquivos `*.test.*`/`*.spec.*` deste repositório e os 46 equivalentes
-do `../Corretor-web`, incluindo testes modificados e novos não rastreados. Código de produção preservado.
-Validação: conferência dos caminhos removidos no Git; testes não executados após a exclusão. Scripts e
-dependências de teste permanecem, mas já não há suítes fonte.
-
-## 2026-10-03 — Codex: revisão e correção dos gaps da auditoria
-
-Pedido do dono: revisar as correções nos dois repositórios e melhorar o que estivesse inadequado.
-A01: edição preserva partes previamente compartilhadas pelo ADMIN sem autorizar novas referências alheias.
-A02: storage do Multer limita lote em 60 MiB durante leitura; 2 uploads simultâneos por instância até fim
-R2, autorização anterior ao storage, 20 arquivos aceitos/21 recusados. Lock fora da transação corrigido;
-lock/revalidação na transação de persistência mantidos. Corpo rejeitado é drenado sem armazenamento adicional.
-A03: correção anterior revalidada com duas sessões revogadas e outra conta preservada.
-A09: ficha exclui associação removida; característica global inativa ainda vinculada preserva valor;
-associação removida não autoriza reintroduzir característica inativa. A10: +55 normalizado na busca telefônica,
-parâmetro CPF/CNPJ separado, sem alterar registros.
-
-Arquivos: src/locacoes/locacoes.service.ts, locacoes.service.spec.ts e novo locacoes.http.spec.ts;
-src/midias/midias.controller.ts, midias.module.ts, midias.service.ts, midias.service.spec.ts,
-novos recepcao-midias.ts, recepcao-midias.spec.ts e midias.http.spec.ts;
-src/imoveis/imoveis.resposta.ts, imoveis.service.ts e imoveis.service.spec.ts;
-src/pessoas/pessoas.service.ts e pessoas.service.spec.ts; src/corretores/corretores.service.spec.ts;
-PROJECT_STATUS.md, TASKS.md, DECISIONS.md e este CHANGELOG_AI.md.
-Relatório central atualizado no Corretor-web/docs/audits/2026-10-02-auditoria-fullstack.md.
-
-Validação real: npm run typecheck e npm run lint aprovados; npm test: 27 suítes/188 testes aprovados,
-1 suíte/4 testes PostgreSQL não executados; npm run build aprovado. HTTP local real com DTOs/serviços
-reais e autenticação/repositórios sintéticos cobre dois corretores/ADMIN, POST/PATCH/visibilidade e
-multipart chunked com teto reduzido, autorização, concorrência, 20/21 arquivos. Round-trip de associações
-sintético e consumo dos refreshes reais via SessoesService testados. git diff --check aprovado; fetch e
-rev-list HEAD...origin/main = 0/0. Frontend irmão: typecheck/lint, 43 arquivos/231 testes, build e smoke aprovados.
-
-Sem migration, dados/banco/R2/Drive reais, alteração de ACL, dependência nova, commit/push/deploy.
-A09/A10 exigem homologação PostgreSQL; A11 exige ambiente implantado; H01 continua hipótese de ACL.
-O teste de falha de exclusão R2 emite o log esperado, sem acesso a serviço externo.
-Referências do storage: https://github.com/expressjs/multer/blob/main/StorageEngine.md
- e https://docs.nestjs.com/techniques/file-upload.
-
-
-## 2026-10-02 — Limpeza de testes e documentos legados obsoletos
-
-Tarefa: Remoção de testes e documentações obsoletas de fases anteriores, preservando os arquivos dos últimos 3 commits e os vigentes.
-Arquivos removidos:
-- `src/bootstrap.spec.ts`: teste legado de subprocessos (redundante com `env.validation.spec.ts` e `bootstrap-admin.config.spec.ts`).
-- `src/cadastros/cadastros.http.spec.ts`: teste legado de múltiplos controladores substituído pelas suítes dedicadas de serviço.
-- `src/database/migracao-legado.spec.ts`: teste legado de complementos e decifragem do schema legado descontinuado.
-- `src/common/interceptors/.gitkeep` e `src/common/filters/.gitkeep`: arquivos estruturais vazios.
-- `docs/plans/2026-09-12-rental-administration.md`, `docs/handoffs/2026-09-12-plano-anterior-api.md`, `docs/plans/2026-09-13-backend-portugues.md`, `docs/handoffs/2026-09-11-infra-neon-r2.md`: planos e handoffs históricos superados.
-Arquivos alterados:
-- `src/commands/seed-demonstracao.ts`: ajustado com diretiva eslint para regras de unsafe types, zerando avisos e erros do linter.
-
-Testes executados com resultado real:
-- `npm run lint` — aprovado (0 erros, 0 avisos).
-- `npm run typecheck` — aprovado (0 erros).
-- `npm test` — 24 suítes aprovadas, 175 testes aprovados, 0 falhas (1 suíte de integração PostgreSQL local ignorada).
-- `npm run build` — aprovado (build de produção NestJS).
-
-Pendências e riscos:
-- Nenhuma pendência técnica no backend. Sem commit realizado (aguardando confirmação do dono).
-
-
-## 2026-10-02 — Execução integral dos gaps backend da auditoria
-
-Tarefa: Executar o "Plano de Resolução Integral dos Gaps de Execução" na camada de backend.
-Arquivos alterados:
-- `src/locacoes/locacoes.service.ts` e `locacoes.service.spec.ts` (GAP-01 / A01)
-- `src/midias/pode-editar-imovel.guard.ts`, `pode-editar-imovel.guard.spec.ts`, `midias.controller.ts`, `midias.module.ts`, `midias.service.ts`, `midias.service.spec.ts` (GAP-02 / A02)
-- `src/corretores/corretores.service.ts` e `corretores.service.spec.ts` (GAP-03 / A03)
-- `src/imoveis/imoveis.resposta.ts` e `src/imoveis/imoveis.service.ts` (GAP-04 / A09)
-- `src/pessoas/pessoas.service.ts` e `pessoas.service.spec.ts` (GAP-05 / A10)
-- `src/config/database.config.ts` (GAP-09)
-- `src/autenticacao/tentativas.guard.ts` e `autenticacao.service.ts` (GAP-10)
-- `src/autenticacao/sessoes.service.ts` (GAP-11 / OPS-001)
-
-Testes executados com resultado real:
-- `npm run typecheck` — aprovado (código de saída 0).
-- `npx eslint` nas pastas modificadas — aprovado (código de saída 0).
-- Testes unitários das suítes modificadas (`pode-editar-imovel.guard`, `midias.service`, `locacoes.service`, `pessoas.service`, `corretores.service`) — 41/41 aprovados.
-- `npm test` suíte completa — 26 suítes / 180 testes aprovados (1 suíte de integração PostgreSQL local ignorada por ausência de Docker).
-- `npm run build` — aprovado (código de saída 0).
-
-Pendências:
-- Frontend irmão (`Corretor-web`): GAP-06 (validação de telefone nacional antes do WhatsApp), GAP-07 (reset de página e proteção de CSV) e GAP-08 (busca direta de contrato por ID) pendentes de implementação.
-
-## 2026-09-17 — Claude — banco Neon zerado e cadeia completa de migrations aplicada
-
-Pedido do dono: "realizar a migration completa, e se possível zerar o banco", com build e execução local da API.
-
-Estado encontrado (divergente da documentação): o Neon **já tinha** `1789516800000-modelo-portugues` aplicada
-(9 migrations em `typeorm_migrations`, schema em português com UUID e `legado_20260913` arquivado), ao contrário do
-que `PROJECT_STATUS.md`, `CHANGELOG_AI.md` e o handoff de 14/09 afirmavam ("banco publicado nunca foi tocado").
-O banco também não estava vazio: 1 corretor, 5 tipos de imóvel, 3 finalidades, 2 sessões e 1 registro legado em
-`legado_20260913.agents` — 21 linhas no total.
-
-Execução:
-
-- Backup integral em JSON de todas as tabelas de todos os schemas antes de qualquer alteração
-  (`backups/backup_pre_zerar_202609170236.json`, 6095 bytes, fora do Git). Docker não está instalado nesta máquina,
-  então o `pg_dump` documentado no `AGENTS.md` não pôde ser usado; o dump foi feito via `pg` do próprio projeto.
-- `DROP SCHEMA public CASCADE` e `DROP SCHEMA legado_20260913 CASCADE`, seguidos de `CREATE SCHEMA public`.
-- `npm run migration:run` com `MIGRACAO_BACKUP_ARQUIVO` apontando para o backup acima: **10 migrations aplicadas
-  do zero**, incluindo `1789516800000-modelo-portugues` e `1789603200000-ids-inteiros-pessoas`. Com o banco vazio,
-  as cópias de legado percorrem zero linhas e `MIGRACAO_COMPLEMENTOS_ARQUIVO` não é necessário.
-- `npm run bootstrap:admin` recriou o administrador com id inteiro `1`, reaproveitando o CPF do backup e a senha de
-  `BOOTSTRAP_ADMIN_PASSWORD` do `.env`. **Isto destrava o ADMIN-002**: o login passou a funcionar.
-
-Resultado no Neon: schema v2 em `public` (14 tabelas, `corretores.id`/`imoveis.id`/`pessoas.id` como `integer`),
-`pessoas` presente, seeds de tipos e finalidades preservados pela cadeia, e os schemas `legado_20260913` e
-`legado_20260916` criados vazios como subproduto da cadeia (sem dado nenhum).
-
-Testes executados e resultado real:
-
-- `npm run typecheck` — sem erros.
-- `npm run lint` — sem erros.
-- `npm run build` — `dist/main.js` gerado.
-- `npm test` — 26 suítes/175 testes aprovados; 1 suíte/4 testes de integração ignorados (exigem
-  `TESTE_LOCAL_DATABASE_URL`, que precisa de PostgreSQL local — sem Docker nesta máquina).
-- Execução real contra o Neon novo: `node dist/main.js`, `GET /api/v1/saude` → 200 `{"status":"ok"}`;
-  `GET /api/v1/imoveis` → 200 com catálogo vazio; `POST /api/v1/autenticacao/entrar` com as credenciais do `.env`
-  → 200, token emitido, corretor `id: 1`, `cargo: ADMIN`.
-
-Pendências e riscos:
-
-- O CPF do administrador veio do backup e é um CPF de exemplo com dígito verificador válido, não um documento real.
-  Trocar pelo CPF real antes de qualquer uso em produção.
-- `BOOTSTRAP_ADMIN_*` continuam no `.env` (contrariando a decisão de 14/09); remover após confirmar o acesso.
-- O Render ainda aponta para o commit `896c39c`, que serve o **contrato antigo**. O banco agora está no contrato v2:
-  enquanto o deploy não for atualizado junto com o front v2, a API publicada não funciona contra este banco.
-- Sem cobertura de teste: a cadeia completa de migrations sobre banco vazio não tem spec automatizada; foi validada
-  manualmente nesta execução contra o Neon.
-- Nada foi commitado; a árvore de trabalho segue limpa (a alteração foi de banco e documentação).
-
-## 2026-09-16 — Claude — ids inteiros, pessoas unificadas e ficha do imóvel (contrato v2)
-
-Pedido do dono: abandonar UUID em favor de id inteiro com autoincremento, unificar o cadastro de pessoas
-(lead, cliente, proprietário e inquilino são a mesma pessoa), ampliar a ficha do imóvel com campos opcionais
-e dar filtros/ordenação ao catálogo. Contrato: `docs/handoffs/2026-09-16-ids-inteiros-pessoas.md`.
-
-Alterações:
-
-- `src/comum/`: `auditoria.entity.ts` e `usuario-autenticado.ts` com ids inteiros; `dto.ts` (novo) com
-  `IdRegistro` e transformações compartilhadas; `datas.ts` (novo) com `DATA_ATUAL_SQL`/`hojeCivil`.
-- `src/pessoas/` (novo módulo) substitui `src/clientes/` e `parte-locacao.entity.ts`: entidade `Pessoa`
-  com `status_contato`, dados bancários e documento opcionais; rotas `POST /pessoas` (público) e
-  `/admin/pessoas`; visibilidade por responsável ou contrato intermediado; IP do consentimento fora da resposta.
-- `src/imoveis/`: entidade com `valor_venda`/`valor_locacao`, status `VENDIDO|ALUGADO|RETIRADO`,
-  `destaque` e ficha interna; DTOs com `bairro`, `area_min/max`, `destaque`, `ordenar`, `id`; serviço com
-  QueryBuilder (busca por id com `#`, preço pela finalidade, ordenação com nulos por último), slug com id
-  recalculado ao renomear, detalhe público pelo id do slug; resposta pública separada da interna.
-- `src/locacoes/`: contratos apontam para `pessoas`; controlador de partes removido; resposta inclui
-  `imovel_titulo`, `locador_nome`, `locatario_nome`; filtro `pessoa_id`; `DELETE` 204.
-- `src/comissoes/`: `cliente_id` → `pessoa_id`; `total_paginas` na listagem; `DELETE` 204.
-- `src/autenticacao/`, `src/corretores/`, `src/cadastros/`, `src/midias/`, `src/drive/`: ids inteiros,
-  `ParseIntPipe`, `sub` do JWT como texto numérico.
-- `src/database/migrations/1789603200000-ids-inteiros-pessoas.ts` (nova) e `registros.ts`;
-  `migracao-legado.ts` ganhou DTO próprio do legado no lugar do `ClienteManualDto` removido.
-- Testes: specs de pessoas (novos), imóveis, locações, comissões, autenticação, cadastros, mídia, drive e
-  corretores atualizados; `modelo-portugues.integracao.spec.ts` agora roda também a migration nova e aceita
-  `TESTE_LOCAL_DATABASE_URL` (PostgreSQL local sem TLS, por exemplo Docker) além de `HOMOLOGACAO_DATABASE_URL`.
-
-Testes executados (resultado real):
-
-- `npm run typecheck`: sem erros. `npm run lint`: sem erros.
-- `npm test`: 26 suítes, 175 testes aprovados; 1 suíte (4 testes) de integração ignorada sem banco.
-- Integração com Docker `postgres:16` (`TESTE_LOCAL_DATABASE_URL=postgresql://teste:teste@127.0.0.1:55432/corretor_teste
-  npx jest src/database/modelo-portugues.integracao.spec.ts`): 4 testes aprovados — migrations legadas +
-  1789516800000 + 1789603200000 com dados sintéticos cifrados, constraints, schema legado e fluxo HTTP
-  (login, catálogo ordenado, pessoas, ficha do imóvel, slug renomeado, comissão e baixa de parcela).
-- Não executado: `npm run build` desta rodada; homologação em Neon; deploy.
-
-Pendências e riscos: publicação exige o front v2 (a API nova quebra o contrato antigo); migração do banco
-publicado só com backup e corte coordenado; documentação antiga (README, ENTENDENDO-O-BACKEND, spec de
-13/09) ainda cita clientes/partes/UUID (DOC-003); aviso de novo contato (NOTIFY-001) e regras de locação
-(RENTAL-004) ficaram para conversa com o dono. Sem commit/push.
-
-## 2026-09-13 — opencode — perfil próprio, senha e filtro de status no gerenciado
-
-Pedido do dono: página `/admin/perfil` no front com foto grande, métricas por status e edição dos próprios
-dados, troca da própria senha no perfil e botão de redefinição de senha pelo ADMIN com a senha escolhida na hora.
-
-Alterações (sem migration, sem mudar contrato público):
-
-- `src/properties/dto/property-query.dto.ts` + `properties.service.ts`: `status?` opcional no
-  `ManagedPropertyQueryDto`, aplicado ao `where` do `listManaged`. O público (`PropertyQueryDto`) rejeita
-  `status` com 400, como antes rejeitava qualquer campo fora da lista.
-- `src/agents/dto/update-profile.dto.ts` (novo): só `name`, `whatsappNumber`, `creci?`, `avatarUrl?`.
-  E-mail, papel, senha e ativo ficam de fora de propósito.
-- `src/agents/dto/change-password.dto.ts` (novo): `currentPassword` + `newPassword` (12–128, sem só-espaço).
-- `src/agents/agents.service.ts`: `updateProfile(id, dto)` (só conta ativa) e `changePassword(id, dto)`
-  (verifica a atual com argon2, `401 'Senha atual incorreta.'` se não confere).
-- `src/auth/auth.controller.ts`: `PATCH /auth/me` e `PATCH /auth/me/password`, só `JwtAuthGuard`, id sempre
-  do próprio `viewer`. O reset pelo ADMIN usa o `PATCH /agents/:id` existente — sem código novo.
-- Testes: filtro por status + 400 para status inválido no público e no gerenciado (`properties.http.spec.ts`);
-  edição própria com 400 para `email`/`role` e 401 sem token, troca com login novo válido e antigo rejeitado,
-  senha atual errada 401 e nova curta 400 (`auth.http.spec.ts`).
-
-Verificação (resultado real): `npm run typecheck` aprovado; `npm run lint` aprovado;
-`npm test` com 18 suítes e 195 testes aprovados.
-
-Risco/pendência: sem commit/push (aguardando confirmação do dono, direto na `main` quando liberado);
-troca/reset de senha não revoga outras sessões — o token atual do alvo segue válido até expirar
-(decisão registrada em `DECISIONS.md`); deploy no Render pendente para o front usar os endpoints novos.
-
-## 2026-09-13 — Codex — comissão de captação parcelada
-
-Criado `src/finance/` com comissão de captação equivalente ao aluguel do contrato, parcelamento de 1 a 60 parcelas, distribuição decimal exata dos centavos, vencimentos mensais, saldo pago/pendente e confirmação manual de cada parcela. Rotas ADMIN: `GET /admin/finance/commissions/lease/:leaseId`, `POST /admin/finance/commissions` e `PATCH /admin/finance/commissions/installments/:id/paid`. Migration aditiva `1789344000000-create-acquisition-commissions.ts` registrada no data-source. SI9/Imonov não participa.
-
-Verificação: typecheck, lint, build e 18 suítes/190 testes aprovados. A migration não foi aplicada ao Neon e não há integração bancária nesta etapa.
-
-## 2026-09-12 — Codex — primeira entrega de administração de locações
-
-Tarefa: RENTAL-001. Criado o módulo `src/rentals/` com cadastros PF/PJ de proprietários e inquilinos, dados privados cifrados, contratos, regras de datas/valores/partes, documentos em bucket R2 privado e downloads autenticados. Todas as rotas exigem JWT + papel ADMIN; documentos rejeitam tipos/tamanhos/assinaturas inválidos e não expõem `storageKey`, bucket ou URL pública. A migration `1789257600000-create-rental-administration.ts` é aditiva e foi registrada no data-source sem execução automática.
-
-Também foi adicionada busca parcial de imóveis somente no DTO administrativo, impedida a exclusão de imóvel com vínculos e corrigido o formato de mensagens do filtro global para compatibilidade com o cliente. Um contrato antigo pode ser encerrado depois de o imóvel mudar para venda.
-
-Verificação real: `npm run typecheck`, `npm run lint`, `npm test` (18 suítes, 190 testes) e `npm run build` passaram. Testes cobrem regras de domínio, upload compensado, criptografia, permissões, cabeçalhos de download e busca administrativa.
-
-Pendências: backup e aplicação explícita da migration no Neon, provisionamento/configuração do bucket privado e homologação com dados reais. A regra de comissão ainda não foi definida; financeiro, cobranças, repasses e integração SI9/Imonov continuam fora desta entrega.
-
-Registro objetivo, do mais recente para o mais antigo. Cada entrada traz tarefa, alterações,
-testes com resultado real e pendências.
-
-## 2026-09-12 — Claude (ambiente de desenvolvimento e limpeza de dados fixos)
-
-Tarefa: subir a API em desenvolvimento, testar, e limpar os dados fixos a pedido do dono do projeto.
-
-Alterações em código da API: nenhuma. Alterados apenas os arquivos de contexto
-(`PROJECT_STATUS.md`, `TASKS.md`, `DECISIONS.md`, `CHANGELOG_AI.md`).
-
-Ações fora do repositório:
-
-- Backup do banco antes de qualquer escrita: `backups/backup_20260912_0908.sql` (`pg_dump` 16 via Docker).
-- `DELETE` das 2 linhas de `refresh_sessions` deixadas pelos logins de homologação de 11/09. Tabela agora vazia.
-- Objeto `_amostra/teste-navegador.png` removido do bucket R2 `corretor-midia`, que ficou vazio.
-- Trabalho no repositório irmão corretor-web: remoção completa do modo demonstração e centralização da identidade
-  em `src/config/brand.ts`. Registrado no `CHANGELOG_AI.md` de lá.
-
-Testes executados:
-
-- `npm test`: 13 suítes, 130 testes aprovados.
-- `npm run lint` e `npm run typecheck`: sem erro.
-- `npm run start:dev`: a API subiu, conectou ao Neon (TypeORM em ~2 s) e mapeou as 20 rotas.
-- Verificação HTTP com a API no ar: `GET /properties` 200 com página vazia; `GET /properties?page=1&limit=5` 200
-  respeitando o `limit`; `GET /auth/me` e `GET /agents` 401 sem token; `GET /` 404.
-- `POST /auth/login` com as credenciais do `.env`: **401**. Ver Achados.
-- Integração com o front: `GET /api/properties` pelo proxy do SSR respondeu 200 com o mesmo corpo da API.
-
-Achados:
-
-- **O login do administrador está quebrado.** O e-mail de `BOOTSTRAP_ADMIN_EMAIL` confere com o do banco, mas a senha
-  não: `POST /auth/login` responde 401. O hash Argon2id gravado em 11/09 não corresponde ao valor atual de
-  `BOOTSTRAP_ADMIN_PASSWORD`. Como o hash é de mão única, a senha original não é recuperável. Aberta a tarefa
-  ADMIN-002 para redefinir. **Sem isso, o painel não abre** — só o catálogo público funciona.
-- **As quatro variáveis `BOOTSTRAP_*` voltaram ao `.env`**, com a senha em texto claro, contrariando a decisão de
-  11/09 — e a senha ali nem é válida. O `.env.example` versionado também foi sobrescrito com essa estrutura e perdeu
-  os comentários que documentavam cada campo; aparece como modificado e não commitado no Git. Não foi alterado nesta
-  sessão porque o dono não incluiu esse item no escopo da limpeza que pediu.
-- O WhatsApp do administrador no banco continua `5565999999999`, o número de exemplo (ADMIN-001). A correção depende
-  do acesso ao painel e do número real.
-- O código da API não tem dado fixo de produto: os telefones e e-mails de exemplo estão só em `*.spec.ts` e em
-  `src/testing/`, que é onde devem ficar. O nome do bucket `corretor-midia` é fixo em `src/media/media.service.ts`
-  por decisão de 11/09, e o fallback `http://localhost:5173` de `ALLOWED_ORIGINS` só vale em desenvolvimento.
-- O driver `pg` emite aviso de que `sslmode=require` passará a ter semântica libpq em versão futura. Não afeta a
-  aplicação hoje (a validação de ambiente já exige TLS verificado), mas vale acompanhar na atualização do `pg`.
-
-Pendências:
-
-- ADMIN-002: redefinir a senha do administrador. Aguardando a senha escolhida pelo dono.
-- ADMIN-001: WhatsApp real do administrador.
-- Limpar as `BOOTSTRAP_*` do `.env` e restaurar o `.env.example` com os comentários — fora do escopo pedido, mas
-  recomendado; está registrado em `DECISIONS.md`.
-- OPS-001: a limpeza de sessões continua manual; a rotina ainda não existe.
-- SEC-001 e DEPLOY-001 seguem como estavam.
-
-Sem cobertura de teste: a redefinição de senha (ainda não implementada) e o fluxo autenticado ponta a ponta com o
-banco real, que não pôde ser reexecutado por causa do login bloqueado.
-
-## 2026-09-11 — Claude (infraestrutura e homologação)
-
-Tarefa: INFRA-001 — criar e homologar Neon e Cloudflare R2; conferir o parecer da sessão anterior contra o repositório.
-
-Alterações em código: nenhuma. Alterações em arquivos versionados: criação da camada de contexto
-(`AGENTS.md`, `CLAUDE.md`, `PROJECT_STATUS.md`, `DECISIONS.md`, `TASKS.md`, `CHANGELOG_AI.md`, `docs/handoffs/`).
-
-Ações fora do repositório:
-
-- `.env` local preenchido com Neon e R2; `JWT_SECRET` gerado; `DATABASE_URL` duplicado corrigido; permissão `600`.
-- 5 migrations aplicadas no Neon (`migration:run`), criando 6 tabelas com a de controle.
-- Primeiro ADMIN criado (`bootstrap:admin`), id `190d1d1a-f9aa-41f5-8218-ec9dcd5e2c9f`; variáveis `BOOTSTRAP_*` removidas do `.env`.
-- Dois backups gerados em `backups/` com `pg_dump` 16 via Docker (após migrations e após homologação).
-
-Testes executados:
-
-- `npm ci`: ok, 0 vulnerabilidades.
-- `npm test`: 13 suítes, 130 testes aprovados.
-- `npm run lint`, `npm run typecheck`, `npm run build`: sem erro.
-- Teste ponta a ponta com Neon e R2 reais, pelo proxy do front: 25 passos aprovados, cobrindo login com cookie de
-  refresh, recusa de origem não autorizada (403), criação de imóvel, upload de 3 imagens ao R2 com leitura pública,
-  definição de capa, exclusão com remoção do objeto no R2, detalhe público, página SSR com JSON-LD e `og:image`,
-  lead sem consentimento (400) e com consentimento (201), e limpeza completa.
-
-Achados:
-
-- O commit `accd5d9` citado no parecer anterior **não existe** no GitHub nem nesta máquina; foi procurado em `main`,
-  `shura`, commits soltos, stash, reflog, tags, forks e PRs. As funcionalidades de segurança que ele traria não estão no código.
-- A API tem 130 testes, não os 144 citados no parecer.
-- A Cloudflare responde 403 ao User-Agent `Python-urllib` na URL pública do R2. Não é configuração do bucket:
-  com Node, curl ou navegador a mesma URL responde 200.
-- `pg_dump` e `psql` não estão instalados na máquina; usamos a imagem Docker `postgres:16`.
-
-Pendências:
-
-- SEC-001: recuperar o `accd5d9` com o autor.
-- ADMIN-001: o WhatsApp do administrador ficou com o número de exemplo.
-- DEPLOY-001: publicação ainda não iniciada; pesquisa de Render e Vercel em andamento.
-- Ficaram duas sessões de refresh dos logins de teste na tabela `refresh_sessions`; expiram em 30 dias (OPS-001).
-
-## 2026-09-11 — Claude (análise do repositório)
-
-Tarefa: mapear o que está implementado e comparar com `corretor-spec.json`, sem alterar código.
-
-Resultado: 256 itens da especificação conformes, 11 divergentes, 2 parciais, nenhum ausente, 78 extras e
-37 fora do código (contas, deploy e processo). As divergências estão listadas em
-`docs/handoffs/2026-09-11-infra-neon-r2.md`.
-
-Testes executados: nenhum nesta etapa; análise somente de leitura.
-
-## Registros anteriores
-
-O trabalho anterior a 11/09/2026 está nos commits do Git e no `PLANO-PROJETO-CORRETOR.md`.
-Não havia registro por agente antes desta data.
-
-## 2026-09-13 — Ambiente de teste
-- Criado bucket privado Cloudflare R2 \corretor-documentos-test\ para documentos de locação/proprietários/inquilinos.
-- Vercel e Neon não foram alterados: CLI local retornou sessão desconectada; reconectar antes de criar preview/branch.
-
-
-## 2026-09-13 — Codex: URLs em português concluídas
-Rotas públicas: /imoveis/{tipo}, /imoveis/para-alugar, /imoveis/para-comprar e combinações; query cidade/preco-minimo/preco-maximo/pagina. Painel: /admin/entrar e /admin/contatos. URLs antigas redirecionam 301; navegador usa replace; slugs e APIs preservados.
-Publicação Vercel dpl_Bbf5617bGJdqKv79WJbuDDFJaP1M READY, alias https://corretor-web-test.vercel.app. SITE_URL e SEO_INDEXABLE configuradas em Production conforme autorização. Robots, llms e sitemap respondem 200; raiz index,follow; filtros noindex,follow; painel noindex,nofollow. Sitemap contém início e privacidade (catálogo público sem imóveis no momento).
-Validação: typecheck, lint, build, suíte de 93 testes e teste adicional de navegação aprovado (94 no total coberto); smoke SSR/proxy/discovery aprovado. Navegador: redirecionamento, paginação e detalhe com fixture local; catálogo filtrado publicado confirmado. Login autenticado/logout e fichas reais não exercitados no navegador nesta sessão; permissões existentes cobertas pela suíte. Sem commit/push.
-Arquivos do front: services/urls.ts e testes, App.tsx, Catalog, PublicLayout, PropertyCard, PropertyDetail, AdminLayout, Dashboard, Login, PropertyForm, SEO server/metadata e testes, scripts/seo-smoke.mjs. API: apenas documentação; alterações preexistentes em .env.example e .gitignore preservadas. Nenhuma dependência, migration ou alteração de dados.
-
-
-## 2026-09-13 — Preparação de commit e push autorizada
-Codex: revisão do diff concluída; typecheck, lint, 21 arquivos/94 testes, build e smoke de SEO aprovados novamente. Front: código e documentação das URLs; API: somente documentação correspondente. Alterações anteriores da API em .env.example e .gitignore excluídas do commit.
-## 2026-09-13 — Investigação do HTTP 500 no upload de mídia
-
-Logs do serviço Render `srv-daj21e15efls73fab4gg` no horário do erro mostram `Error: write EPROTO ... SSL alert handshake failure` e `GlobalExceptionFilter`. O proxy do front encaminha o multipart por streaming e o controller chega ao `MediaService`; a falha ocorre no `PutObject` do S3 antes do banco. Causa provável: `R2_ENDPOINT` inválido ou incompatível com TLS no ambiente Render. Nenhum segredo foi lido ou registrado; correção pendente no painel Render, seguida de novo teste autenticado.
-
-## 2026-09-13 — Codex: investigação NoSuchBucket
-Verificação somente de leitura no Cloudflare e Render; bucket corretor-midia não consta na conta conectada, enquanto corretor-documentos-test existe. Confirmados MediaService (bucket fixo) e configuração do S3Client por R2_ENDPOINT. Causa exata depende de comparar endpoint implantado com a conta consultada; não criar bucket ou mudar credenciais sem essa confirmação. Alterados PROJECT_STATUS.md e CHANGELOG_AI.md, preservando registros anteriores. Nenhuma mudança de código/infraestrutura; testes de código não executados, upload autenticado não refeito.
-
-
-## 2026-09-13 — Codex: provisionamento de mídia autorizado
-Criado corretor-midia, ativado r2.dev e atualizado somente R2_PUBLIC_URL do Render para https://pub-64e891dc485143119f5d8fddfa8280be.r2.dev. Deploy automático dep-dajfg6gjo6nc73dlrs10 confirmado LIVE; health HTTP 200. Teste real pelo conector Cloudflare: gravação temporária, leitura pública HTTP 200 e exclusão bem-sucedidas. Verificação encontrou documentos-test com acesso r2.dev ativo: desativado, sem domínios personalizados. Credenciais e endpoint preservados conforme confirmação do dono. Arquivos: PROJECT_STATUS.md, DECISIONS.md, CHANGELOG_AI.md. Sem mudança de código, sem testes unitários ou commit. Upload pelo painel com credenciais S3 do Render ainda não exercitado.
-
-## 2026-09-13 — opencode: capa na listagem pública
-
-Tarefa: a capa definida no painel não aparecia no catálogo ("Foto em breve"), só no detalhe do imóvel.
-
-Alterações em código (API apenas, sem migration, rota ou DTO novo):
-
-- `src/properties/properties.service.ts`: `list()` anexa mídias com segunda query (`In` + `orderIndex`) antes de `toPropertyResponse`; paginação por `findAndCount` preservada.
-- `src/properties/properties.module.ts`: `PropertyMedia` registrado no `forFeature` do módulo.
-- `src/testing/media-repository.fixture.ts`: filtro passa a entender o operador `In`.
-- `src/properties/properties.http.spec.ts`: teste novo "includes ordered cover media in public listings".
-
-Testes executados (resultado real):
-
-- `npm run typecheck`: aprovado.
-- `npm run lint`: aprovado.
-- `npm test`: 18 suítes, 191 testes aprovados.
-
-Risco/pendência:
-
-- Conferência com dados reais e redeploy no Render pendentes; sem commit/push (aguardando confirmação do dono).
-
-## 2026-09-14 — Codex: refatoração integral do backend em português
-
-Pedido: implementar o documento integral de 13/09/2026; dono confirmou Drive compartilhado. Arquivos: novos domínios src/autenticacao, corretores, cadastros, imoveis, midias, clientes, locacoes, comissoes, drive, comum, saude; migration 1789516800000 e migração de legado, registro de entidades/migrations, logger seguro, CLI de migrations e bootstrap ADMIN com CPF; atualização app.module/main/config/.env.example/package scripts. Diretórios antigos de negócio substituídos, sem editar migrations históricas. Novos testes de domínio, HTTP e PostgreSQL; documentação/contexto/spec de ambos repos atualizados preservando histórico.
-
-Resultado: auditoria/soft delete, filtros e classificação dinâmica, autorização por domínio, refresh atômico, último ADMIN protegido, partes pesquisáveis sem cifra, contratos com Drive idempotente, comissões com centavos exatos e jobs. Migração mantém o arquivo legado e exige dados reais complementares; CLI não imprime SQL/parâmetros privados. Revisão independente corrigiu vazamento nos logs da CLI antiga e ausência de cliente manual para comissão histórica sem lead; mídia passou a distinguir MP4 de HEIC/AVIF.
-
-Verificações finais reais em 14/09/2026: typecheck PASS; lint PASS; build PASS; Jest local 26 suítes/169 testes PASS, 4 testes integrados opcionais excluídos do comando local; Jest integrado executado separadamente, 1 suíte/4 testes PASS no Neon PostgreSQL 16.15. Total: 173 testes aprovados. Integração cobre migração com dados sintéticos cifrados, IDs/hashes/tags, constraints/FKs/capa/contrato, saúde, login/cookie seguro, catálogo sem dados privados, cadastro manual sem consentimento inventado, parcelas e baixa via HTTP com repos reais. Transação revertida e database homologacao_pt isolada do banco publicado.
-
-Infra de homologação: branch homologacao-backend-portugues-20260913, br-ancient-sound-a5tsf5rf, projeto corretor-db-test; database nova homologacao_pt, conexão direta TLS. Sem aplicação no banco principal, sem R2/Drive reais nesta rodada, sem commit/push/deploy. Não alterado .env. Pendências: frontend/SSR compatível, Drive real, R2 real, complementos/backup e corte coordenado incluindo health /api/v1/saude. Interrupção abrupta entre R2 e commit pode exigir conciliação; simulações cobrem compensação de falhas retornadas.
-## 14/09/2026 — integração do frontend ao contrato português
-
-Frontend irmão integrado às rotas da API, com testes de contrato e filtros de data de clientes adicionados. API segue com typecheck, lint e suíte local/integrada validados. Drive, migração de dados reais e publicação permanecem pendentes de configuração operacional.
-
-## 2026-09-16 — Correção operacional do deploy Render
-
-Após o deploy do commit `896c39c`, o serviço falhou no boot porque `ALLOWED_ORIGINS`
-continha uma origem HTTP em produção. A variável foi corrigida no Render para
-`https://corretor-web-test.vercel.app`, sem alterar código, segredos ou banco. O deploy
-`dep-dal39v2d0e5s738d6vng` ficou `live`; saúde HTTP 200 e preflight CORS 204 confirmados.
-
-## 2026-09-16 — Correção dos achados confirmados de segurança
-
-Alterados os guards de `src/cadastros/cadastros.controller.ts`, o ciclo de senha/sessões em
-`src/autenticacao/` e a validação de `ALLOWED_ORIGINS` em `src/config/env.validation.ts`.
-Corretores comuns não podem mais criar, editar ou desativar cadastros globais; troca de senha
-revoga todos os refresh tokens do usuário; produção rejeita CORS HTTP. Nenhum dado, migration,
-infraestrutura ou segredo foi alterado. Rate limit distribuído e `trust proxy` permanecem
-pendentes de decisão de infraestrutura; restrições de dados de locação já estão aplicadas no
-serviço atual.
-
-
-## 2026-09-16 — Pacote de melhorias do frontend irmão
-
-Codex concluiu melhorias públicas e administrativas em Corretor-web, reutilizando os contratos atuais de
-imóveis/clientes/contratos/comissões. Nenhum código, DTO, dependência, migration ou dado desta API foi alterado.
-Dashboard percorre todas as páginas de comissões; contatos usam imovel_id/criado_desde/criado_ate. Origem é somente
-informativa porque ConsultaClientesDto não aceita esse filtro; ordenação adiada. Duplicação usa POST existente e slug novo.
-Validação frontend e limites de homologação registrados no CHANGELOG_AI.md do Corretor-web; testes desta API não foram
-reexecutados neste corte exclusivamente documental. Sem commit/push/deploy.
+> **Regra:** daqui em diante este arquivo só recebe acréscimos. Cada nova entrada vai no fim, com data, agente,
+> tarefa, arquivos, validação com o resultado real e pendências. Não reescreva entradas anteriores.
+>
+> Até 09/10/2026 o histórico foi resumido por período. O texto completo das entradas antigas está no Git.
+
+## 11–13/09/2026 — Infraestrutura, MVP e primeiras extensões
+
+Entregue:
+- Análise do repositório contra `corretor-spec.json`.
+- Neon (`corretor-db`, PostgreSQL 16, São Paulo, conexão direta) e R2 (`corretor-midia`) criados.
+- 5 migrations iniciais aplicadas e primeiro ADMIN criado por `bootstrap:admin`.
+- Camada de contexto dos agentes (AGENTS, CLAUDE, PROJECT_STATUS, DECISIONS, TASKS, CHANGELOG).
+- Limpeza dos dados de homologação.
+- Módulo de locações com documentos cifrados em bucket privado e comissão de captação parcelada (modelo
+  intermediário, substituído em 14/09).
+- Capa das mídias na listagem pública; perfil próprio e troca de senha; filtro de status no catálogo interno.
+- No ambiente de teste: bucket `corretor-midia` recriado após o erro `NoSuchBucket`, e URLs em português do front
+  publicadas na Vercel.
+
+Validação: teste ponta a ponta com Neon e R2 reais em 25 passos, aprovado; suítes Jest de 130 a 195 testes
+aprovadas conforme a entrega.
+
+Achados: o commit `accd5d9` citado numa sessão anterior nunca existiu no repositório; o login do ADMIN quebrou
+em 12/09 (resolvido em 17/09).
+
+## 14–17/09/2026 — Modelo em português, contrato v2 e banco recriado
+
+Entregue:
+- 14/09: backend refeito em português (`f5bd264`). Auditoria universal, exclusão lógica, dados pessoais sem cifra,
+  Drive compartilhado por Service Account, comissões manuais com até 600 parcelas e migration `1789516800000`.
+- 16/09: hardening (`896c39c`). Rotas de cadastros só para ADMIN, troca de senha revoga as sessões e CORS só HTTPS
+  em produção. O deploy no Render ficou `live` depois da correção de `ALLOWED_ORIGINS`.
+- 16/09: contrato v2 (`0140947`). Ids inteiros, tabela única `pessoas`, ficha interna do imóvel, novos filtros e
+  migration `1789603200000`.
+- 17/09: Neon zerado com autorização do dono e recriado com as 10 migrations. Administrador recriado com id 1.
+
+Validação: typecheck, lint e build aprovados; 175 testes aprovados em 17/09; integração das migrations em
+PostgreSQL 16 aprovada em 16/09. Execução real contra o Neon em 17/09: saúde, catálogo e login responderam 200.
+
+Pendências da época: CPF de exemplo do administrador e `BOOTSTRAP_ADMIN_*` no `.env` (ADMIN-001).
+
+## 20/09/2026 — Slug do imóvel
+
+Entregue (`f585fed`): o insert do imóvel vai sem id e o slug definitivo é gravado logo depois, na mesma
+transação. O TypeORM descartava o id reservado com `nextval`, o que gerava 404 na ficha pública. Imóveis duplicados
+4, 6, 8, 10 e os de verificação 11 e 12 foram apagados após backup em JSON.
+
+Validação: typecheck, lint, build e 176 testes aprovados; verificação HTTP contra o Neon aprovada.
+
+## 02–04/10/2026 — Auditoria full stack, remoção dos testes e documentação plana
+
+Entregue:
+- 02/10: gaps da auditoria (`7f59109`). Autorização de partes no contrato (A01), `PodeEditarImovelGuard` e envio ao
+  R2 fora da transação (A02), revogação de sessões no reset pelo ADMIN e na desativação (A03), características
+  inativas na ficha (A09), busca telefônica por dígitos (A10), `retryAttempts: 3`, reset do limite de login após
+  sucesso e limpeza de sessões no boot. Testes legados e planos antigos removidos.
+- 03/10: revisão da auditoria. Limite do lote durante a recepção, cota de 2 uploads simultâneos, +55 na busca.
+- 03/10: carga do catálogo ilustrativo no Neon (12 imóveis, 36 mídias, segundo ADMIN), com backup prévio.
+- 03/10: todas as suítes de teste removidas a pedido do dono (`ab59472`).
+- 04/10: listagem interna ativa por padrão, filtros `sem_contrato_ativo` e `apenas_disponiveis`, mensagens 409
+  específicas de contrato (`77cdaa7`). Documentação centralizada em `docs/`, plana (`b9d1d55`).
+
+Validação: 188 testes aprovados em 03/10, antes da remoção. Depois: typecheck, lint e build aprovados.
+
+## 06/10/2026 — Sessão de 4h e foto do perfil
+
+Entregue:
+- Sessão expira após 4h sem requisições (`46f2235`). Cookie sem `maxAge`, token fixo renovado por
+  `UPDATE ... RETURNING` e `AtividadeSessaoInterceptor` global. Corrigiu o login que nunca expirava e a queda no F5.
+- Foto do perfil (`86ecf29`): `PATCH /autenticacao/eu` multipart, `GET /corretores/:id/foto` e
+  `ArmazenamentoModule` compartilhado. A carga do catálogo entrou no mesmo commit.
+- Em 08/10 o Render recebeu o `86ecf29` (registro no Corretor-web).
+
+Validação: typecheck, lint e build aprovados. QA efêmero com 22 cenários HTTP e 23 cenários no navegador; R2 real
+com objeto temporário enviado, lido e apagado. Pendente: teste da sessão no navegador real e homologação completa da
+foto.
+
+## 09/10/2026 — Seis pontos (commit `6b987a5`)
+
+Entregue:
+- `GET /admin/comissoes/pessoas-elegiveis`, declarada antes de `:id`, com as mesmas regras de pessoa do `POST`.
+- `tipo_id` em CSV de até 20 ids (`ListaIds`) no catálogo público e no interno.
+- CRECI normalizado e validado com `^\d+[JF]?$`.
+- Documentação revista para o estado atual; `PLANO-PROJETO-CORRETOR.md` apagado e histórico resumido.
+
+Validação: typecheck, lint e build aprovados. `npm test` termina com "No tests found" e código 1. QA efêmero
+78/78 com módulos reais e PostgreSQL 16 descartável em Docker; navegador integrado ao front 63/63. Sem acesso ao
+Neon ou ao R2.
+
+Pendências: publicar a API antes do front (DEPLOY-001).

@@ -1,453 +1,159 @@
 # Decisões técnicas — corretor-api
 
-## 2026-10-09 — CRECI, `tipo_id` em lista e clientes elegíveis da comissão (Claude)
-
-- **CRECI**: regra no `CriarCorretorDto` (herdada por atualização e perfil) — `@Transform` trim/maiúsculas/vazio→null,
-  `@ValidateIf(informado)` e `@Matches(/^\d+[JF]?$/)`. Sem migration: valores antigos fora da regra continuam no banco
-  e nas respostas; só um novo envio é validado. Não normalizar removendo caracteres (ex.: `12x34` → `1234`).
-- **Contrato `tipo_id`** (GET `/imoveis` e `/admin/imoveis`): um id ou CSV de até 20 (`ListaIds` em `comum/dto.ts`,
-  int4 positivo). Duplicados removidos no serviço; parâmetro repetido continua 400. O tipo do cadastro segue único.
-- **Contrato novo** `GET /admin/comissoes/pessoas-elegiveis`: aplica no SQL as mesmas regras de pessoa do `criar`
-  (ativa, mesmo corretor do imóvel, vínculo vazio ou igual) antes de paginar; imóvel inativo → vazio; inexistente ou de
-  outro corretor → 404. Itens só `{id, nome}`. Não remover as checagens do POST: a consulta é auxílio de interface.
-- Não fazer: aceitar `tipo_id` sem limite de itens, mover a rota para depois de `:id` ou expor dados pessoais na lista.
-
-## 2026-10-06 — Sessão expira por inatividade (4h) e token de sessão fixo (Claude)
-
-Decisão do dono: a sessão cai após **4 horas sem requisições**; cada requisição reinicia a contagem; **sem limite
-absoluto**; **fechar o navegador encerra a sessão**. Substitui a decisão de 2026-09-11 (refresh de 30 dias rotativo).
-
-- Cookie `corretor_renovacao` sem `maxAge` (cookie de sessão), ainda `HttpOnly`, `Secure`, `SameSite=Strict`.
-- `sessoes_login.expira_em = agora + 4h` no login. `POST /autenticacao/renovar` faz `UPDATE ... RETURNING` estendendo a
-  validade **sem trocar o token** e emite só um JWT novo. `AtividadeSessaoInterceptor` (global, roda após os guards)
-  estende a validade em toda requisição autenticada, gravando no máximo a cada 5 min.
-- Sair revoga a linha; trocar a própria senha revoga todas as do corretor (sem mudança).
-
-Motivo: dois bugs com a mesma causa. (1) Cookie de 30 dias que se renovava a cada abertura do painel: o login nunca
-expirava, nem desligando o PC. (2) A rotação de uso único (`DELETE ... RETURNING`) derrubava o login com F5 seguido: o
-navegador abortava o `fetch` depois que o servidor já tinha apagado o token antigo e antes de receber o novo; a carga
-seguinte enviava um token inexistente → 401. A rotação não detectava reuso, então não trazia ganho que justificasse.
-
-Não fazer: voltar a rotacionar o token na renovação sem tolerância a respostas abortadas; dar `maxAge` ao cookie;
-gravar atividade a cada requisição sem o intervalo mínimo; mover a gravação de atividade para o `AutenticacaoGuard`
-(o `CorretoresModule` usa o guard sem importar `AutenticacaoModule`, por causa do ciclo de módulos).
-## 2026-10-06 — Foto do perfil sem alteração de schema
-
-- Pedido aprovado autoriza dois repositórios e proíbe publicação/migrations nesta entrega.
-- Manter url_foto HTTPS; uploads usam chave aleatória corretores/{id}/{uuid}.jpg|png|webp. A leitura
-  pública consulta só referência atual de corretor ativo e usa R2 privado ou redirect HTTPS externo.
-- ArmazenamentoModule compartilha cliente R2 e RecepcaoMidiasInterceptor com imóveis. Guards vêm antes
-  da recepção: JWT/origem; no máximo um arquivo <=10 MiB, limite de campos/partes e assinatura/MIME.
-- Put fora da transação; atualizar dentro da transação curta com lock existente. Compensar objeto novo
-  se DB falhar; excluir anterior próprio somente após commit. Exclusão falha gera log de órfão.
-- URL gerenciada diferente da atual só pode ser a recém-enviada nesta requisição. Rejeitar referência
-  obsoleta com 409 evita que uma aba antiga ressuscite uma foto já apagada e remova a atual.
-- Dependência de fotos é opcional no construtor TS para preservar CLIs existentes que instanciam
-  CorretoresService com dois argumentos; Nest continua fornecendo o adaptador no runtime normal.
-- Sem testes fonte por decisão do dono. HTTP/browser com banco simulado e R2 real temporário são
-  provas distintas; não equivalem à homologação de perfil no Neon. Documentação anterior preservada.
-
-## 2026-10-04 — Centralização de documentação em estrutura plana na pasta docs/ (Antigravity)
-
-- **Centralização de documentação em estrutura plana na pasta docs/:**
-  Todos os arquivos de documentação markdown (`.md`), incluindo instruções de agentes (`AGENTS.md`, `CLAUDE.md`), histórico (`CHANGELOG_AI.md`), decisões (`DECISIONS.md`), status (`PROJECT_STATUS.md`), tarefas (`TASKS.md`) e guias devem residir exclusivamente dentro da pasta `docs/` em estrutura estritamente plana (sem subpastas). Nenhum arquivo `.md` deve ser criado na raiz ou em pastas ocultas.
-- **Motivo:** Decisão explícita do proprietário para organizar a navegação humana e padronizar com a estrutura recém-adotada no front-end (`Corretor-web`), eliminando arquivos markdown dispersos na raiz do repositório e em múltiplas árvores de diretórios.
-- **O que não fazer:** Não recriar arquivos `.md` soltos na raiz nem subdiretórios dentro de `docs/`. Todos os agentes de IA devem ler e manter a documentação diretamente em `docs/*.md`.
-
-## 2026-10-04 — Listagem interna de imóveis ativa por padrão e mensagens de unicidade em contratos
-
-- Imóveis internos ativos por padrão: `ImoveisService.listar` aplica `imovel.ativo = true` por padrão quando `consulta.ativo` é `undefined`. Imóveis desativados só são listados quando `consulta.ativo === false` for requisitado expressamente.
-- Filtro de imóveis sem contrato ativo: aceitos os parâmetros opcionais `sem_contrato_ativo` e `apenas_disponiveis` em `ConsultaInternaImoveisDto`, aplicando filtro `NOT EXISTS (SELECT 1 FROM contrato c WHERE c.imovel_id = imovel.id AND c.status = 'ATIVO')` para viabilizar telas de contratação sem risco de violação do índice único parcial.
-- Mensagens de erro 409 em contratos: `LocacoesService.transacao` inspeciona a constraint disparada no erro PostgreSQL `23505` (`contrato_numero_contrato_key` vs `unico_contrato_ativo_imovel`) para retornar mensagens claras ao usuário final em vez da mensagem genérica anterior.
-
-## 2026-10-03 — Remover os arquivos de teste
-
-Por pedido explícito do dono, excluir todos os fontes `*.test.*` e `*.spec.*` dos dois repositórios.
-Manter configurações/scripts e dependências de teste por enquanto; não alegar validação atual por testes.
-Resultados registrados antes da exclusão são históricos. Não recriar suítes sem novo pedido.
-
-## 2026-10-03 — Revisão da auditoria: contratos, upload e características (Codex)
-
-- A01: na alteração, partes do contrato persistido e autorizado podem permanecer, inclusive compartilhadas
-  pelo ADMIN. Nova pessoa continua exigindo carteira própria ou vínculo independente já existente. A checagem
-  usa o registro anterior ao PATCH; não confiar nos IDs enviados para fabricar autorização.
-- A02: guard antecede o multipart; storage próprio do Multer soma buffers até 60 MiB, rejeita excedente com
-  413 e libera buffers. Limite de dois uploads por instância cobre recepção e envio ao R2. Multer drena o corpo
-  rejeitado sem armazená-lo; não depender de Content-Length nem afirmar que a conexão é destruída no limite.
-  Limites de 20 arquivos/30 MiB por vídeo preservados; parts=21 acomoda o evento partsLimit do Busboy ao
-  atingir o teto, com files=20 impedindo o vigésimo primeiro arquivo. Sem dependências novas.
-- A02: autorização antes do R2 não usa lock fora de transação. Na transação de gravação continua sendo
-  revalidada com lock pessimista. Não remover o lock da persistência nem manter transação aberta durante R2.
-- A09: ficha expõe apenas vínculos ativos; classificação inativa ainda vinculada mantém valor. Classificação
-  inativa removida não pode ser reintroduzida como se ainda estivesse vinculada. Coleção omitida preserva;
-  coleção vazia remove. Não reativar todas as associações históricas na resposta administrativa.
-- A10: normalizar dígitos da coluna e o +55 de número nacional completo na consulta; documento usa termo
-  completo separado. Não modificar telefones armazenados nem criar migration para este filtro.
-- H01/integrações reais permanecem pendentes; testes HTTP desta revisão usam autenticação/repositórios
-  sintéticos. Nenhuma mudança de ACL, banco, R2, Drive ou infraestrutura.
-
-Cada decisão registra a data, o motivo e o que **não** fazer. Antes de contrariar uma decisão, revise-a aqui
-e registre a mudança com a nova data.
-
-## 2026-10-02 — Limpeza de testes obsoletos e retenção dos últimos 3 commits
-
-Decisão: Removidos testes legados (`src/bootstrap.spec.ts`, `src/cadastros/cadastros.http.spec.ts`, `src/database/migracao-legado.spec.ts`) e documentações de planos anteriores em `docs/`. Preservados integralmente os arquivos modificados nos últimos 3 commits (`7f59109`, `c9a1c96`, `f585fed`), mantendo `src/database/modelo-portugues.integracao.spec.ts` e `src/commands/seed-demonstracao.ts`.
-
-Motivo: Os testes removidos eram ou lentos (subindo subprocessos de 30-40s no Windows com regras já cobertas por testes unitários), ou testavam migrações de dados legados extintas após o reset do Neon, ou agrupavam controladores de múltiplos módulos quebrando diante das novas proteções de autorização. A preservação dos últimos 3 commits atende à instrução direta do dono, mantendo o histórico de regressão de slug e o script de seed.
-
-Não fazer:
-- Não recriar testes que dependam de `spawnSync` com `ts-node` sobre a aplicação inteira para validar variáveis de ambiente: use a validação estrita em memória de `env.validation.spec.ts`.
-- Não remover `src/database/migracao-legado.ts`, pois é dependência estática da migration `1789516800000-modelo-portugues.ts`.
-- Não reintroduzir documentos de planejamento obsoletos em `docs/plans`.
-
-
-## 2026-09-20 — O id do imóvel vem do banco; o slug é gravado depois do insert
-
-Decisão: `ImoveisService.criar` deixou de reservar o id com `nextval(pg_get_serial_sequence(...))`. O insert vai
-sem id, o identity de `imoveis.id` gera o valor, e o slug definitivo (`titulo-id`) é gravado num `update` logo em
-seguida, dentro da mesma transação. O insert usa um slug provisório `rascunho-<uuid>` só para satisfazer
-`slug text NOT NULL UNIQUE`; ele nunca chega ao commit.
-
-Motivo: o TypeORM **descarta valor explícito de coluna `@PrimaryGeneratedColumn`** ao montar o INSERT
-(`InsertQueryBuilder.getInsertedColumns()` remove colunas com `generationStrategy: 'increment'`). Com isso a
-reserva era jogada fora e o Postgres chamava `nextval` outra vez: cada imóvel nascia com `id = id_do_slug + 1`,
-a sequência andava de dois em dois e `GET /imoveis/<slug>` respondia 404 porque procurava o id anterior, que não
-existe. O `POST /admin/imoveis` também respondia 404, porque devolvia `encontrar_interno` com o id errado, e criar
-imóvel com características quebrava por violação de FK.
-
-`ImoveisService.atualizar` passou a recalcular o slug em toda alteração, não só quando o título muda. A operação é
-idempotente e conserta linhas com slug defasado no primeiro `PATCH`.
-
-Não fazer:
-
-- Não voltar a reservar id com `nextval` para montar o slug antes do insert: o TypeORM não envia esse id. Se algum
-  dia for mesmo necessário inserir id explícito, é preciso `insert().into(Entidade, [colunas])` listando as
-  colunas — e aí a lista vira manutenção manual a cada coluna nova.
-- Não repetir esse padrão em outros módulos. Hoje `nextval` não aparece mais em lugar nenhum de `src/`.
-- Não tornar `slug` anulável para evitar o slug provisório: exigiria migration e enfraqueceria a coluna.
-
-## 2026-09-20 — Imóveis duplicados e de verificação apagados do Neon
-
-Decisão do dono, autorizada nesta sessão: apagar as linhas 4, 6, 8 e 10 de `imoveis` — retentativas da mesma
-criação (15:34 a 15:35 de 18/09), já inativas, geradas porque o `POST` respondia 404 mesmo tendo gravado. Junto
-foram apagados os imóveis 11 e 12, criados aqui só para verificar a correção. Sobrou o imóvel 2, o único real, com
-a sua mídia no R2 intacta.
-
-Backup em `backups/backup_pre_limpeza_imoveis_202609201926.json` (40 tabelas, 109 linhas) antes do DELETE, feito
-com o `pg` do projeto porque o `pg_dump` via Docker do `AGENTS.md` continua indisponível nesta máquina.
-Conferido antes de apagar que nenhuma linha de `imoveis_midias`, `imoveis_caracteristicas`, `comissoes` ou
-`pessoas` apontava para os alvos; `contrato` e `comissoes` têm FK `ON DELETE RESTRICT`, então o DELETE teria
-falhado se houvesse vínculo.
-
-Não fazer:
-
-- Não usar `DELETE /admin/imoveis/:id` esperando remoção: esse endpoint só desativa (`ativo = false`).
-- Não apagar imóvel com mídia sem antes remover os objetos no R2: `imoveis_midias` tem `ON DELETE CASCADE` e a
-  linha some sem levar o arquivo junto.
-
-## 2026-09-17 — Banco do Neon zerado e recriado pela cadeia completa de migrations
-
-Decisão do dono: em vez do corte coordenado com backup e complementos previsto em 14/09 e 16/09, o banco
-`corretor-db` do Neon foi **apagado por completo** (`DROP SCHEMA public CASCADE`, `DROP SCHEMA legado_20260913
-CASCADE`) e reconstruído rodando as 10 migrations registradas do zero, sobre banco vazio.
-
-Motivo: o banco continha apenas o administrador (com senha quebrada, ADMIN-002) e os seeds; não havia imóvel,
-pessoa, contrato nem comissão. Recriar do zero é mais simples e mais seguro do que rodar as migrations de cópia de
-legado, que exigem `MIGRACAO_COMPLEMENTOS_ARQUIVO` com CPF, taxa, garantia e reajuste reais de cada registro antigo.
-Com o banco vazio, essas cópias percorrem zero linhas e nenhum complemento é necessário. O administrador foi
-recriado por `bootstrap:admin` com senha conhecida, o que também destravou o ADMIN-002.
-
-O backup exigido foi feito em JSON via `pg` (`backups/backup_pre_zerar_202609170236.json`) porque **Docker não está
-instalado nesta máquina** e o procedimento de `pg_dump` do `AGENTS.md` não pôde ser executado.
-
-Não fazer:
-
-- Não repetir este procedimento com o banco em uso: só foi aceitável porque não havia dado de negócio algum.
-  Com imóveis, pessoas ou contratos reais, vale o corte coordenado com backup restaurável e complementos.
-- Não confiar nos registros anteriores sobre o estado do Neon: verificou-se que `1789516800000-modelo-portugues`
-  já estava aplicada, ao contrário do que `PROJECT_STATUS.md` e os handoffs afirmavam. Conferir sempre
-  `typeorm_migrations` no banco antes de decidir.
-- Não publicar o Render no commit atual (`896c39c`): ele serve o contrato antigo e o banco já está no v2.
-- Não deixar o CPF de exemplo do administrador nem as variáveis `BOOTSTRAP_ADMIN_*` no `.env`.
-
-## 2026-09-11 — Banco no Neon, região São Paulo, conexão direta
-
-Decisão: o projeto Neon foi criado com PostgreSQL **16**, banco `corretor-db`, na região `aws-sa-east-1` (São Paulo),
-e a aplicação usa a **connection string direta**, sem o sufixo `-pooler`.
-
-Motivo: a versão 16 acompanha a especificação. A conexão direta é a recomendada pelo Neon para migrations e `pg_dump`,
-e o pooler em modo transação não suporta parte dos recursos de sessão. A região foi escolhida pelo dono do projeto.
-
-Não fazer:
-
-- Não trocar para a URL com `-pooler` sem testar migrations e o advisory lock da edição de corretores.
-- Não recriar o projeto Neon: a região é fixa e a recriação perde o banco atual.
-- Não usar Postgres local: a validação de ambiente exige host `*.neon.tech`.
-- Lembrar no planejamento de deploy: o Render não tem região na América do Sul, então API e banco ficarão em continentes diferentes.
-
-## 2026-09-11 — Migrations aplicadas no banco real
-
-Decisão: as 5 migrations do repositório foram aplicadas no Neon e o schema real passou a existir.
-
-Motivo: encerrar a fase de "código pronto, banco inexistente" e permitir homologação com dados reais.
-
-Não fazer:
-
-- Não editar, renomear ou apagar migration já aplicada. Para mudar o schema, crie uma nova migration.
-- Não rodar `migration:revert` em produção sem backup e autorização explícita: ela derruba a tabela correspondente.
-- Não ativar `synchronize` nem `migrationsRun`.
-
-## 2026-09-11 — Mídia no Cloudflare R2 com URL pública de desenvolvimento
-
-Decisão: bucket `corretor-midia` (nome fixo no código), classe Standard, com a Public Development URL (`r2.dev`) ativada,
-e token de API com permissão Object Read & Write restrita a esse bucket.
-
-Motivo: é o caminho de custo zero para a fase de validação. O egress do R2 é gratuito e o filesystem do Render é efêmero.
-
-Não fazer:
-
-- Não renomear o bucket sem alterar o código, que tem o nome fixo em `src/media/media.service.ts`.
-- Não usar a URL `r2.dev` como endereço definitivo de produção: a Cloudflare limita as requisições e a trata como recurso de desenvolvimento.
-- Não gravar upload em disco: o arquivo vai da memória direto ao R2.
-- Não guardar o `storageKey` em resposta pública.
-
-## 2026-09-11 — Primeiro administrador por comando, não por rota
-
-Decisão: o primeiro ADMIN foi criado com `npm run bootstrap:admin`, lendo variáveis `BOOTSTRAP_*` temporárias,
-que foram removidas do `.env` logo depois.
-
-Motivo: não existe rota pública de criação do primeiro administrador, e o comando recusa a operação se já houver um ADMIN.
-
-Não fazer:
-
-- Não criar rota pública de cadastro inicial.
-- Não deixar as variáveis `BOOTSTRAP_*` no `.env` depois do uso.
-- Não tentar redefinir senha pelo comando: ele não faz isso.
-
-## 2026-09-11 — Sessão com access token curto e refresh rotativo
-
-> **Substituída em 2026-10-06** (sessão por inatividade de 4h, token fixo, cookie de sessão). Mantido para histórico.
-
-Decisão (herdada do código e confirmada em homologação): access token JWT HS256 de 15 minutos, mantido apenas em memória
-no front, e refresh token opaco de 30 dias em cookie `httpOnly`, `SameSite=Strict`, guardado no banco apenas como SHA-256,
-de uso único e rotacionado a cada renovação.
-
-Motivo: permite revogar sessões individualmente e evita token persistido em `localStorage`.
-
-Não fazer:
-
-- Não guardar refresh token puro no banco nem token em `localStorage`.
-- Não criar outro mecanismo de sessão sem revisar esta decisão.
-- Não aumentar o access token para dias: a renovação já é automática no front.
-
-## 2026-09-11 — Origens autorizadas explícitas
-
-Decisão: `ALLOWED_ORIGINS` lista as origens exatas, separadas por vírgula, sem barra final. Em desenvolvimento vale
-`http://127.0.0.1:5173,http://localhost:5173`.
-
-Motivo: o CORS com credenciais e o guard de origem de login, refresh e logout comparam o header `Origin` por igualdade exata.
-
-Não fazer:
-
-- Não usar `*` nem casar origem por prefixo.
-- Não esquecer de incluir o domínio de produção do front antes de publicar; sem isso o login responde 403.
-
-## 2026-09-11 — Camada de contexto compartilhado entre agentes
-
-Decisão: o repositório passa a manter `AGENTS.md`, `CLAUDE.md`, `PROJECT_STATUS.md`, `DECISIONS.md`, `TASKS.md`,
-`CHANGELOG_AI.md` e `docs/handoffs/`, com o mesmo protocolo no repositório irmão.
-
-Motivo: Codex e Claude não compartilham contexto entre sessões. O que precisa sobreviver à sessão fica versionado no Git.
-
-Não fazer:
-
-- Não trabalhar sem ler os arquivos de contexto.
-- Não encerrar uma tarefa sem atualizar `PROJECT_STATUS.md` e `CHANGELOG_AI.md`.
-- Não registrar segredo, token ou dado pessoal nesses arquivos.
-
-## 2026-09-11 — Uma única branch: `main`
-
-Decisão: o trabalho acontece direto na `main`. A branch `shura` foi apagada do GitHub por estar em `0b21399`,
-que já é ancestral da `main` e, portanto, não continha nenhum commit exclusivo.
-
-Motivo: escolha do dono do projeto. Com um repositório pequeno e agentes trabalhando um de cada vez,
-o custo de manter branches paralelas não se pagava.
-
-Não fazer:
-
-- Não recriar branches paralelas sem combinar antes.
-- Não commitar sem rodar `npm test`, `npm run lint` e `npm run typecheck`.
-- Não commitar `.env`, dump ou credencial: sem branch de revisão, o erro vai direto para a `main`.
-
-## 2026-09-12 — Limpeza de `refresh_sessions` continua manual
-
-Decisão: as sessões expiradas são apagadas à mão, com `DELETE FROM refresh_sessions WHERE expires_at < now()`,
-até que OPS-001 defina uma rotina. Em 12/09 as 2 linhas dos logins de homologação de 11/09 foram removidas
-(backup `backups/backup_20260912_0908.sql` gerado antes).
-
-Motivo: a tabela é pequena e não há agendador confiável no plano gratuito. Automatizar antes de publicar a API
-seria decidir sem conhecer a plataforma.
-
-Não fazer:
-
-- Não apagar sessões sem saber se há alguém logado: o `DELETE` derruba a sessão de quem estiver usando o painel.
-- Não criar a rotina dentro da API com `setInterval`: o processo do plano gratuito hiberna e a limpeza não roda.
-
-## 2026-09-12 — Variáveis `BOOTSTRAP_*` voltaram ao `.env` e devem sair
-
-Situação registrada, não decisão nova: em 12/09 o `.env` local foi encontrado de novo com as quatro variáveis
-`BOOTSTRAP_ADMIN_*` preenchidas, e o `.env.example` versionado apareceu sobrescrito com a mesma estrutura,
-tendo perdido os comentários que explicavam cada campo. Isso contraria a decisão de 11/09.
-
-Agrava o caso: a senha que está no `.env` **não é** a que está gravada no banco. O login com ela responde 401,
-então o valor em texto claro não serve nem para entrar — só para vazar.
-
-Não fazer:
-
-- Não deixar as `BOOTSTRAP_*` no `.env` depois de criar o administrador.
-- Não sobrescrever o `.env.example` com uma cópia do `.env`: o exemplo documenta os campos, e os comentários
-  fazem parte dele.
-- Não tratar o valor atual de `BOOTSTRAP_ADMIN_PASSWORD` como a senha do administrador: ela não é.
-
-## Decisões herdadas da especificação (`corretor-spec.json`)
-
-Já foram rejeitadas, e não devem ser reabertas sem revisão explícita:
-
-- **Supabase**: o plano gratuito pausa o projeto e o tempo de retorno é inaceitável.
-- **Cloudflare Workers + Hono no backend**: o limite de CPU do plano gratuito é incompatível com Argon2id.
-- **Drizzle ORM**: só fazia sentido no cenário Workers; o padrão do NestJS é o TypeORM.
-- **GitHub Actions para backup agendado**: workflows agendados são desativados após 60 dias sem atividade no repositório.
-- **Cloudflare Containers**: exige plano pago.
-
-## 2026-09-12 — Primeira entrega de administração de locações (Codex)
-
-Escopo aprovado: cadastros PF/PJ de proprietários e inquilinos, dados bancários do proprietário, contratos e documentos privados. Acesso exclusivamente ADMIN, inclusive downloads. Um proprietário, um inquilino e um imóvel por contrato; início manual, sem importação e sem integração SI9/Imonov nesta etapa. Comissão aguarda definição do dono; não presumir a base nem implementar financeiro nesta entrega.
-
-Padrões: NestJS/TypeORM e React/RHF/zod existentes, nenhuma dependência nova. Contatos, CPF/CNPJ, dados bancários e observações da ficha são cifrados com AES-256-GCM; notas do contrato também. Usa-se chave derivada com domínio próprio da LEADS_ENCRYPTION_KEY existente. Nomes permanecem pesquisáveis. Não trocar a chave sem procedimento de recifragem e backup: isso torna os campos anteriores ilegíveis.
-
-Documentos: bucket privado separado, R2_DOCUMENTS_BUCKET opcional no boot. A variável deve apontar para bucket sem r2.dev, domínio público ou acesso anônimo, distinto de corretor-midia. O token S3 deve ter permissão nesse bucket. Sem variável, upload/download/exclusão falham com 503, sem fallback. Listagem de metadados continua disponível. Não colocar documentos de clientes no bucket público de mídia. PDF/JPEG/PNG, assinatura e limite de 10 MiB, download autenticado como attachment com no-store e nosniff. Upload compensado quando a gravação de metadados falha; monitorar e limpar órfãos caso a compensação também falhe.
-
-Contratos: valores decimais exatos, datas civis, um ACTIVE por imóvel protegido por índice único e transação. Partes precisam ser do tipo correto e ativas para contratos não encerrados. Desativar pessoa com contrato ativo retorna 409. Encerrar contrato antigo continua permitido após mudança do imóvel para venda. Vencimentos 29–31 ficam apenas registrados; ajuste do calendário pertence à futura cobrança. Não excluir contratos nem apagar pessoas vinculadas; exclusão de imóvel vinculado é impedida por FK.
-
-## 2026-09-12 — Comissão de captação equivalente a um aluguel (regra provisória)
-
-Para a próxima etapa, a comissão de captação será modelada como o valor de um aluguel do contrato, com parcelamento configurável e confirmação manual de cada parcela. O backend deve calcular o total com decimal exato, persistir parcelas e expor total pago/saldo para o painel ADMIN. Essa regra veio do relato operacional do dono e precisa ser validada contabilmente; não é uma afirmação jurídica nem uma taxa percentual presumida.
-
-Comissão de captação e repasse mensal são fluxos distintos. Não misturar as tabelas, não aplicar comissão automaticamente a multas/juros e não presumir retenções, impostos ou integrações bancárias sem decisão posterior. SI9/Imonov continuam fora do escopo.
-
-Operação: migration aditiva 1789257600000; não altera migrations anteriores e não roda automaticamente. Backup e validação do histórico do Neon são pré-requisitos de aplicação. Nenhum .env encontrado nos dois checkouts desta sessão; não foram reconstruídas credenciais nem escritos dados no Neon/R2. A migration de hardening preexistente 1789084805000 continua fora do data-source como estava: revisar seu histórico separadamente antes de aplicá-la, sem presumir que foi executada.
-
-Correção de compatibilidade: mensagens do filtro global da API agora seguem string/lista em message, como esperado pelo front. Busca parcial por título foi adicionada somente ao DTO do catálogo administrativo para seleção de imóveis; contrato público/SSR preservado.
-
-
-## 2026-09-13 — URLs públicas e indexação (Codex)
-Plano aprovado: finalidades para-alugar/para-comprar e tipos salas/lojas/galpoes/predios/terrenos em /imoveis; cidade, preco-minimo, preco-maximo e pagina na query. Slugs estáveis e endpoints da API preservados. Aliases administrativos login -> entrar e leads -> contatos, com 301 no SSR e replace no cliente. Filtros continuam noindex,follow. Dono autorizou SITE_URL=https://corretor-web-test.vercel.app e SEO_INDEXABLE=true em Production da Vercel; API_ORIGIN existente deve ser HTTPS; previews bloqueados. Não alterar banco, storage ou permissões.
-
-## 2026-09-13 — Infraestrutura de mídia R2
-A pedido do dono, criado bucket corretor-midia com acesso r2.dev público para imagens e vídeos do catálogo. R2_PUBLIC_URL do Render atualizado para o domínio desse bucket, preservando as demais variáveis. Documentos permanecem em corretor-documentos-test: acesso público r2.dev encontrado ativo e desativado. Não usar o bucket de documentos como base pública de mídia.
-
-## 2026-09-13 — Listagem pública retorna mídia via segunda query (opencode)
-
-Decisão: `PropertiesService.list()` anexa as mídias com uma segunda consulta (`propertyId In (...)`, ordenada por `orderIndex`), em vez de incluir a relação one-to-many no `findAndCount`.
-
-Motivo: o join dentro do `findAndCount` duplica linhas de imóvel e quebra a paginação; sem a mídia, o cartão do catálogo cai sempre no "Foto em breve" enquanto o detalhe exibe a capa.
-
-Não fazer:
-
-- Não voltar a relação `media` para dentro do `findAndCount` com `take`: a paginação volta a contar linhas do join.
-- Não criar campo novo (`coverUrl`) sem necessidade: o contrato `media[]` com `isCover` já atende o front e o SEO.
-
-## 2026-09-13 — Perfil próprio via /auth/me com whitelist (opencode)
-
-Decisão: PATCH /auth/me aceita só 
-ame, whatsappNumber, creci e vatarUrl (UpdateProfileDto);
-PATCH /auth/me/password troca a senha exigindo a atual. O id vem sempre do JWT (iewer.id), nunca do body.
-E-mail, papel e ativo continuam exclusivos do PATCH /agents/:id (só ADMIN).
-
-Motivo: corretor precisa editar foto e dados sem virar ADMIN; liberar o PATCH /agents/:id para não-ADMIN
-abriria elevação de papel e troca de e-mail de outro usuário.
-
-Não fazer:
-
-- Não aceitar email, 
-ole, ctive ou password no PATCH /auth/me: o pipe global (whitelist +
-  orbidNonWhitelisted) já devolve 400, e o DTO nem declara esses campos.
-- Não criar rota de perfil por :id para o próprio usuário: o JWT já identifica o dono.
-
-## 2026-09-13 — Troca/reset de senha sem revogar sessões (opencode)
-
-Decisão: changePassword e o reset via PATCH /agents/:id trocam só o hash (argon2id); as sessões de refresh
-existentes não são revogadas. O aviso no diálogo de reset informa que o acesso atual do alvo segue válido até
-sair ou o token expirar.
-
-Motivo: SessionService só revoga por token individual; revogar "todas menos a atual" exigiria buscar o hash
-da sessão corrente no controller e novo método com suporte no fixture — custo desproporcional ao benefício agora.
-
-Não fazer:
-
-- Não presumir logout remoto após reset: avisar a pessoa e, se preciso, pedir para ela sair e entrar de novo.
-- Não logar senha em lugar nenhum (código, teste, changelog ou docs).
-
-## 2026-09-13 — Filtro status só no gerenciado (opencode)
-
-Decisão: status? existe apenas no ManagedPropertyQueryDto; o PropertyQueryDto público continua sem ele
-(e o pipe global responde 400 a ?status= no público).
-
-Motivo: o painel precisa das métricas por disponível/reservado/concluído; o catálogo público só lista
-DISPONIVEL e o contrato do SSR não muda.
-
-Não fazer:
-
-- Não adicionar status ao DTO público nem ao 
-eadCatalogQuery do front sem decisão nova de SEO/produto.
-
-## 2026-09-14 — Modelo integral português e corte coordenado (Codex)
-
-Pedido integral de 13/09/2026 e escolha de Drive compartilhado pelo dono substituem o MVP anterior. Referência normativa: docs/specs/2026-09-13-backend-integral.md; execução e contrato: docs/handoffs/2026-09-14-backend-portugues.md.
-
-- Domínio ativo em português, DTOs/colunas snake_case, auditoria universal; classificação dinâmica e tags relacionais. NestJS/TypeORM/class-validator permanecem, sem dependência nova.
-- Exclusão lógica com ativo (inclui associações e finanças). Exceções técnicas: mídia excluída no R2/banco; refresh consumido/expurgado. Não apagar histórico de contratos nem simular consentimento em cadastro manual.
-- Dados pessoais em colunas reais pesquisáveis. Cifra antiga é lida exclusivamente pela migração; conservar chave original até verificar os dados e o backup. Não usar criptografia de coluna no runtime novo.
-- Contratos por ADMIN/intermediador, sem trava de finalidade. Partes são alteradas por ADMIN; corretor lê apenas as vinculadas aos próprios contratos. Receita é comissão de venda/locação informada manualmente, com até 600 parcelas; não presumir valor de um aluguel, repasse mensal, integração bancária ou comissão de corretor.
-- Drive via Service Account em Drive compartilhado privado (escolha expressa do dono). Quatro GOOGLE_DRIVE_* juntas; OAuth/HTTP nativos, IDs reservados e retentativa sem duplicação. Falha externa preserva contrato com estado explícito. Sem credenciais reais, marcar homologação Workspace pendente.
-- Migration nova preserva tabelas antigas em legado_20260913 e aborta se faltarem CPF/complementos reais. Clientes manuais explícitos suportam comissões antigas sem leads. Nenhum documento histórico do R2 é removido. Alterações aplicadas são imutáveis; não executar migration direto em produção sem backup/restauração validados e corte coordenado.
-- Comandos de migration agora usam executor com logs sanitizados e MIGRACAO_BACKUP_ARQUIVO para escrita. Não imprimir QueryFailedError, SQL com parâmetros ou detalhes de linhas decifradas.
-- Cookie Secure/Strict/HttpOnly em todos ambientes; desenvolvimento de navegador exige HTTPS. API nova é incompatível com o contrato frontend antigo: adaptar cliente, SSR e painel antes do deploy conjunto. Ajustar health check Render para /api/v1/saude nesse corte.
-- Homologação usa database vazia homologacao_pt na branch Neon br-ancient-sound-a5tsf5rf, PostgreSQL 16.15; testes transacionais são revertidos. Banco/API publicados permanecem intactos. Manter branch de homologação identificada até o dono definir retenção.
-
-## 2026-09-16 — Hardening dos achados confirmados da auditoria
-
-Rotas administrativas de tipos, finalidades e características exigem `AutenticacaoGuard` e
-`CargosGuard` com cargo `ADMIN`; corretores continuam podendo ler o que o produto autoriza,
-mas não alteram a classificação global do catálogo. Após troca de senha, todas as sessões de
-refresh do corretor são revogadas por uma única operação parametrizada no banco. Em produção,
-`ALLOWED_ORIGINS` deve conter somente origens HTTPS.
-
-Não fazer: editar migrations aplicadas, apagar dados de teste sem autorização, ou adicionar
-Redis/alterar `trust proxy` sem decisão de infraestrutura e topologia.
-
-## 2026-09-16 — Ids inteiros, pessoas unificadas e ficha do imóvel (Claude)
-
-Decisão do dono em 16/09/2026: nenhuma tabela usa mais UUID; todo `id` é inteiro gerado pelo banco
-(`GENERATED BY DEFAULT AS IDENTITY`), o que simplifica consultas e permite filtrar por id. O contrato
-completo está em `docs/handoffs/2026-09-16-ids-inteiros-pessoas.md` (cópia do arquivo do front).
-
-- `clientes` e `partes_locacao` viraram a tabela `pessoas`: o lead do site é só o primeiro contato de uma
-  pessoa que depois pode ser cliente, proprietário ou inquilino. Não há `papel`; contrato e comissão apontam
-  para `pessoas`. `status_contato` (`PENDENTE`, `RESPONDIDO`, `FINALIZADO`) alimenta as três colunas do painel.
-- Imóvel: `valor` deu lugar a `valor_venda` e `valor_locacao` (ambos opcionais, os dois vazios = sob consulta);
-  `status` passa a `DISPONIVEL | RESERVADO | VENDIDO | ALUGADO | RETIRADO`; campos internos opcionais
-  (`proprietario_id`, `exclusividade`, `exclusividade_ate`, `data_captacao`, `chaves`, `matricula`,
-  `inscricao_municipal`, `observacoes_internas`, `motivo_baixa`) só saem nas rotas `/admin`.
-- Slug = título normalizado + id; muda com o título e a rota pública resolve pelo id no fim do slug.
-- Catálogo: `bairro`, `area_min/max`, `destaque`, `ordenar` e `busca` em título/bairro/cidade/descrição ou por id.
-  O preço de filtro/ordenação segue a finalidade (`valor_venda`, `valor_locacao` ou o primeiro informado).
-- Migration `1789603200000-ids-inteiros-pessoas.ts` aditiva: arquiva o modelo anterior em `legado_20260916`,
-  recria as tabelas e copia os dados mapeando UUID → inteiro. `down` recusa reversão. Validada com o teste de
-  integração em PostgreSQL 16 local (`TESTE_LOCAL_DATABASE_URL`, Docker) além do caminho Neon existente.
-- Regras de locação e comissão de 14/09 não mudaram; só apontam para `pessoas`. `DELETE` de contrato e
-  comissão passou a responder 204 como os demais.
-
-Não fazer: reintroduzir UUID em qualquer entidade; criar cadastros separados de pessoa por papel; expor os
-campos internos do imóvel na rota pública; editar as migrations anteriores; executar a migration em banco
-publicado sem backup e corte coordenado com o front (contrato antigo deixa de funcionar).
+Cada decisão traz a data, o que vale e o que **não** fazer. Antes de contrariar uma decisão, revise-a aqui e
+registre a mudança com a nova data. Uma decisão nova que substitui outra move a antiga para "Substituídas".
+
+O texto completo das versões anteriores está no histórico do Git.
+
+## Decisões em vigor
+
+### 11/09 — Princípios do projeto e alternativas descartadas
+- Custo $0 durante a validação: nada pago entra até haver cliente pagante.
+- Banco sempre online, no Neon. Nunca Postgres local.
+- Simplicidade acima de sofisticação: um padrão por problema, uma ferramenta por função (um ORM, um validador).
+- Limites de plano gratuito (disco efêmero, cold start) são documentados e decididos, nunca ignorados.
+- Descartadas, sem reabrir sem motivo novo:
+  - **Supabase:** o plano gratuito pausa o projeto, e a volta demora demais.
+  - **Cloudflare Workers + Hono:** o limite de CPU do plano gratuito não comporta Argon2id.
+  - **Drizzle:** só fazia sentido com Workers; o padrão do NestJS é o TypeORM.
+  - **GitHub Actions para backup:** workflows agendados param após 60 dias sem atividade.
+  - **Cloudflare Containers:** exige plano pago.
+
+### 11/09 — Neon em São Paulo, conexão direta
+PostgreSQL 16, banco `corretor-db`, região `aws-sa-east-1`, URL sem `-pooler`. Migrations e advisory locks precisam
+de sessão. Não trocar para o pooler sem testar; não recriar o projeto; não usar Postgres local. O Render não tem
+região na América do Sul, então API e banco ficam em continentes diferentes.
+
+### 11/09 — Primeiro ADMIN por comando
+`npm run bootstrap:admin` cria o primeiro ADMIN e recusa se já houver um. Não criar rota pública de cadastro
+inicial. Remover as `BOOTSTRAP_ADMIN_*` do `.env` depois do uso. O comando não redefine senha.
+
+### 11/09 e 16/09 — Origens autorizadas explícitas
+`ALLOWED_ORIGINS` lista origens exatas, sem barra final. Em produção, só HTTPS (16/09). Como o cookie é sempre
+`Secure`, o desenvolvimento no navegador também usa HTTPS (`https://localhost:5173` no `.env.example`). Não usar `*`
+nem casar por prefixo. Incluir o domínio do front antes de publicar, senão o login responde 403.
+
+### 11/09 — Uma única branch: `main`
+Trabalho direto na `main`, sem branches paralelas. Commit só com confirmação do dono e depois de typecheck, lint e
+build. Não commitar `.env`, dump ou credencial.
+
+### 11/09 — Mídia no Cloudflare R2
+Bucket `corretor-midia`, nome fixo em `src/midias/midias.service.ts` e `src/corretores/fotos-corretor.service.ts`.
+Upload em memória direto ao R2, nunca em disco. Não expor `chave_armazenamento` em resposta. Não usar a URL `r2.dev`
+como endereço definitivo de produção. Em 03/10 a URL pública configurada respondeu 401; não mudar a política do
+bucket sem decisão nova.
+
+### 11/09 — Backup antes de mudança estrutural
+Backup do banco antes de migration ou exclusão de dados, com `pg_dump` pela imagem Docker `postgres:16`. A máquina
+tem Docker, mas não tem `pg_dump` instalado. Backups ficam em `backups/`, fora do Git.
+
+### 13/09 — Listagem de imóveis em duas fases
+A listagem busca os ids da página e depois carrega mídias e características desses ids em consultas separadas.
+Não colocar a relação um-para-muitos dentro da consulta paginada: o `LIMIT` passaria a contar linhas do JOIN.
+
+### 13/09 — Perfil próprio por lista fechada
+`PATCH /autenticacao/eu` aceita só `nome`, `whatsapp`, `creci`, `url_foto` e, desde 06/10, o arquivo `foto`. O id vem
+do JWT. E-mail, `cargo` e `ativo` só mudam por `PATCH /admin/corretores/:id`, exclusivo do ADMIN.
+
+### 13/09 — Filtro `status` só no catálogo interno
+`status` existe em `ConsultaInternaImoveisDto`. O catálogo público não aceita o parâmetro (400) e só lista
+`DISPONIVEL`.
+
+### 14/09 — Modelo integral em português
+- Domínio, rotas, DTOs e colunas em português e `snake_case`, com auditoria em todas as tabelas.
+- Exclusão lógica com `ativo`. Exceções físicas: mídia e sessão.
+- Dados pessoais em colunas reais, sem criptografia de coluna. A proteção vem de TLS, disco cifrado e autorização.
+- Documentos de contrato no Google Drive compartilhado, por Service Account; as quatro `GOOGLE_DRIVE_*` juntas.
+  Falha do Drive preserva o contrato com `status_pasta_drive = FALHOU`.
+- Comissão é receita da imobiliária, de venda ou de locação, com valor informado e até 600 parcelas. Não presumir
+  valor de aluguel, repasse mensal, integração bancária ou comissão de corretor.
+- Cookie `Secure`, `SameSite=Strict` e `HttpOnly` em todos os ambientes.
+
+### 14/09 — Executor próprio de migrations
+`npm run migration:*` usa `src/commands/migracoes.ts`, que não imprime SQL nem parâmetros e exige
+`MIGRACAO_BACKUP_ARQUIVO` para executar ou reverter. Não usar a CLI do TypeORM diretamente. Manter
+`src/database/migracao-legado.ts`, dependência da migration `1789516800000` (reforçado em 02/10).
+
+### 16/09 — Cadastros globais só para ADMIN
+Criar, alterar e desativar tipos, finalidades e características exige `CargosGuard` com `ADMIN`. A leitura dos
+ativos é pública. Não adicionar Redis nem alterar `trust proxy` sem decisão de infraestrutura.
+
+### 16/09 — Ids inteiros, pessoas unificadas e ficha do imóvel
+Todo `id` é inteiro `GENERATED BY DEFAULT AS IDENTITY`. `clientes` e `partes_locacao` viraram `pessoas`, sem coluna de
+papel. Imóvel com `valor_venda` e `valor_locacao`, status `DISPONIVEL | RESERVADO | VENDIDO | ALUGADO | RETIRADO` e
+ficha interna só nas rotas `/admin`. Slug `<titulo>-<id>`. Não reintroduzir UUID nem cadastros separados por papel.
+
+### 17/09 — Banco recriado do zero
+O Neon foi zerado e recriado pelas 10 migrations porque não havia dado de negócio. Não repetir com dados reais:
+nesse caso vale backup restaurável e corte coordenado. Conferir `typeorm_migrations` no banco antes de decidir.
+
+### 20/09 — Slug gravado depois do insert
+O insert do imóvel vai sem id, com slug provisório `rascunho-<uuid>`; o slug definitivo é gravado na mesma transação.
+`atualizar` recalcula o slug sempre. Não reservar id com `nextval`: o TypeORM descarta id explícito em coluna gerada.
+`DELETE /admin/imoveis/:id` só desativa.
+
+### 02/10 — Revogação de sessões no reset pelo ADMIN e na desativação
+Além da troca da própria senha (16/09), a redefinição de senha pelo ADMIN e a desativação do corretor apagam todas
+as sessões dele, na mesma transação.
+
+### 02/10 — Limpeza de sessões por `setInterval`
+`SessoesService` apaga sessões expiradas no boot e a cada hora, com `setInterval` e `unref()`. Não há cron para isso.
+
+### 03/10 — Revisão da auditoria full stack
+- A01: partes já autorizadas no contrato podem permanecer; pessoa nova exige carteira própria ou vínculo prévio.
+- A02: autorização antes do multipart; lote limitado a 60 MiB durante a recepção; no máximo 2 uploads simultâneos
+  por instância; envio ao R2 fora da transação, com revalidação e lock na gravação. Não manter transação aberta
+  durante o R2.
+- A09: classificação inativa ainda vinculada mantém o valor; removida não volta.
+- A10: busca telefônica por dígitos, aceitando +55, sem alterar telefones gravados.
+
+### 03/10 — Sem suítes de teste
+Todos os arquivos `*.spec.*` e `*.test.*` foram removidos a pedido do dono. Não recriar suítes sem novo pedido. Não
+alegar validação por testes. A validação usa typecheck, lint, build e QA efêmero fora do repositório. O que fazer com
+o Jest restante está em TEST-API.
+
+### 04/10 — Listagem interna e conflitos de contrato
+`GET /admin/imoveis` traz só ativos por padrão; inativos só com `ativo=false`. Filtros `sem_contrato_ativo` e
+`apenas_disponiveis`. Erro `23505` de contrato vira 409 com mensagem pela constraint (número repetido ou imóvel com
+contrato ativo).
+
+### 04/10 — Documentação plana em `docs/`
+Todo `.md` fica em `docs/`, sem subpastas e sem arquivos soltos na raiz.
+
+### 06/10 — Sessão expira após 4h de inatividade
+- JWT de acesso de 15 minutos.
+- Cookie `corretor_renovacao` HttpOnly, `SameSite=Strict`, `Secure`, sem `maxAge`: fechar o navegador encerra a sessão.
+- `sessoes_login.expira_em = agora + 4h`. Sem limite absoluto.
+- Token fixo, sem rotação: `renovar` faz `UPDATE ... RETURNING` e só emite um JWT novo.
+- `AtividadeSessaoInterceptor` global estende o prazo a cada requisição autenticada, no máximo uma escrita a cada 5 min.
+- Motivo: o cookie de 30 dias nunca expirava, e a rotação de uso único derrubava o login no F5.
+- Não fazer: voltar a rotacionar sem tolerância a respostas abortadas; dar `maxAge` ao cookie; gravar atividade em
+  toda requisição; mover a gravação para o `AutenticacaoGuard` (ciclo de módulos).
+
+### 06/10 — Foto do perfil sem migration
+Chave `corretores/{id}/{uuid}.jpg|png|webp` no mesmo bucket. `ArmazenamentoModule` compartilha o cliente R2 e a cota
+de upload. Envio antes da transação; objeto novo compensado se o banco falhar; foto anterior apagada só depois do
+commit. URL gerenciada diferente da atual, sem arquivo novo, responde 409. Leitura pública só pelo id do corretor
+ativo, com proxy do R2 ou redirect para URL externa HTTPS.
+
+### 09/10 — CRECI, `tipo_id` em lista e pessoas elegíveis
+- CRECI: trim, maiúsculas, vazio vira `null`, regra `^\d+[JF]?$`. Valores antigos fora da regra continuam legíveis.
+- `tipo_id` em `GET /imoveis` e `/admin/imoveis`: um id ou CSV de até 20 (`ListaIds`). O cadastro segue com um tipo.
+- `GET /admin/comissoes/pessoas-elegiveis` fica antes de `:id` e devolve só `{ id, nome }`. O `POST` mantém as checagens.
+
+## Substituídas
+
+| Data | Decisão antiga | Substituída por |
+|---|---|---|
+| 11/09 | Sessão de 30 dias com refresh rotativo de uso único | Sessão de 4h por inatividade, token fixo (06/10) |
+| 11/09 | "As 5 migrations foram aplicadas"; `migration:revert` derruba a tabela | Banco recriado com 10 migrations (17/09); as duas últimas recusam reversão |
+| 11/09 | Contexto dos agentes com pasta `docs/handoffs/` | Documentação plana em `docs/` (04/10) |
+| 11/09 | Não commitar sem `npm test` | Sem suítes; typecheck, lint e build (03/10) |
+| 12/09 | Limpeza manual de `refresh_sessions` e proibição de `setInterval` | Limpeza automática por `setInterval` em `sessoes_login` (02/10) |
+| 12/09 | Locações com dados cifrados em AES-256-GCM e documentos em bucket R2 privado, acesso só ADMIN | Modelo de 14/09: sem cifra, documentos no Drive, acesso do intermediador |
+| 12/09 | Comissão de captação igual a um aluguel | Comissão manual de venda ou locação (14/09) |
+| 12/09 | `.env.example` sobrescrito sem comentários | `.env.example` versionado com comentários (estado atual do arquivo) |
+| 13/09 | Troca e reset de senha sem revogar sessões | Troca revoga (16/09); reset pelo ADMIN e desativação revogam (02/10) |
+| 13/09 | Nomes `PropertiesService`, `/auth/me`, `/agents/:id`, `storageKey` | Nomes em português do modelo de 14/09 |
+| 14/09 | Sessão "consumida" na renovação | Renovação sem consumo (06/10) |
+| 02/10 | Preservar `modelo-portugues.integracao.spec.ts` e usar `env.validation.spec.ts` | Remoção de todas as suítes (03/10) |

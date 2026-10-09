@@ -1,102 +1,121 @@
 # Tarefas — corretor-api
 
-## SEIS-PONTOS-20261009 — CRECI, catálogo por tipos e clientes da comissão (API)
-
-- **Responsável:** Claude.
-- **Status:** concluída localmente; publicação depende de autorização.
-- [x] CRECI `^\d+[JF]?$` no DTO-base: maiúsculo, vazio → null, PATCH sem campo preserva, legado lido intacto.
-- [x] `tipo_id` com um id ou CSV de até 20, sem duplicados, `IN` parametrizado, 400 para inválidos; público e admin.
-- [x] `GET /admin/comissoes/pessoas-elegiveis` antes de `:id`, filtrado antes da paginação, permissões atuais.
-- [x] Typecheck, lint, build e QA efêmero com ValidationPipe real e PostgreSQL descartável (78/78).
-- [ ] Publicar a API (antes do frontend) quando o dono autorizar.
-
-## FOTO-PERFIL-20261006 — Upload e leitura controlada
-
-- **Responsável:** Codex.
-- **Status:** concluída localmente; homologação real do perfil separada.
-- [x] PATCH JSON/multipart exclusivo, sessão/origem, quantidade/tamanho/assinatura.
-- [x] Storage/quota compartilhados, Put antes de transação e compensação/limpeza por proprietário.
-- [x] GET público por corretor ativo, R2 privado ou redirect HTTPS; sem chave arbitrária.
-- [x] Preservar Corretor/url_foto/schema e trabalho anterior; proteger contra referência obsoleta.
-- [x] Tipos, lint, build, HTTP efêmero, R2 temporário real e documentação.
-- [ ] Homologar um perfil real com login, upload, banco, proxy e atualização da sessão.
-- [ ] Definir monitoramento/limpeza operacional de objetos órfãos e publicar somente se autorizado.
-
 Status possíveis: `aberta`, `em andamento`, `em revisão`, `bloqueada`, `concluída`.
-Quem assume uma tarefa escreve o próprio nome em Responsável e reflete isso no `docs/PROJECT_STATUS.md`.
-Tarefas do front ficam em `../Corretor-web/docs/TASKS.md`.
+Quem assume uma tarefa escreve o próprio nome em Responsável e reflete isso no `PROJECT_STATUS.md`.
+Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/docs/TASKS.md).
 
 ---
 
-## 1. Pendências Operacionais e Lançamento (Produção)
+## 1. Pendências operacionais
 
-### DEPLOY-001 — Publicar a API em produção (Render/VPS)
+### DEPLOY-001 — Publicar a versão atual no ambiente de teste
 - **Status:** aberta
 - **Responsável:** a definir
-- **Objetivo:** Subir o backend no serviço de hospedagem definitiva (Render/VPS) apontando para o Neon e Cloudflare R2 reais.
+- **Contexto:** o serviço Render `Corretor-API` existe. O último deploy registrado é de 08/10, no commit `86ecf29`.
+  O commit `6b987a5` (09/10) não foi publicado, e o front de 09/10 depende dele.
 - **Critérios de conclusão:**
-  - Ambiente Node 24 com `npm run start:prod`.
-  - Configurar variáveis de ambiente (`DATABASE_URL`, `JWT_SECRET`, credenciais do R2, etc.).
-  - Configurar `ALLOWED_ORIGINS` com o domínio real do front-end.
-  - Health check da API respondendo 200 em `/api/v1/saude`.
+  - Publicar a `main` atual no Render com autorização do dono, antes do front.
+  - Conferir que o health check do Render aponta para `/api/v1/saude` e responde 200.
+  - Conferir `ALLOWED_ORIGINS` com o domínio do front.
+  - Validar pelo front: catálogo com vários tipos e seletor de pessoas da comissão.
+  - Registrar o commit implantado e a data no `PROJECT_STATUS.md`.
 
-### AUDIT-001 / AUDIT-REV — Homologação dos itens da Auditoria Full Stack
+### TEST-API — `npm test` falha sem suítes
+- **Status:** aberta
+- **Responsável:** a definir
+- **Contexto:** as suítes foram removidas em 03/10 (`ab59472`). O `jest.config.cjs` não tem `passWithNoTests`, então
+  `npm test` sai com "No tests found" e código 1. Restam os scripts `test` e `test:watch`, as dependências do Jest,
+  o `jest.config.cjs`, o `src/testing/schedule.mock.ts` e a variável `TESTE_LOCAL_DATABASE_URL` no `.env.example`.
+- **Critérios de conclusão:**
+  - O dono decide entre remover o Jest (scripts, dependências, configuração, mock e variável) ou configurá-lo
+    com `passWithNoTests`.
+  - A decisão fica registrada no `DECISIONS.md`.
+  - `npm test`, se continuar existindo, sai com 0.
+
+### FOTO-PERFIL-20261006 — Homologar a foto do perfil
+- **Status:** concluída no código (`86ecf29`); homologação parcial
+- **Responsável:** a definir
+- **Contexto:** em 08/10, depois do deploy do `86ecf29`, `GET /api/corretores/1/foto` pela Vercel respondeu 302 e
+  a imagem final 200 (registro no Corretor-web). Isso cobre só a leitura de uma foto com URL externa.
+- **Pendente:**
+  - Homologar o ciclo completo com login, upload, banco real, proxy e atualização da sessão.
+  - Definir monitoramento ou limpeza de objetos órfãos no R2 (as falhas de exclusão só vão ao log).
+  - Testar em Safari, iOS e celular físico.
+
+### AUDIT-001 — Homologar os itens da auditoria full stack
 - **Status:** aberta para homologação em ambiente real
 - **Responsável:** a definir
-- **Objetivo:** Validar em produção as correções de integridade e segurança realizadas localmente.
+- **Objetivo:** validar no ambiente de teste as correções feitas localmente em 02 e 03/10.
 - **Critérios de conclusão:**
-  - Testar banco PostgreSQL Neon com as migrations aplicadas e integridade referencial.
-  - Validar upload e leitura de mídias no Cloudflare R2 em produção.
-  - Validar integração com Google Drive para criação automática das pastas privadas de contratos.
-  - Validar comportamento e tempo de resposta em caso de cold start da API.
+  - A09/A10 com PostgreSQL real: características inativas na ficha e busca telefônica com +55.
+  - A11 em ambiente implantado: cold start da API e tempo de resposta do SSR.
+  - Upload e leitura de mídias no R2 publicado.
+  - Pastas de contrato no Google Drive com credenciais reais.
+- **Referência:** [auditoria full stack](../../Corretor-web/docs/2026-10-02-auditoria-fullstack.md).
 
 ### NOTIFY-001 — Avisar o corretor de novo contato
 - **Status:** aberta (aguardando definição de canal com o dono)
 - **Responsável:** a definir
-- **Objetivo:** Alertar imediatamente o corretor responsável quando um visitante enviar uma proposta ou mensagem de contato no site (`POST /pessoas`).
+- **Objetivo:** alertar o corretor responsável quando um visitante enviar contato pelo site (`POST /pessoas`).
 - **Critérios de conclusão:**
-  - Escolher canal de envio (WhatsApp via API externa ou E-mail transacional via Resend/SendGrid).
-  - Integrar envio no momento do registro do contato.
+  - Escolher o canal (WhatsApp por API externa ou e-mail transacional).
+  - Integrar o envio no registro do contato.
 
-### RENTAL-004 — Definição de regras e permissões de contratos e comissões
-- **Status:** aberta (aguardando alinhamento de produto com o dono)
+### RENTAL-004 — Regras pendentes de contratos e comissões
+- **Status:** aberta (aguardando o dono)
 - **Responsável:** a definir
-- **Objetivo:** Consolidar regras de negócio para a gestão de contratos e intermediações.
-- **Critérios de conclusão:**
-  - Definir fluxo exato para encerramento ou renovação de contratos de locação.
-  - Definir se corretores comuns podem criar ou apenas visualizar contratos e comissões atribuídos a eles.
-  - Validar o cálculo e baixa manual de parcelas de comissão de captação.
+- **O que o código já decide:**
+  - O corretor comum cria contratos em que ele é o intermediador e não pode trocar o intermediador.
+  - O corretor comum cria e vê comissões com imóvel e pessoa sob a responsabilidade dele.
+  - Comissão é receita da imobiliária, de venda ou de locação, com valor informado e até 600 parcelas.
+- **Falta decidir:**
+  - Fluxo de encerramento antecipado e de renovação de contratos (hoje o contrato só vira INATIVO pela data ou
+    por alteração manual).
+  - Validação contábil do cálculo e da baixa manual das parcelas.
 
-### ADMIN-001 — Configurar o WhatsApp comercial definitivo
-- **Status:** aberta (aguardando número real)
+### ADMIN-001 — Dados reais do administrador
+- **Status:** aberta
 - **Responsável:** a definir
-- **Objetivo:** Substituir o número provisório de exemplo (`5565999999999`) pelo telefone real de atendimento do corretor Lucas Gobatto.
+- **Contexto:** a marca do front já usa o WhatsApp real. Em 17/09 o administrador do banco foi recriado com CPF de
+  exemplo, e as `BOOTSTRAP_ADMIN_*` ficaram no `.env`. Não há registro posterior.
 - **Critérios de conclusão:**
-  - Atualizar o cadastro do administrador no painel ou via API.
-  - Validar se o botão de WhatsApp utiliza o telefone real.
+  - Conferir no painel o WhatsApp e o CPF do administrador e trocar o que for de exemplo.
+  - Remover as `BOOTSTRAP_ADMIN_*` do `.env`.
+
+### LIMPEZA-API — Restos sem uso
+- **Status:** aberta
+- **Prioridade:** baixa
+- **Itens:**
+  - `@aws-sdk/lib-storage` está no `package.json` e nenhum arquivo o importa.
+  - Uploads de mídia vão ao R2 em sequência (achado DB-04/PERF-02 da auditoria de 11/09).
+  - `1789084805000-hardening.ts` está no disco e fora do registro; decidir se fica como histórico.
 
 ---
 
-## 2. Sugestões de Melhorias e Backlog Futuro
+## 2. Backlog
 
-### PERF-001 — Caches e resiliência de banco (Neon)
-- **Prioridade:** Média (P2)
-- **Sugestão:**
-  - Implementar estratégias de cache ou connection pooling caso a latência de cold start do Neon gere gargalos em produção.
-  - Monitorar consumo de conexões simultâneas na camada de persistência.
+### PERF-001 — Cache e resiliência do banco
+- **Prioridade:** média
+- Avaliar cache ou pooling se o cold start do Neon pesar no ambiente publicado.
+- Monitorar conexões simultâneas.
 
-### LOGS-001 — Sistema centralizado de logs e telemetria
-- **Prioridade:** Média (P2)
-- **Sugestão:**
-  - Substituir logs pontuais por logger estruturado (Pino ou Nest Logger com formatação JSON) para rastreabilidade de erros em produção.
-  - Integrar monitoramento de exceções (ex: Sentry ou Logtail).
+### LOGS-001 — Logs estruturados e telemetria
+- **Prioridade:** média
+- Logger estruturado em JSON para rastrear erros no ambiente publicado.
+- Monitoramento de exceções (por exemplo Sentry ou Logtail).
 
 ### RELATORIO-001 — Relatórios financeiros consolidados
-- **Prioridade:** Média (P2)
-- **Sugestão:**
-  - Endpoints de agregação mensal de receitas de locação e comissões pendentes/recebidas para exportação pelo administrador.
+- **Prioridade:** média
+- Endpoints de agregação mensal de comissões pendentes e recebidas, para exportação pelo ADMIN.
 
-### OPS-001 — Job de limpeza periódica de sessões expiradas
-- **Prioridade:** Baixa (P3)
-- **Sugestão:**
-  - Rotina agendada (Cron) para expurgo periódico de linhas de `sessao_login` antigas/expiradas.
+### SEC-002 — Limites de taxa fora da memória
+- **Prioridade:** baixa enquanto houver uma só instância
+- Os limites de login e de contatos vivem na memória do processo. Com mais de uma instância, exigem armazenamento
+  compartilhado. O teto de 10.000 chaves do `TentativasGuard` pode bloquear todos os logins se for enchido.
+
+---
+
+## 3. Concluídas recentemente
+
+- **SEIS-PONTOS-20261009** (09/10, `6b987a5`): CRECI, `tipo_id` em lista e pessoas elegíveis. Publicação em DEPLOY-001.
+- **OPS-001** (02/10 e 06/10): limpeza de sessões expiradas no boot e a cada hora, por `setInterval` no `SessoesService`.
