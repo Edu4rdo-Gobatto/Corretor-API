@@ -7,6 +7,29 @@ import {
   type ValidatorConstraintInterface,
 } from 'class-validator';
 
+@ValidatorConstraint({ name: 'isMaxDuration', async: false })
+class IsMaxDuration implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
+    const match = value.match(/^([1-9]\d*)(s|m|h|d)$/);
+    if (!match) return false;
+    const num = parseInt(match[1], 10);
+    const unit = match[2];
+
+    let seconds = 0;
+    if (unit === 's') seconds = num;
+    else if (unit === 'm') seconds = num * 60;
+    else if (unit === 'h') seconds = num * 3600;
+    else if (unit === 'd') seconds = num * 86400;
+
+    return seconds <= 30 * 86400; // max 30 days
+  }
+
+  defaultMessage(): string {
+    return 'JWT_EXPIRES_IN não pode exceder 30 dias de duração';
+  }
+}
+
 @ValidatorConstraint({ name: 'neonDatabaseUrl', async: false })
 class NeonDatabaseUrl implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
@@ -53,6 +76,7 @@ export class EnvironmentVariables {
   JWT_SECRET!: string;
 
   @Matches(/^[1-9]\d*(s|m|h|d)$/)
+  @Validate(IsMaxDuration)
   JWT_EXPIRES_IN = '15m';
 
   @IsString()
