@@ -2,6 +2,9 @@ import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } 
 import { createHash } from 'node:crypto';
 import { Request } from 'express';
 
+/** Teto de chaves em memória. Cheio, descarta as mais antigas: bloquear todos deixaria qualquer um travar o login. */
+const MAXIMO_CHAVES = 10000;
+
 @Injectable()
 export class TentativasGuard implements CanActivate {
   private readonly tentativas = new Map<string, { quantidade: number; expira_em: number }>();
@@ -15,11 +18,13 @@ export class TentativasGuard implements CanActivate {
       { chave: `ip:${requisicao.ip ?? requisicao.socket.remoteAddress}`, limite: 50 },
       { chave: `conta:${conta}`, limite: 10 },
     ];
-    if (chaves.some(({ chave, limite }) => (this.tentativas.get(chave)?.quantidade ?? 0) >= limite) || this.tentativas.size >= 10000) {
+    if (chaves.some(({ chave, limite }) => (this.tentativas.get(chave)?.quantidade ?? 0) >= limite)) {
       contexto.switchToHttp().getResponse<{ setHeader: (nome: string, valor: string) => void }>().setHeader('Retry-After', '900');
       throw new HttpException('Muitas tentativas. Tente novamente em 15 minutos.', HttpStatus.TOO_MANY_REQUESTS);
     }
     for (const { chave } of chaves) {
+      // Map guarda a ordem de inserção: a primeira chave é a mais antiga.
+      if (!this.tentativas.has(chave) && this.tentativas.size >= MAXIMO_CHAVES) this.tentativas.delete(this.tentativas.keys().next().value!);
       const tentativa = this.tentativas.get(chave) ?? { quantidade: 0, expira_em: agora + 15 * 60 * 1000 };
       tentativa.quantidade += 1;
       this.tentativas.set(chave, tentativa);

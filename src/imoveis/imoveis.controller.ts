@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { AutenticacaoGuard } from '../autenticacao/autenticacao.guard';
+import { CachePublico } from '../comum/cache-publico';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { AtualizarImovelDto, ConsultaImoveisDto, ConsultaInternaImoveisDto, CriarImovelDto } from './imoveis.dto';
 import { ImoveisService } from './imoveis.service';
@@ -10,8 +11,8 @@ type Requisicao = Request & { user: UsuarioAutenticado };
 @Controller('imoveis')
 export class ImoveisPublicosController {
   constructor(private readonly imoveis: ImoveisService) {}
-  @Get() listar(@Query() consulta: ConsultaImoveisDto) { return this.imoveis.listar_publicos(consulta); }
-  @Get(':slug') encontrar(@Param('slug') slug: string) { return this.imoveis.encontrar_publico(slug); }
+  @Get() @CachePublico() listar(@Query() consulta: ConsultaImoveisDto) { return this.imoveis.listar_publicos(consulta); }
+  @Get(':slug') @CachePublico() encontrar(@Param('slug') slug: string) { return this.imoveis.encontrar_publico(slug); }
 }
 
 @Controller('admin/imoveis')

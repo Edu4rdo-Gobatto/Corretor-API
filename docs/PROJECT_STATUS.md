@@ -1,6 +1,11 @@
 # Estado atual — corretor-api
 
-## Estado atual (09/10/2026)
+## Estado atual (09/10/2026, com adendo de 14/10)
+
+> **14/10 (Claude), local, sem commit:** catálogo público enxuto com cache, aviso de contato por e-mail (Resend),
+> encerramento antecipado e renovação de contratos com a migration `1789776000000` **não aplicada**, logs JSON,
+> uploads paralelos e correção do bloqueio global de login. Ordem de publicação: backup → `migration:run` → deploy da
+> API → front. O front correspondente já está commitado e depende dessas rotas. Detalhes no `CHANGELOG_AI.md`.
 
 `main` em `6b987a5`, sincronizada com `origin/main`. Trabalho direto na `main`.
 

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AutenticacaoModule } from '../autenticacao/autenticacao.module';
+import { AvisosModule } from '../avisos/avisos.module';
 import { Corretor } from '../corretores/corretor.entity';
 import { Imovel } from '../imoveis/imovel.entity';
 import { Contrato } from '../locacoes/contrato.entity';
@@ -10,7 +11,7 @@ import { PessoasService } from './pessoas.service';
 import { LimitePessoasGuard } from './limite-pessoas.guard';
 
 @Module({
-  imports: [AutenticacaoModule, TypeOrmModule.forFeature([Pessoa, Corretor, Imovel, Contrato])],
+  imports: [AutenticacaoModule, AvisosModule, TypeOrmModule.forFeature([Pessoa, Corretor, Imovel, Contrato])],
   controllers: [PessoasController, PessoasPublicasController], providers: [PessoasService, LimitePessoasGuard], exports: [PessoasService, TypeOrmModule],
 })
 export class PessoasModule {}

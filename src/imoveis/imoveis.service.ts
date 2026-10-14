@@ -7,18 +7,22 @@ import { gerar_slug } from '../cadastros/cadastros.service';
 import { Corretor } from '../corretores/corretor.entity';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { escaparBusca } from '../comum/validacao';
-import { ImovelMidia } from '../midias/imovel-midia.entity';
+import { ImovelMidia, TipoMidia } from '../midias/imovel-midia.entity';
 import { Pessoa } from '../pessoas/pessoa.entity';
 import { AtualizarImovelDto, CaracteristicaImovelDto, ConsultaImoveisDto, ConsultaInternaImoveisDto, CriarImovelDto } from './imoveis.dto';
 import { Imovel, StatusImovel } from './imovel.entity';
-import { resposta_imovel, resposta_imovel_publico } from './imoveis.resposta';
+import { resposta_imovel, resposta_imovel_publico, resposta_imovel_resumo } from './imoveis.resposta';
 
 const RESTRICAO_PUBLICA = 'imovel.ativo = true AND imovel.status = :disponivel AND corretor.ativo = true';
 const PRECO_PADRAO = 'COALESCE(imovel.valor_venda, imovel.valor_locacao)';
+/** O slug de uma finalidade quase nunca muda; guardá-lo evita uma consulta a mais em cada listagem filtrada. */
+const VALIDADE_COLUNA_PRECO_MS = 5 * 60_000;
 const definidos = <T extends object>(objeto: T) => Object.fromEntries(Object.entries(objeto).filter(([, valor]) => valor !== undefined)) as Partial<T>;
 
 @Injectable()
 export class ImoveisService {
+  private readonly colunas_preco = new Map<number, { coluna: string; expira: number }>();
+
   constructor(
     @InjectRepository(Imovel) private readonly imoveis: Repository<Imovel>,
     @InjectRepository(ImovelMidia) private readonly midias: Repository<ImovelMidia>,
@@ -91,11 +95,15 @@ export class ImoveisService {
   /** Com finalidade de venda ou de locação o preço é a coluna correspondente; sem filtro, o primeiro valor informado. */
   private async coluna_preco(finalidade_id?: number): Promise<string> {
     if (!finalidade_id) return PRECO_PADRAO;
+    const guardada = this.colunas_preco.get(finalidade_id);
+    if (guardada && guardada.expira > Date.now()) return guardada.coluna;
     const finalidade = await this.imoveis.manager.getRepository(FinalidadeImovel).findOneBy({ id: finalidade_id });
     const slug = finalidade?.slug ?? '';
-    if (slug.includes('venda') && !slug.includes('loca')) return 'imovel.valor_venda';
-    if (slug.includes('loca') && !slug.includes('venda')) return 'imovel.valor_locacao';
-    return PRECO_PADRAO;
+    const coluna = slug.includes('venda') && !slug.includes('loca') ? 'imovel.valor_venda'
+      : slug.includes('loca') && !slug.includes('venda') ? 'imovel.valor_locacao' : PRECO_PADRAO;
+    // Id inexistente não entra no cache: ids não reaproveitam, mas uma finalidade recém-criada pode chegar logo.
+    if (finalidade) this.colunas_preco.set(finalidade_id, { coluna, expira: Date.now() + VALIDADE_COLUNA_PRECO_MS });
+    return coluna;
   }
 
   private async listar(consulta: ConsultaInternaImoveisDto, interno: boolean) {
@@ -139,18 +147,35 @@ export class ImoveisService {
     }
     const linhas = await ordenado.addOrderBy('imovel.id', 'DESC').offset((consulta.pagina - 1) * consulta.limite).limit(consulta.limite).getRawMany<{ id: number | string }>();
     const ids = linhas.map((linha) => Number(linha.id));
-    const itens = ids.length ? await this.imoveis.find({ where: { id: In(ids) }, relations: { corretor: true, tipo: true, finalidade: true, proprietario: interno } }) : [];
+    const paginacao = { total, pagina: consulta.pagina, limite: consulta.limite, total_paginas: Math.ceil(total / consulta.limite) };
+    if (!interno) return { itens: await this.resumos(ids), ...paginacao };
+    const itens = ids.length ? await this.imoveis.find({ where: { id: In(ids) }, relations: { corretor: true, tipo: true, finalidade: true, proprietario: true } }) : [];
     itens.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
     if (itens.length) {
       const [midias, caracteristicas] = await Promise.all([
         this.midias.find({ where: { imovel_id: In(ids) }, order: { ordem: 'ASC', id: 'ASC' } }),
-        interno
-          ? this.caracteristicas.find({ where: { imovel_id: In(ids) }, relations: { caracteristica: true } })
-          : this.caracteristicas.find({ where: { imovel_id: In(ids), ativo: true, caracteristica: { ativo: true } }, relations: { caracteristica: true } }),
+        this.caracteristicas.find({ where: { imovel_id: In(ids) }, relations: { caracteristica: true } }),
       ]);
       for (const imovel of itens) { imovel.midias = midias.filter((midia) => midia.imovel_id === imovel.id); imovel.caracteristicas = caracteristicas.filter((vinculo) => vinculo.imovel_id === imovel.id); }
     }
-    return { itens: itens.map(interno ? resposta_imovel : resposta_imovel_publico), total, pagina: consulta.pagina, limite: consulta.limite, total_paginas: Math.ceil(total / consulta.limite) };
+    return { itens: itens.map(resposta_imovel), ...paginacao };
+  }
+
+  /**
+   * Listagem pública enxuta: sem corretor, características nem galeria. A capa é a imagem marcada como capa ou, sem
+   * ela, a primeira imagem pela ordem — a mesma regra do cartão do catálogo.
+   */
+  private async resumos(ids: number[]) {
+    if (!ids.length) return [];
+    const [itens, capas] = await Promise.all([
+      this.imoveis.find({ where: { id: In(ids) }, relations: { tipo: true, finalidade: true } }),
+      this.midias.createQueryBuilder('midia').distinctOn(['midia.imovel_id'])
+        .where('midia.imovel_id IN (:...ids)', { ids }).andWhere('midia.tipo = :imagem', { imagem: TipoMidia.IMAGEM })
+        .orderBy('midia.imovel_id').addOrderBy('midia.capa', 'DESC').addOrderBy('midia.ordem', 'ASC').addOrderBy('midia.id', 'ASC')
+        .getMany(),
+    ]);
+    const capaPorImovel = new Map(capas.map((midia) => [midia.imovel_id, midia]));
+    return itens.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)).map((imovel) => resposta_imovel_resumo(imovel, capaPorImovel.get(imovel.id)));
   }
 
   private async encontrar(where: FindOptionsWhere<Imovel>, interno = false) {

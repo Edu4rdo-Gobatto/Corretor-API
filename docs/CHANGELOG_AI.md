@@ -125,3 +125,28 @@ Pendências: MIGRATION-20261009 (backup verificado, migration no Neon, API antes
 
 Pendências: publicar a API `6305355` antes do front; cadastrar tipos de contrato e índices de reajuste.
 
+## 14/10/2026 — Execução das pendências do backend (Claude)
+
+Pedido do dono: executar RENTAL-004, NOTIFY-001, melhorias do catálogo e itens de baixa prioridade. ADMIN-001 adiado
+pelo dono. Decisões do dono: aviso por e-mail via Resend; renovação como contrato novo.
+
+Arquivos: `src/imoveis/{imoveis.service,imoveis.resposta,imoveis.controller}.ts`, `src/comum/cache-publico.ts`,
+`src/cadastros/cadastros.controller.ts`, `src/avisos/*`, `src/pessoas/{pessoas.service,pessoas.module,limite-pessoas.guard}.ts`,
+`src/config/env.validation.ts`, `.env.example`, `src/locacoes/*`, `src/database/{registros.ts,migrations/1789776000000-*}`,
+`src/midias/midias.service.ts`, `src/autenticacao/tentativas.guard.ts`, `src/main.ts`, `package.json`/lock.
+No front: `ImovelResumo`, diálogos de encerrar/renovar em `AcoesContrato.tsx`, fixture da API simulada.
+
+Validação: typecheck, lint e build aprovados (API e front); `npm test` do front 23/23. QA efêmero com os services
+compilados contra PostgreSQL 16 embutido (`embedded-postgres`, fora do repositório; Docker indisponível): 12/12
+migrations do zero, `down` da nova sem dados e novo `up`; **28/28 cenários** (listagem enxuta, capa, ordenação,
+`tipo_id IN`, cache da coluna de preço com 1 consulta, listagem interna e detalhe completos, aviso com HTML escapado,
+sem chave, rollback sem aviso, falha do Resend, validação de ambiente, encerramento em 7 casos, renovação em 7 casos,
+rollback da renovação, upload com máximo de 4 simultâneos e compensação, limites de login e de contato). Navegador
+(Playwright, API simulada): encerrar e renovar em 1440 claro e 390 escuro, corpos das requisições conferidos.
+Duas falhas iniciais do QA eram do roteiro (slug sem id e cenário incompleto), corrigidas no roteiro.
+
+Sem validação: envio real pelo Resend, migration no Neon, `Cache-Control` atrás da CDN da Vercel, HTTP ponta a ponta
+com o `ValidationPipe` (os cenários chamaram os services direto).
+
+Pendências: backup + `migration:run` + deploy da API antes do front; conta Resend e variáveis no Render; ADMIN-001;
+validação contábil das parcelas (RENTAL-004); Sentry/Logtail (LOGS-001); homologações em ambiente real.

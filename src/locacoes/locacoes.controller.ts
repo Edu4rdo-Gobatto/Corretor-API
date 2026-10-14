@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Po
 import type { Request } from 'express';
 import { AutenticacaoGuard } from '../autenticacao/autenticacao.guard';
 import type { UsuarioAutenticado } from '../comum/usuario-autenticado';
-import { AlterarContratoDto, ConsultaContratosDto, CriarContratoDto } from './locacoes.dto';
+import { AlterarContratoDto, ConsultaContratosDto, CriarContratoDto, EncerrarContratoDto, RenovarContratoDto } from './locacoes.dto';
 import { LocacoesService } from './locacoes.service';
 
 type Requisicao = Request & { user: UsuarioAutenticado };
@@ -16,5 +16,7 @@ export class ContratosController {
   @Post() criar(@Body() dto: CriarContratoDto, @Req() requisicao: Requisicao) { return this.servico.criarContrato(dto, requisicao.user); }
   @Patch(':id') alterar(@Param('id', ParseIntPipe) id: number, @Body() dto: AlterarContratoDto, @Req() requisicao: Requisicao) { return this.servico.alterarContrato(id, dto, requisicao.user); }
   @Delete(':id') @HttpCode(204) async desativar(@Param('id', ParseIntPipe) id: number, @Req() requisicao: Requisicao) { await this.servico.alterarContrato(id, { ativo: false }, requisicao.user); }
+  @Post(':id/encerrar') @HttpCode(200) encerrar(@Param('id', ParseIntPipe) id: number, @Body() dto: EncerrarContratoDto, @Req() requisicao: Requisicao) { return this.servico.encerrarContrato(id, dto, requisicao.user); }
+  @Post(':id/renovar') renovar(@Param('id', ParseIntPipe) id: number, @Body() dto: RenovarContratoDto, @Req() requisicao: Requisicao) { return this.servico.renovarContrato(id, dto, requisicao.user); }
   @Post(':id/pasta-drive') repetirPasta(@Param('id', ParseIntPipe) id: number, @Req() requisicao: Requisicao) { return this.servico.repetirPasta(id, requisicao.user); }
 }

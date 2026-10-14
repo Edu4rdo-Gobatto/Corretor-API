@@ -15,6 +15,8 @@ import { R2_MIDIAS } from '../comum/armazenamento.module';
 
 export { R2_MIDIAS } from '../comum/armazenamento.module';
 const BUCKET = 'corretor-midia';
+/** Envios paralelos ao R2 por lote: acelera o upload sem abrir uma conexão por arquivo (o lote tem até 20). */
+const ENVIOS_SIMULTANEOS = 4;
 
 @Injectable()
 export class MidiasService {
@@ -30,18 +32,26 @@ export class MidiasService {
     // Autorização antecipada fora da transação longa — falha rápida antes de consumir memória no R2.
     await this.bloquear_imovel(this.midias.manager, imovel_id, usuario, false);
 
-    // 1. Upload ao R2 fora de transação PostgreSQL.
-    const chaves: string[] = [];
-    try {
-      for (const [indice, arquivo] of arquivos.entries()) {
-        const validado = validados[indice];
-        const chave = `imoveis/${imovel_id}/${randomUUID()}${validado.extensao}`;
-        chaves.push(chave);
-        await this.armazenamento.send(new PutObjectCommand({ Bucket: BUCKET, Key: chave, Body: arquivo.buffer, ContentType: arquivo.mimetype }));
+    // 1. Upload ao R2 fora de transação PostgreSQL, até ENVIOS_SIMULTANEOS por vez. As chaves nascem antes do envio:
+    // numa falha, a compensação apaga todas (apagar chave inexistente no R2 não é erro) e nenhum envio novo começa.
+    const chaves = validados.map((validado) => `imoveis/${imovel_id}/${randomUUID()}${validado.extensao}`);
+    let proximo = 0;
+    let falha: { erro: unknown } | undefined;
+    const enviar_fila = async () => {
+      while (!falha && proximo < arquivos.length) {
+        const indice = proximo++;
+        const arquivo = arquivos[indice];
+        try {
+          await this.armazenamento.send(new PutObjectCommand({ Bucket: BUCKET, Key: chaves[indice], Body: arquivo.buffer, ContentType: arquivo.mimetype }));
+        } catch (erro) {
+          falha ??= { erro };
+        }
       }
-    } catch (erro) {
+    };
+    await Promise.all(Array.from({ length: Math.min(ENVIOS_SIMULTANEOS, arquivos.length) }, enviar_fila));
+    if (falha) {
       await this.compensar(chaves, imovel_id);
-      throw erro;
+      throw falha.erro;
     }
 
     // 2. Transação rápida apenas para persistir registros.

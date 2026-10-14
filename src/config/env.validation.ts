@@ -113,6 +113,16 @@ export class EnvironmentVariables {
   @Matches(/^[A-Za-z0-9_-]+$/)
   GOOGLE_DRIVE_SHARED_DRIVE_ID?: string;
 
+  // Aviso de novo contato por e-mail (Resend). Opcionais, mas só valem juntas; vazias, o aviso fica desligado.
+  @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
+  @Matches(/^re_[A-Za-z0-9_-]{8,}$/)
+  RESEND_API_KEY?: string;
+
+  // Endereço de um domínio verificado no Resend: `avisos@dominio.com.br` ou `Nome <avisos@dominio.com.br>`.
+  @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
+  @Matches(/^(?:[^<>@\r\n]+ <[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/)
+  AVISO_EMAIL_REMETENTE?: string;
+
   @Type(() => Number)
   @IsInt()
   @Min(1000)
@@ -165,6 +175,10 @@ export function validateEnvironment(environment: Record<string, unknown>): Envir
     } catch {
       throw new Error('Configuração de ambiente inválida: GOOGLE_DRIVE_PRIVATE_KEY deve ser uma chave privada RSA válida.');
     }
+  }
+
+  if (Boolean(configuration.RESEND_API_KEY) !== Boolean(configuration.AVISO_EMAIL_REMETENTE)) {
+    throw new Error('Configuração de ambiente inválida: configure juntos RESEND_API_KEY e AVISO_EMAIL_REMETENTE.');
   }
 
   return configuration;

@@ -11,7 +11,7 @@ import { DriveService } from '../drive/drive.service';
 import { Comissao } from '../comissoes/comissao.entity';
 import { IndiceReajuste, TipoContrato } from '../cadastros-contrato/cadastros-contrato.entity';
 import { Contrato, resposta_contrato } from './contrato.entity';
-import { AlterarContratoDto, ConsultaContratosDto, CriarContratoDto } from './locacoes.dto';
+import { AlterarContratoDto, ConsultaContratosDto, CriarContratoDto, EncerrarContratoDto, RenovarContratoDto } from './locacoes.dto';
 
 const RELACOES = { imovel: true, locador: true, locatario: true } as const;
 
@@ -38,6 +38,7 @@ export class LocacoesService {
         if (constraint === 'contrato_numero_contrato_key' || constraint.includes('numero_contrato')) {
           throw new ConflictException('O número de contrato informado já está cadastrado.');
         }
+        if (constraint === 'unica_renovacao_contrato') throw new ConflictException('Este contrato já foi renovado.');
         if (constraint === 'unico_contrato_ativo_imovel') {
           throw new ConflictException('Este imóvel já possui um contrato ativo em vigor. Encerre o contrato anterior antes de cadastrar um novo.');
         }
@@ -74,7 +75,11 @@ export class LocacoesService {
     const contrato = await this.banco.getRepository(Contrato).findOne({ where: { id }, relations: RELACOES });
     if (!contrato) throw new NotFoundException('Contrato não encontrado.');
     this.autorizar(contrato, usuario);
-    return resposta_contrato(contrato);
+    return resposta_contrato(contrato, await this.renovacaoDe(contrato.id));
+  }
+
+  private async renovacaoDe(id: number): Promise<number | null> {
+    return (await this.banco.getRepository(Contrato).findOne({ where: { contrato_anterior_id: id, ativo: true }, select: { id: true } }))?.id ?? null;
   }
 
   private async validarContrato(contrato: Contrato, gerenciador: EntityManager, usuario: UsuarioAutenticado, anterior?: Contrato): Promise<void> {
@@ -149,6 +154,8 @@ export class LocacoesService {
       this.autorizar(existente, usuario);
       if (usuario.cargo !== 'ADMIN' && dto.corretor_id && dto.corretor_id !== usuario.id) throw new ForbiddenException('Somente ADMIN pode trocar o intermediador.');
       if (dto.imovel_id && dto.imovel_id !== existente.imovel_id && await gerenciador.count(Comissao, { where: { contrato_id: id } })) throw new ConflictException('Contrato com comissão registrada não pode trocar de imóvel.');
+      // Encerrado antecipadamente, o fim é o do encerramento; mudar a data desfaria o registro sem deixar rastro.
+      if (existente.motivo_encerramento && dto.data_fim !== undefined && dto.data_fim !== existente.data_fim) throw new ConflictException('Contrato encerrado antecipadamente não pode ter a data de fim alterada.');
       const atualizado = Object.assign(new Contrato(), existente, dto, { alterado_por: usuario.id });
       if ((dto.numero_contrato && dto.numero_contrato !== existente.numero_contrato) || (dto.locatario_id && dto.locatario_id !== existente.locatario_id)) atualizado.status_pasta_drive = 'PENDENTE';
       const somenteArquivamento = Object.keys(dto).every(campo => campo === 'ativo');
@@ -159,10 +166,68 @@ export class LocacoesService {
     return this.concluir(contrato.status === 'ATIVO' ? await this.prepararPasta(contrato, usuario) : contrato);
   }
 
+  /**
+   * Encerramento antecipado: `data_fim` passa a ser o último dia de vigência e o fim original fica em
+   * `data_fim_contratada`. Data futura mantém o contrato ATIVO até lá; a expiração horária o inativa no dia seguinte.
+   * Comissões e parcelas não mudam: a baixa ou o ajuste delas continua manual (RENTAL-004, validação contábil).
+   */
+  async encerrarContrato(id: number, dto: EncerrarContratoDto, usuario: UsuarioAutenticado) {
+    const contrato = await this.transacao(async gerenciador => {
+      const existente = await gerenciador.findOne(Contrato, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!existente) throw new NotFoundException('Contrato não encontrado.');
+      this.autorizar(existente, usuario);
+      if (!existente.ativo || existente.status !== 'ATIVO') throw new ConflictException('Somente contrato ativo pode ser encerrado.');
+      if (existente.motivo_encerramento) throw new ConflictException('Este contrato já foi encerrado antecipadamente.');
+      if (dto.data_encerramento < existente.data_inicio || dto.data_encerramento >= existente.data_fim) {
+        throw new BadRequestException('A data de encerramento deve ficar entre o início do contrato e a véspera do fim contratado.');
+      }
+      Object.assign(existente, { data_fim_contratada: existente.data_fim, data_fim: dto.data_encerramento, motivo_encerramento: dto.motivo, alterado_por: usuario.id });
+      if (existente.data_fim < hojeCivil()) existente.status = 'INATIVO';
+      return gerenciador.save(existente);
+    });
+    return this.concluir(contrato);
+  }
+
+  /**
+   * Renovação como contrato novo: copia imóvel, partes, intermediador e condições do anterior (o DTO pode trocar as
+   * condições) e liga os dois por `contrato_anterior_id`. Como só um contrato pode estar ATIVO por imóvel, o anterior
+   * passa a INATIVO na renovação; ele termina no próprio `data_fim` e a renovação começa depois dele, sem sobreposição.
+   */
+  async renovarContrato(id: number, dto: RenovarContratoDto, usuario: UsuarioAutenticado) {
+    const contrato = await this.transacao(async gerenciador => {
+      const anterior = await gerenciador.findOne(Contrato, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!anterior) throw new NotFoundException('Contrato não encontrado.');
+      this.autorizar(anterior, usuario);
+      if (!anterior.ativo) throw new ConflictException('Contrato arquivado não pode ser renovado.');
+      if (anterior.motivo_encerramento) throw new ConflictException('Contrato encerrado antecipadamente não pode ser renovado; cadastre um contrato novo.');
+      if (await gerenciador.exists(Contrato, { where: { contrato_anterior_id: id, ativo: true } })) throw new ConflictException('Este contrato já foi renovado.');
+      if (dto.data_inicio <= anterior.data_fim) throw new BadRequestException('A renovação deve começar depois do fim do contrato anterior.');
+      if (anterior.status === 'ATIVO') {
+        anterior.status = 'INATIVO'; anterior.alterado_por = usuario.id;
+        await gerenciador.save(anterior);
+      }
+      const novo = gerenciador.create(Contrato, {
+        imovel_id: anterior.imovel_id, locador_id: anterior.locador_id, locatario_id: anterior.locatario_id, corretor_id: anterior.corretor_id,
+        valor_aluguel: anterior.valor_aluguel, dia_vencimento: anterior.dia_vencimento, taxa_administracao: anterior.taxa_administracao,
+        garantia_locaticia: anterior.garantia_locaticia, cobranca_iptu_condominio: anterior.cobranca_iptu_condominio,
+        tipo_contrato_id: anterior.tipo_contrato_id, tipo_contrato_nome: anterior.tipo_contrato_nome,
+        indice_reajuste: anterior.indice_reajuste, indice_reajuste_id: anterior.indice_reajuste_id, indice_reajuste_nome: anterior.indice_reajuste_nome,
+        indice_reajuste_periodicidade_meses: anterior.indice_reajuste_periodicidade_meses, indice_reajuste_regra: anterior.indice_reajuste_regra,
+        observacoes: null, ...dto, contrato_anterior_id: anterior.id, data_fim_contratada: null, motivo_encerramento: null,
+        ativo: true, status: 'ATIVO', url_pasta_drive: null, status_pasta_drive: 'PENDENTE', criado_por: usuario.id, alterado_por: usuario.id,
+      });
+      // Contra o anterior: só re-tira o snapshot do que o DTO trocou; contrato legado sem classificação exige escolher.
+      await this.classificar(novo, dto, gerenciador, anterior);
+      await this.validarContrato(novo, gerenciador, usuario);
+      return gerenciador.save(novo);
+    });
+    return this.concluir(contrato.status === 'ATIVO' ? await this.prepararPasta(contrato, usuario) : contrato);
+  }
+
   /** Recarrega o contrato com imóvel e pessoas para a resposta. */
   private async concluir(contrato: Contrato) {
     const completo = await this.banco.getRepository(Contrato).findOne({ where: { id: contrato.id }, relations: RELACOES });
-    return resposta_contrato(completo ?? contrato);
+    return resposta_contrato(completo ?? contrato, await this.renovacaoDe(contrato.id));
   }
 
   private async prepararPasta(contrato: Contrato, usuario: UsuarioAutenticado): Promise<Contrato> {

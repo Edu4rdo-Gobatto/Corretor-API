@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
+import { AvisosService } from '../avisos/avisos.service';
 import { Corretor } from '../corretores/corretor.entity';
 import { Imovel, StatusImovel } from '../imoveis/imovel.entity';
 import { Contrato } from '../locacoes/contrato.entity';
@@ -14,11 +15,11 @@ const VINCULADA_A_CONTRATO_DO_USUARIO = 'EXISTS (SELECT 1 FROM contrato c WHERE 
 
 @Injectable()
 export class PessoasService {
-  constructor(@InjectRepository(Pessoa) private readonly pessoas: Repository<Pessoa>, private readonly banco: DataSource) {}
+  constructor(@InjectRepository(Pessoa) private readonly pessoas: Repository<Pessoa>, private readonly banco: DataSource, private readonly avisos: AvisosService) {}
 
   async criarPublico(dto: PessoaPublicaDto, ip: string): Promise<{ id: number }> {
     if (dto.consentimento !== true) throw new BadRequestException('O consentimento é obrigatório.');
-    return this.banco.transaction(async gerenciador => {
+    const { pessoa, imovel } = await this.banco.transaction(async gerenciador => {
       const imovel = await gerenciador.getRepository(Imovel).findOne({
         where: { id: dto.imovel_id, ativo: true, status: StatusImovel.DISPONIVEL, corretor: { ativo: true } }, relations: { corretor: true },
       });
@@ -30,8 +31,14 @@ export class PessoasService {
         consentimento: true, consentimento_ip: ip || null, consentimento_em: new Date(), versao_termos: 'v1.0',
         ativo: true, criado_por: null, alterado_por: null,
       }));
-      return { id: pessoa.id };
+      return { pessoa, imovel };
     });
+    // Só depois do commit: o corretor não pode ser avisado de um contato que acabou desfeito.
+    this.avisos.novoContato({
+      pessoa_id: pessoa.id, corretor: { nome: imovel.corretor.nome, email: imovel.corretor.email }, imovel: { titulo: imovel.titulo },
+      nome: pessoa.nome, telefone: pessoa.telefone, email: pessoa.email, mensagem: pessoa.mensagem,
+    });
+    return { id: pessoa.id };
   }
 
   async criarManual(dto: CriarPessoaDto, usuario: UsuarioAutenticado) {

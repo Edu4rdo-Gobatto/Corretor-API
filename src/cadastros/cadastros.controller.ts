@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Po
 import { Request } from 'express';
 import { AutenticacaoGuard } from '../autenticacao/autenticacao.guard';
 import { Cargos, CargosGuard } from '../autenticacao/cargos.guard';
+import { CachePublico } from '../comum/cache-publico';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { AtualizarCadastroDto, AtualizarCaracteristicaDto, ConsultaCadastrosDto, CriarCadastroDto, CriarCaracteristicaDto } from './cadastros.dto';
 import { CadastrosService, CategoriaCadastro } from './cadastros.service';
@@ -12,7 +13,7 @@ function controladorPublico(categoria: CategoriaCadastro) {
   @Controller(categoria)
   class CadastroPublicoController {
     constructor(readonly cadastros: CadastrosService) {}
-    @Get() listar(@Query() consulta: ConsultaCadastrosDto) { return this.cadastros.listar(categoria, consulta, true); }
+    @Get() @CachePublico() listar(@Query() consulta: ConsultaCadastrosDto) { return this.cadastros.listar(categoria, consulta, true); }
   }
   return CadastroPublicoController;
 }

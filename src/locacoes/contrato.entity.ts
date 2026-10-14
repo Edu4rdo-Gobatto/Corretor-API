@@ -37,10 +37,15 @@ export class Contrato extends Auditoria {
   @Column({ type: 'enum', enum: ['ATIVO', 'INATIVO'], enumName: 'status_contrato', default: 'ATIVO' }) status!: 'ATIVO' | 'INATIVO';
   @Column({ type: 'text', nullable: true }) observacoes!: string | null;
   @Column({ type: 'boolean', default: true }) ativo!: boolean;
+  /** Fim original quando o encerramento antecipado trouxe `data_fim` para antes; sempre junto do motivo. */
+  @Column({ type: 'date', nullable: true }) data_fim_contratada!: string | null;
+  @Column({ type: 'text', nullable: true }) motivo_encerramento!: string | null;
+  /** Contrato que este renovou; o anterior continua no histórico, inativo. */
+  @Column({ type: 'integer', nullable: true }) contrato_anterior_id!: number | null;
 }
 
 /** Contrato com os nomes das partes e do imóvel, sem expor o cadastro completo das pessoas. */
-export function resposta_contrato(contrato: Contrato) {
+export function resposta_contrato(contrato: Contrato, renovacao_id: number | null = null) {
   return {
     id: contrato.id, numero_contrato: contrato.numero_contrato, imovel_id: contrato.imovel_id, locador_id: contrato.locador_id,
     locatario_id: contrato.locatario_id, corretor_id: contrato.corretor_id, data_inicio: contrato.data_inicio, data_fim: contrato.data_fim,
@@ -50,7 +55,9 @@ export function resposta_contrato(contrato: Contrato) {
     indice_reajuste_id: contrato.indice_reajuste_id, indice_reajuste_nome: contrato.indice_reajuste_nome,
     indice_reajuste_periodicidade_meses: contrato.indice_reajuste_periodicidade_meses, indice_reajuste_regra: contrato.indice_reajuste_regra,
     url_pasta_drive: contrato.url_pasta_drive, status_pasta_drive: contrato.status_pasta_drive, status: contrato.status,
-    observacoes: contrato.observacoes, ativo: contrato.ativo, criado_em: contrato.criado_em, alterado_em: contrato.alterado_em,
+    observacoes: contrato.observacoes, ativo: contrato.ativo,
+    data_fim_contratada: contrato.data_fim_contratada, motivo_encerramento: contrato.motivo_encerramento,
+    contrato_anterior_id: contrato.contrato_anterior_id, renovacao_id, criado_em: contrato.criado_em, alterado_em: contrato.alterado_em,
     imovel_titulo: contrato.imovel?.titulo ?? null, locador_nome: contrato.locador?.nome ?? null, locatario_nome: contrato.locatario?.nome ?? null,
   };
 }

@@ -5,6 +5,22 @@ export function resposta_midia(midia: ImovelMidia) {
   return { id: midia.id, imovel_id: midia.imovel_id, tipo: midia.tipo, url: midia.url, ordem: midia.ordem, capa: midia.capa, criado_em: midia.criado_em, alterado_em: midia.alterado_em };
 }
 
+/**
+ * Item da listagem pública: só o que o cartão do catálogo e o sitemap usam, com a capa no lugar da galeria.
+ * O detalhe (`GET /imoveis/:slug`) continua com `resposta_imovel_publico` completa.
+ */
+export function resposta_imovel_resumo(imovel: Imovel, capa: ImovelMidia | undefined) {
+  return {
+    id: imovel.id, titulo: imovel.titulo, slug: imovel.slug, tipo_id: imovel.tipo_id, finalidade_id: imovel.finalidade_id,
+    tipo: imovel.tipo ? { id: imovel.tipo.id, nome: imovel.tipo.nome, slug: imovel.tipo.slug } : null,
+    finalidade: imovel.finalidade ? { id: imovel.finalidade.id, nome: imovel.finalidade.nome, slug: imovel.finalidade.slug } : null,
+    valor_venda: imovel.valor_venda, valor_locacao: imovel.valor_locacao, area_util: imovel.area_util,
+    bairro: imovel.bairro, cidade: imovel.cidade, estado: imovel.estado, status: imovel.status, destaque: imovel.destaque,
+    midias: capa ? [resposta_midia(capa)] : [],
+    criado_em: imovel.criado_em, alterado_em: imovel.alterado_em,
+  };
+}
+
 /** Campos que o site pode ver. */
 export function resposta_imovel_publico(imovel: Imovel) {
   return {

@@ -7,6 +7,32 @@ O texto completo das versões anteriores está no histórico do Git.
 
 ## Decisões em vigor
 
+### 14/10 — Catálogo enxuto, aviso de contato, encerramento e renovação de contratos
+- **Contrato de endpoint:** `GET /imoveis` (público) devolve só o item do cartão: id, título, slug, tipo, finalidade,
+  `valor_venda`, `valor_locacao`, área útil, bairro, cidade, estado, status, destaque, datas e `midias` com **só a capa**
+  (imagem marcada como capa ou a primeira imagem pela ordem; sem imagem, `[]`). `GET /imoveis/:slug` e
+  `/admin/imoveis` continuam completos. Não voltar a mandar galeria, descrição ou corretor na listagem.
+- A coluna de preço por finalidade fica em memória por 5 min (`ImoveisService.colunas_preco`).
+- GETs públicos de imóveis e classificações têm `Cache-Control: public, max-age=0, s-maxage=30,
+  stale-while-revalidate=60` (`@CachePublico`). O navegador sempre revalida (o cache do front é limpo a cada escrita);
+  a CDN da Vercel reaproveita por 30 s. Não usar `max-age` > 0: quebraria a invalidação do front.
+- **Variáveis novas (opcionais, juntas):** `RESEND_API_KEY` e `AVISO_EMAIL_REMETENTE`. O aviso de novo contato vai por
+  `fetch` à API do Resend (sem SDK, sem dependência nova), depois do commit, sem bloquear a resposta; falha só vai ao
+  log com o id da pessoa. O link do painel usa a primeira origem de `ALLOWED_ORIGINS`.
+- **Migration `1789776000000-encerramento-renovacao-contrato` (não aplicada no Neon):** `data_fim_contratada`,
+  `motivo_encerramento`, `contrato_anterior_id`, checks e `unica_renovacao_contrato`. `down` só reverte sem dados.
+- **Encerrar** (`POST /admin/contratos/:id/encerrar`): `data_fim` vira o último dia de vigência e o fim original fica em
+  `data_fim_contratada`; data futura mantém ATIVO até a expiração horária. Comissões não mudam. `PATCH` não altera
+  `data_fim` de encerrado (409).
+- **Renovar** (`POST /admin/contratos/:id/renovar`): contrato novo copiando imóvel, partes, intermediador e condições,
+  ligado por `contrato_anterior_id`; começa depois do `data_fim` do anterior, que passa a INATIVO (um ATIVO por
+  imóvel). Encerrado antecipadamente não renova; uma renovação ativa por contrato.
+- Limites de login e de contato: mapa cheio descarta a chave mais antiga em vez de bloquear todos.
+- Logs em JSON quando `NODE_ENV=production` (`ConsoleLogger` do Nest, sem dependência).
+- Uploads ao R2: até 4 envios simultâneos por lote; falha para a fila e compensa todas as chaves.
+- `@aws-sdk/lib-storage` removido (sem uso). `1789084805000-hardening.ts` fica no disco como histórico: a regra proíbe
+  apagar migration, e ela continua fora do registro.
+
 ### 09/10 — Comissão com plano versionado e trava otimista
 - Toda alteração de comissão (`PATCH`) envia `versao_registro`; versão divergente responde 409. Baixa efetiva também
   incrementa a versão. Só mudanças efetivas contam.

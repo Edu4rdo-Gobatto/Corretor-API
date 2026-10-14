@@ -8,6 +8,11 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
 
 ## 1. Pendências operacionais
 
+> Tarefas que exigem criar conta ou validar dados para o `.env` têm arquivo próprio, com o passo a passo:
+> [R2-URL-001](2026-10-14-tarefa-r2-url-publica.md) (alta), [NOTIFY-001](2026-10-14-tarefa-resend-aviso-contato.md),
+> [DRIVE-001](2026-10-14-tarefa-google-drive.md), [LOGS-001](2026-10-14-tarefa-monitoramento-erros.md) e
+> [ADMIN-001](2026-10-14-tarefa-dados-admin.md).
+
 ### DEPLOY-001 — Publicar a versão atual no ambiente de teste
 - **Status:** aberta
 - **Responsável:** a definir
@@ -67,7 +72,8 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
 - **Referência:** [auditoria full stack](../../Corretor-web/docs/2026-10-02-auditoria-fullstack.md).
 
 ### NOTIFY-001 — Avisar o corretor de novo contato
-- **Status:** aberta (aguardando definição de canal com o dono)
+- **Status:** concluída no código (14/10, e-mail via Resend); falta criar a conta, verificar o domínio e configurar
+  `RESEND_API_KEY` e `AVISO_EMAIL_REMETENTE` no Render, e homologar um envio real
 - **Responsável:** a definir
 - **Objetivo:** alertar o corretor responsável quando um visitante enviar contato pelo site (`POST /pessoas`).
 - **Critérios de conclusão:**
@@ -75,7 +81,8 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
   - Integrar o envio no registro do contato.
 
 ### RENTAL-004 — Regras pendentes de contratos e comissões
-- **Status:** aberta (aguardando o dono)
+- **Status:** encerramento antecipado e renovação concluídos no código (14/10); migration
+  `1789776000000` aguarda backup e aplicação no Neon; validação contábil das parcelas segue aberta (contador)
 - **Responsável:** a definir
 - **O que o código já decide:**
   - O corretor comum cria contratos em que ele é o intermediador e não pode trocar o intermediador.
@@ -96,7 +103,7 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
   - Remover as `BOOTSTRAP_ADMIN_*` do `.env`.
 
 ### LIMPEZA-API — Restos sem uso
-- **Status:** aberta
+- **Status:** concluída (14/10): `lib-storage` removido, uploads paralelos (4), `hardening.ts` mantido como histórico
 - **Prioridade:** baixa
 - **Itens:**
   - `@aws-sdk/lib-storage` está no `package.json` e nenhum arquivo o importa.
@@ -114,6 +121,7 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
 
 ### LOGS-001 — Logs estruturados e telemetria
 - **Prioridade:** média
+- **Feito (14/10):** JSON em produção. **Falta:** monitoramento de exceções (Sentry/Logtail), que exige conta.
 - Logger estruturado em JSON para rastrear erros no ambiente publicado.
 - Monitoramento de exceções (por exemplo Sentry ou Logtail).
 
@@ -123,6 +131,7 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
 
 ### SEC-002 — Limites de taxa fora da memória
 - **Prioridade:** baixa enquanto houver uma só instância
+- **Feito (14/10):** o teto de 10.000 chaves não bloqueia mais todos os logins (descarta a mais antiga).
 - Os limites de login e de contatos vivem na memória do processo. Com mais de uma instância, exigem armazenamento
   compartilhado. O teto de 10.000 chaves do `TentativasGuard` pode bloquear todos os logins se for enchido.
 

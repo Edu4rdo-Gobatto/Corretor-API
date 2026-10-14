@@ -19,6 +19,14 @@
 - [GUIA-DE-ESTUDO.md](GUIA-DE-ESTUDO.md): guia de estudo do projeto e do NestJS, com plano e exercícios.
 - [`../corretor-spec.json`](../corretor-spec.json): especificação de produto compartilhada com o front.
 
+## Tarefas que dependem de conta ou de dado do dono (variáveis de ambiente)
+
+- [2026-10-14-tarefa-r2-url-publica.md](2026-10-14-tarefa-r2-url-publica.md): R2-URL-001, URL pública própria do bucket (`R2_PUBLIC_URL`). Prioridade alta.
+- [2026-10-14-tarefa-resend-aviso-contato.md](2026-10-14-tarefa-resend-aviso-contato.md): NOTIFY-001, conta Resend (`RESEND_API_KEY`, `AVISO_EMAIL_REMETENTE`).
+- [2026-10-14-tarefa-google-drive.md](2026-10-14-tarefa-google-drive.md): DRIVE-001, conta de serviço e Drive compartilhado (`GOOGLE_DRIVE_*`).
+- [2026-10-14-tarefa-monitoramento-erros.md](2026-10-14-tarefa-monitoramento-erros.md): LOGS-001, Sentry ou Better Stack (`SENTRY_DSN`).
+- [2026-10-14-tarefa-dados-admin.md](2026-10-14-tarefa-dados-admin.md): ADMIN-001, dados reais do admin e remoção de `BOOTSTRAP_ADMIN_*`.
+
 ## Entregas datadas em vigor
 
 - [2026-10-09-comissao-versionada-cadastros-contrato.md](2026-10-09-comissao-versionada-cadastros-contrato.md): comissão editável e versionada, índices de reajuste, tipos de contrato e migration de 09/10 (local).

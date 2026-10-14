@@ -12,7 +12,8 @@ export class LimitePessoasGuard implements CanActivate {
     const ip = requisicao.ip || requisicao.socket.remoteAddress || 'desconhecido';
     let estado = this.tentativas.get(ip);
     if (!estado) {
-      if (this.tentativas.size >= 10000) throw new HttpException('Tente novamente em instantes.', 429);
+      // Cheio, descarta o IP mais antigo (ordem de inserção) em vez de recusar todo visitante novo.
+      if (this.tentativas.size >= 10000) this.tentativas.delete(this.tentativas.keys().next().value!);
       estado = { quantidade: 0, expira: agora + 60000 };
       this.tentativas.set(ip, estado);
     }
