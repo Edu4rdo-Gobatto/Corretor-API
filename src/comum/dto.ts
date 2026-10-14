@@ -1,10 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import { Transform, Type } from 'class-transformer';
-<<<<<<< HEAD
-import { ArrayMaxSize, ArrayUnique, IsArray, IsInt, Min } from 'class-validator';
-=======
-import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsInt, Max, Min } from 'class-validator';
->>>>>>> acad7404add00f6e8440e13316a032b4b7f157c1
+import { ArrayMaxSize, ArrayNotEmpty, ArrayUnique, IsArray, IsInt, Max, Min } from 'class-validator';
 
 /** Identificador inteiro positivo (int4), aceito como número no corpo ou como texto na query. */
 export const IdRegistro = (): PropertyDecorator => applyDecorators(Type(() => Number), IsInt(), Min(1), Max(2147483647));
