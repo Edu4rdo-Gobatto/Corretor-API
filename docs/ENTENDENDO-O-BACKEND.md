@@ -607,12 +607,8 @@ com o título antigo continua achando o imóvel, e a resposta devolve o slug atu
 
 ### Filtros e ordenação
 
-<<<<<<< HEAD
-Filtros: `tipo_id` (um ou vários: `tipo_id=3,5` ou `tipo_id=3&tipo_id=5`, até 20), `finalidade_id`, `cidade` (igualdade sem diferenciar maiúsculas), `bairro` (parcial), `busca`
-=======
 Filtros: `tipo_id` (um id ou CSV de até 20, pelo decorator `ListaIds`), `finalidade_id`, `cidade` (igualdade sem
 diferenciar maiúsculas), `bairro` (parcial), `busca`
->>>>>>> acad7404add00f6e8440e13316a032b4b7f157c1
 (título, bairro, cidade e descrição; `#12` ou `12` busca pelo id), `valor_min`, `valor_max`, `area_min`, `area_max`
 (área útil) e `destaque`. Intervalos invertidos respondem 400.
 
