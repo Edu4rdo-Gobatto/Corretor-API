@@ -1,11 +1,14 @@
 import { PartialType, PickType } from '@nestjs/mapped-types';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsEmail, IsEnum, IsInt, IsOptional, IsString, IsUrl, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { informado } from '../comum/dto';
 import { DocumentoValido } from '../comum/validacao';
 
 export enum CargoCorretor { ADMIN = 'ADMIN', CORRETOR = 'CORRETOR' }
 
 const aparar = ({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value;
+const normalizarCreci = ({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toUpperCase() || null : value;
+export const CRECI = /^\d+[JF]?$/;
 const normalizarContato = ({ value }: { value: unknown }) => typeof value === 'string' ? value.replace(/[.()\s+/-]/g, '') : value;
 
 export class CriarCorretorDto {
@@ -25,7 +28,8 @@ export class CriarCorretorDto {
   @Transform(normalizarContato) @Matches(/^(?:55)?[1-9][0-9][0-9]{8,9}$/)
   whatsapp!: string;
 
-  @IsOptional() @Transform(aparar) @IsString() @MaxLength(50)
+  /** Números seguidos de um único sufixo J ou F opcional; vazio vira null e ausência preserva o valor no PATCH. */
+  @Transform(normalizarCreci) @ValidateIf(informado) @IsString() @MaxLength(50) @Matches(CRECI, { message: 'CRECI deve conter apenas números, com J ou F opcional no final.' })
   creci?: string | null;
 
   @IsEnum(CargoCorretor)

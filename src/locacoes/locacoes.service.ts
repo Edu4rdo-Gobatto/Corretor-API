@@ -9,6 +9,7 @@ import { DATA_ATUAL_SQL, hojeCivil } from '../comum/datas';
 import { dataCivilValida, decimalEmCentavos, escaparBusca } from '../comum/validacao';
 import { DriveService } from '../drive/drive.service';
 import { Comissao } from '../comissoes/comissao.entity';
+import { IndiceReajuste, TipoContrato } from '../cadastros-contrato/cadastros-contrato.entity';
 import { Contrato, resposta_contrato } from './contrato.entity';
 import { AlterarContratoDto, ConsultaContratosDto, CriarContratoDto } from './locacoes.dto';
 
@@ -110,10 +111,31 @@ export class LocacoesService {
     }
   }
 
+  /**
+   * Grava referência e snapshot só quando a escolha muda; manter um cadastro já desativado é permitido.
+   * Contrato legado (sem referência) precisa ser classificado em qualquer edição, exceto o arquivamento.
+   */
+  private async classificar(contrato: Contrato, dto: Partial<Pick<CriarContratoDto, 'tipo_contrato_id' | 'indice_reajuste_id'>>, gerenciador: EntityManager, anterior?: Contrato): Promise<void> {
+    if (contrato.tipo_contrato_id === null || contrato.indice_reajuste_id === null) {
+      throw new BadRequestException('Selecione o tipo de contrato e o índice de reajuste. Se não houver opções, um administrador deve cadastrá-los em Cadastros.');
+    }
+    if (dto.tipo_contrato_id !== undefined && dto.tipo_contrato_id !== anterior?.tipo_contrato_id) {
+      const tipo = await gerenciador.findOneBy(TipoContrato, { id: dto.tipo_contrato_id });
+      if (!tipo?.ativo) throw new BadRequestException('Tipo de contrato inexistente ou desativado.');
+      contrato.tipo_contrato_nome = tipo.nome;
+    }
+    if (dto.indice_reajuste_id !== undefined && dto.indice_reajuste_id !== anterior?.indice_reajuste_id) {
+      const indice = await gerenciador.findOneBy(IndiceReajuste, { id: dto.indice_reajuste_id });
+      if (!indice?.ativo) throw new BadRequestException('Índice de reajuste inexistente ou desativado.');
+      Object.assign(contrato, { indice_reajuste: indice.nome, indice_reajuste_nome: indice.nome, indice_reajuste_periodicidade_meses: indice.periodicidade_meses, indice_reajuste_regra: indice.regra });
+    }
+  }
+
   async criarContrato(dto: CriarContratoDto, usuario: UsuarioAutenticado) {
     if (usuario.cargo !== 'ADMIN' && dto.corretor_id !== usuario.id) throw new ForbiddenException('Corretor só pode criar contratos sob sua intermediação.');
     const contrato = await this.transacao(async gerenciador => {
       const novo = gerenciador.create(Contrato, { ...dto, ativo: true, status: dto.status ?? 'ATIVO', url_pasta_drive: null, status_pasta_drive: 'PENDENTE', criado_por: usuario.id, alterado_por: usuario.id });
+      await this.classificar(novo, dto, gerenciador);
       await this.validarContrato(novo, gerenciador, usuario);
       return gerenciador.save(novo);
     });
@@ -129,6 +151,8 @@ export class LocacoesService {
       if (dto.imovel_id && dto.imovel_id !== existente.imovel_id && await gerenciador.count(Comissao, { where: { contrato_id: id } })) throw new ConflictException('Contrato com comissão registrada não pode trocar de imóvel.');
       const atualizado = Object.assign(new Contrato(), existente, dto, { alterado_por: usuario.id });
       if ((dto.numero_contrato && dto.numero_contrato !== existente.numero_contrato) || (dto.locatario_id && dto.locatario_id !== existente.locatario_id)) atualizado.status_pasta_drive = 'PENDENTE';
+      const somenteArquivamento = Object.keys(dto).every(campo => campo === 'ativo');
+      if (!somenteArquivamento) await this.classificar(atualizado, dto, gerenciador, existente);
       await this.validarContrato(atualizado, gerenciador, usuario, existente);
       return gerenciador.save(atualizado);
     });

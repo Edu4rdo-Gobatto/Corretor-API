@@ -1,6 +1,6 @@
 # Foto do perfil — contrato aditivo de 06/10/2026
 
-Plano aprovado pelo dono, implementado localmente. Mantém JSON, Corretor e url_foto; não há migration.
+Plano aprovado pelo dono. Código no commit `86ecf29`. Mantém JSON, Corretor e url_foto; não há migration.
 
 ## PATCH /api/v1/autenticacao/eu
 
@@ -29,10 +29,10 @@ Salvar dados não redefine a senha digitada. Novos envios ficam bloqueados duran
 ## Evidências e limites
 
 Typecheck, lint e build aprovados nos dois projetos. Frontend: 21 testes existentes e smoke SSR.
-API sem fontes de teste: Jest passWithNoTests confirma ausência. QA efêmero 22 cenários HTTP + concorrência
+API sem fontes de teste (o `npm test` da API sai com "No tests found", código 1). QA efêmero 22 cenários HTTP + concorrência
 com controllers/services reais e auth/R2/banco simulados. Navegador Chrome: 23 cenários/32 capturas.
 R2 real: objeto temporário isolado sob corretores/0 enviado, lido e excluído; GET posterior 404.
 Nenhum perfil gravado no Neon. Homologação com login, banco real, proxy e sessão juntos permanece pendente;
-Safari/iOS/celular físico não verificados. Sem commit, push, deploy ou migrations.
+Safari/iOS/celular físico não verificados. Sem migrations. Publicado no Render de teste em 08/10 (registro no Corretor-web).
 
-System Design e evidências ignoradas no frontend irmão; histórico e alterações anteriores desta API mantidos.
+System Design no front: [2026-10-06-system-design.docx](../../Corretor-web/docs/2026-10-06-system-design.docx).

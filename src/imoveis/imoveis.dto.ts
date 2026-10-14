@@ -1,7 +1,11 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { Transform, Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator';
+<<<<<<< HEAD
 import { IdRegistro, IdsRegistro, aparar, booleano, decimal, definido, informado } from '../comum/dto';
+=======
+import { IdRegistro, ListaIds, aparar, booleano, decimal, definido, informado } from '../comum/dto';
+>>>>>>> acad7404add00f6e8440e13316a032b4b7f157c1
 import { DataCivilValida } from '../comum/validacao';
 import { StatusImovel } from './imovel.entity';
 
@@ -56,7 +60,12 @@ export class AtualizarImovelDto extends PartialType(CriarImovelDto, { skipNullPr
 export class ConsultaImoveisDto {
   @Type(() => Number) @IsInt() @Min(1) pagina = 1;
   @Type(() => Number) @IsInt() @Min(1) @Max(100) limite = 20;
+<<<<<<< HEAD
   @IsOptional() @IdsRegistro() tipo_id?: number[];
+=======
+  /** Um tipo ou CSV de até 20 tipos (`tipo_id=1,4`); o cadastro do imóvel continua com tipo único. */
+  @IsOptional() @ListaIds(20) tipo_id?: number[];
+>>>>>>> acad7404add00f6e8440e13316a032b4b7f157c1
   @IsOptional() @IdRegistro() finalidade_id?: number;
   @IsOptional() @Transform(aparar) @IsString() @Length(1, 100) cidade?: string;
   @IsOptional() @Transform(aparar) @IsString() @Length(1, 100) bairro?: string;

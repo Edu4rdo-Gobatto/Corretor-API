@@ -28,7 +28,9 @@ export class CriarContratoDto {
   @IsInt() @Min(1) @Max(31) dia_vencimento!: number;
   @Matches(/^(?:(?:0|[1-9]\d?)\.\d{2}|100\.00)$/) taxa_administracao!: string;
   @Transform(aparar) @IsString() @Length(2, 1000) garantia_locaticia!: string;
-  @Transform(aparar) @IsString() @Length(2, 150) indice_reajuste!: string;
+  /** Cadastros ativos; o nome do índice também passa a ser o texto `indice_reajuste`. */
+  @IdRegistro() tipo_contrato_id!: number;
+  @IdRegistro() indice_reajuste_id!: number;
   @Transform(aparar) @IsString() @Length(2, 1000) cobranca_iptu_condominio!: string;
   @ValidateIf(definido) @IsIn(['ATIVO', 'INATIVO']) status?: 'ATIVO' | 'INATIVO';
   @IsOptional() @Transform(aparar) @IsString() @MaxLength(10000) observacoes?: string | null;

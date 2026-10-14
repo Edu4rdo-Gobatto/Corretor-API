@@ -19,5 +19,9 @@ export class Comissao extends Auditoria {
   @Column({ type: 'int' }) quantidade_parcelas!: number;
   @Column({ type: 'text', nullable: true }) observacoes!: string | null;
   @Column({ type: 'boolean', default: true }) ativo!: boolean;
+  /** Plano de parcelas vigente; cada mudança financeira ou de vínculo cria outro e preserva o anterior. */
+  @Column({ type: 'int', default: 1 }) versao_plano!: number;
+  /** Trava otimista: toda mudança efetiva (inclusive baixa) incrementa. */
+  @Column({ type: 'int', default: 1 }) versao_registro!: number;
   @OneToMany(() => ParcelaComissao, parcela => parcela.comissao) parcelas!: Relation<ParcelaComissao[]>;
 }
