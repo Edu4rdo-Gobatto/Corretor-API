@@ -1,13 +1,13 @@
 # Estado atual — corretor-api
 
-## Estado atual (09/10/2026, com adendo de 14/10)
+## Estado atual (14/10/2026)
 
-> **14/10 (Claude), local, sem commit:** catálogo público enxuto com cache, aviso de contato por e-mail (Resend),
+> **14/10 (Claude), já na `main` (`3358ebd`, `0b457bf`):** catálogo público enxuto com cache, aviso de contato por e-mail (Resend),
 > encerramento antecipado e renovação de contratos com a migration `1789776000000` **não aplicada**, logs JSON,
 > uploads paralelos e correção do bloqueio global de login. Ordem de publicação: backup → `migration:run` → deploy da
 > API → front. O front correspondente já está commitado e depende dessas rotas. Detalhes no `CHANGELOG_AI.md`.
 
-`main` em `6b987a5`, sincronizada com `origin/main`. Trabalho direto na `main`.
+`main` em `0b457bf`, sincronizada com `origin/main`. Trabalho direto na `main`. Último deploy no Render: `86ecf29`.
 
 ### Serviços
 
@@ -44,12 +44,13 @@
 
 ### Bloqueios e dependências
 
-- O `6b987a5` não foi publicado. O front de 09/10 depende dele: a API precisa sair antes (DEPLOY-001).
-- A migration de comissão versionada e cadastros de contrato foi aplicada no Neon em 09/10 (sem backup, por decisão do
-  dono). A API `6305355` ainda precisa ser publicada; o front correspondente não salva contratos contra a API antiga.
+- Nada depois do `86ecf29` foi publicado. O front depende da API nova: ela precisa sair antes (DEPLOY-001).
+- A migration `1789689600000` foi aplicada no Neon em 09/10 (sem backup, por decisão do dono). A `1789776000000`
+  (encerramento e renovação) está pendente: backup, `migration:run`, deploy da API, depois o front.
 - `npm test` sai com código 1 porque não há suítes (TEST-API).
-- Regras de encerramento e renovação de contratos e a validação contábil das comissões aguardam o dono (RENTAL-004).
-- Aviso de novo contato aguarda a escolha do canal (NOTIFY-001).
+- Encerramento e renovação de contratos estão no código; falta a validação contábil das parcelas (RENTAL-004).
+- Aviso de contato por e-mail está no código; falta conta Resend e variáveis no Render (NOTIFY-001).
+- URL pública do R2 responde 401 (R2-URL-001, prioridade alta).
 
 Tarefas em [TASKS.md](TASKS.md). Detalhes de cada entrega em [CHANGELOG_AI.md](CHANGELOG_AI.md).
 
@@ -71,4 +72,5 @@ Tarefas em [TASKS.md](TASKS.md). Detalhes de cada entrega em [CHANGELOG_AI.md](C
 | 06/10 | Sessão de 4h por inatividade (`46f2235`) e foto do perfil (`86ecf29`). |
 | 08/10 | Render recebe o `86ecf29`; foto do perfil passa a responder no ambiente de teste. |
 | 09/10 | CRECI, `tipo_id` em lista e pessoas elegíveis (`6b987a5`). Documentação revista para o estado atual. |
-| 09/10 | Comissão versionada, índices de reajuste e tipos de contrato, migration nova; entrega local, sem commit. |
+| 09/10 | Comissão versionada, índices de reajuste e tipos de contrato (`6305355`); migration aplicada no Neon. |
+| 14/10 | Encerramento e renovação de contrato, aviso por e-mail, catálogo com cache, logs JSON, uploads paralelos (`3358ebd`). |
