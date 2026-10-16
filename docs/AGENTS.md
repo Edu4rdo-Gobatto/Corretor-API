@@ -35,12 +35,12 @@ Toda a documentação fica em `docs/`, em estrutura plana (decisão de 04/10).
 A carga do catálogo exige `--conexao-direta true`, pasta privada com ACL restrita e backup completo verificado.
 Não imprimir `.env`, senha, CPF ou journal. Detalhes em `README.md` e `2026-10-03-fontes-catalogo.md`.
 
-Backup do banco (a máquina tem Docker, mas não tem `pg_dump` nem `psql`):
+Backup do banco (a máquina tem pg_dump 17/18 em `C:\Program Files\PostgreSQL\17\bin`, mas não tem Docker):
 
 ```bash
-export PGURL="$(node -e "require('dotenv').config({quiet:true}); process.stdout.write(process.env.DATABASE_URL)")"
-docker run --rm -e PGURL postgres:16 sh -c 'pg_dump --no-owner --no-privileges "$PGURL"' > backups/backup_$(date +%Y%m%d_%H%M).sql
-unset PGURL
+# Usar conexão direta (UNPOOLED), o pooler pode interferir no dump.
+PGURL="$(node -e "require('dotenv').config({quiet:true}); process.stdout.write(process.env.DATABASE_URL_UNPOOLED)")"
+"/c/Program Files/PostgreSQL/17/bin/pg_dump.exe" --no-owner --no-privileges -f "backups/backup_$(date +%Y%m%d_%H%M).sql" "$PGURL"
 ```
 
 ## Regras
@@ -54,8 +54,8 @@ unset PGURL
 **Banco de dados**
 - Só Neon. `DATABASE_URL` exige host `*.neon.tech`, usuário, senha, banco e `sslmode=require|verify-ca|verify-full`,
   aceitando só os parâmetros `sslmode` e `channel_binding`. Não existe modo sem banco.
-- Há 12 arquivos de migration e 11 registrados em `src/database/registros.ts`. O banco foi recriado em 17/09 com as
-  10 primeiras; a `1789689600000-comissao-versionada-cadastros-contrato` foi aplicada no Neon em 09/10. A `1789084805000-hardening` fica fora do registro; não aplicar por suposição.
+- Há 14 arquivos de migration e 13 registrados em `src/database/registros.ts` (hardening excluído). O banco foi recriado em 17/09 com as 10 primeiras; as 3 restantes
+  (`1789689600000`, `1789776000000`, `1789862400000`) foram aplicadas em 16/10 com backup. A `hardening` fica fora do registro; não aplicar por suposição.
 - Não edite, renomeie nem apague migration existente: crie uma nova. As três últimas recusam reversão.
 - `synchronize` e `migrationsRun` continuam `false`.
 - Faça backup antes de qualquer mudança estrutural e registre no `CHANGELOG_AI.md`.

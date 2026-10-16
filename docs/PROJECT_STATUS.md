@@ -2,20 +2,20 @@
 
 ## Estado atual (16/10/2026)
 
-> **16/10 (Claude), cadastro de cidades:** migration `1789862400000` (tabela `cidades` + carga das cidades dos imóveis)
-> **ainda não aplicada**; criar imóvel passa a exigir cidade cadastrada. Ordem: backup → `migration:run` → deploy da
-> API → front.
+> **16/10 (Claude), cadastro de cidades:** migration `1789862400000` (tabela `cidades` + carga das cidades dos imóvel)
+> **aplicada** em 16/10, com backup verificado; backup em `backups/backup_20261016_1926.sql`. As demais também aplicadas.
+> Ordem cumprida: backup → `migration:run` → (deploy aguardando acesso ao Render) → front.
 
 > **16/10 (Claude, sem commit):** site público, detalhe e contato passam a exigir só `imovel.ativo = true`
 > (vendido/alugado continuam como referência; corretor inativo não esconde). Sem migration. 2 testes novos.
 > Publicar antes do front correspondente. Detalhes no `CHANGELOG_AI.md`.
 
 > **14/10 (Claude), já na `main` (`3358ebd`, `0b457bf`):** catálogo público enxuto com cache, aviso de contato por e-mail (Resend),
-> encerramento antecipado e renovação de contratos com a migration `1789776000000` **não aplicada**, logs JSON,
+> encerramento antecipado e renovação de contratos. Migration `1789776000000` **aplicada** em 16/10. Logs JSON,
 > uploads paralelos e correção do bloqueio global de login. Ordem de publicação: backup → `migration:run` → deploy da
 > API → front. O front correspondente já está commitado e depende dessas rotas. Detalhes no `CHANGELOG_AI.md`.
 
-`main` em `0b457bf`, sincronizada com `origin/main`. Trabalho direto na `main`. Último deploy no Render: `86ecf29`.
+`main` em `849148a`, sincronizada com `origin/main`. Trabalho direto na `main`. Último deploy no Render: `86ecf29` (08/10). As migrations `1789689600000`, `1789776000000` e `1789862400000` aplicadas 16/10.
 
 ### Serviços
 
@@ -53,8 +53,7 @@
 ### Bloqueios e dependências
 
 - Nada depois do `86ecf29` foi publicado. O front depende da API nova: ela precisa sair antes (DEPLOY-001).
-- A migration `1789689600000` foi aplicada no Neon em 09/10 (sem backup, por decisão do dono). A `1789776000000`
-  (encerramento e renovação) está pendente: backup, `migration:run`, deploy da API, depois o front.
+- As migrations `1789689600000`, `178977600000` e `1789862400000` foram aplicadas no Neon em 16/10 (backup em `backups/`).
 - `npm test` sai com código 1 porque não há suítes (TEST-API).
 - Encerramento e renovação de contratos estão no código; falta a validação contábil das parcelas (RENTAL-004).
 - Aviso de contato por e-mail está no código; falta conta Resend e variáveis no Render (NOTIFY-001).

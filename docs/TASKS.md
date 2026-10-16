@@ -26,15 +26,17 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
   - Registrar o commit implantado e a data no `PROJECT_STATUS.md`.
 
 ### MIGRATION-20261009 — Aplicar comissão versionada e cadastros de contrato
-- **Status:** migration aplicada no Neon em 09/10 (Claude), sem backup por decisão do dono; falta publicar a API
-  `6305355` e cadastrar tipos e índices
+- **Status:** fechada em 16/10 (Claude). O registro de 09/10 ("migration aplicada no Neon") estava incorreto: o banco
+  estava nas 10 migrations de 17/09. Em 16/10 o backup completo foi gerado e as três pendentes
+  (`1789689600000`, `1789776000000`, `1789862400000`) foram aplicadas; `migration:show` sem pendências. Falta
+  publicar a API e cadastrar tipos e índices.
 - **Responsável:** a definir
-- **Contexto:** a migration `1789689600000-comissao-versionada-cadastros-contrato` está no Neon (09/10) e o código
-  está na `main`. A migration `1789776000000` (encerramento e renovação) ainda não foi aplicada. Detalhes em
-  [2026-10-09-comissao-versionada-cadastros-contrato.md](2026-10-09-comissao-versionada-cadastros-contrato.md).
+- **Contexto:** backup `backups/backup_20261016_1926.sql` (pg_dump 17, `DATABASE_URL_UNPOOLED`, fora do Git).
+  Detalhes em [2026-10-09-comissao-versionada-cadastros-contrato.md](2026-10-09-comissao-versionada-cadastros-contrato.md)
+  e no `CHANGELOG_AI.md`.
 - **Critérios de conclusão:**
   - Backup completo do Neon verificado e `MIGRACAO_BACKUP_ARQUIVO` apontando para ele.
-  - `npm run migration:run` aplica a `1789776000000`; `migration:show` sem pendências.
+  - `npm run migration:run` aplica as pendentes; `migration:show` sem pendências.
   - API publicada antes do front; ADMIN cadastra tipos de contrato e índices de reajuste antes de criar contratos.
 
 ### TEST-API — `npm test` falha sem suítes
@@ -82,7 +84,8 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
 
 ### RENTAL-004 — Regras pendentes de contratos e comissões
 - **Status:** encerramento antecipado e renovação concluídos no código (14/10); migration
-  `1789776000000` aguarda backup e aplicação no Neon; validação contábil das parcelas segue aberta (contador)
+  `1789776000000` aplicada no Neon em 16/10 com backup; falta deploy da API; validação contábil das
+  parcelas segue aberta (contador)
 - **Responsável:** a definir
 - **O que o código já decide:**
   - O corretor comum cria contratos em que ele é o intermediador e não pode trocar o intermediador.
@@ -92,7 +95,7 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
   `POST /admin/contratos/:id/renovar` (contrato novo ligado ao anterior; uma renovação por contrato). Parcelas e
   comissões não mudam sozinhas. DTOs conferidos em 14/10 com `ValidationPipe` (whitelist, int4, datas).
 - **Falta:**
-  - Backup, `migration:run` da `1789776000000` no Neon e deploy da API antes do front.
+  - Deploy da API antes do front (migração já aplicada em 16/10).
   - Validação contábil do cálculo e da baixa manual das parcelas (contador).
 
 ### ADMIN-001 — Dados reais do administrador
@@ -140,7 +143,7 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
 
 ## 3. Concluídas recentemente
 
-- **CIDADES-20261016** (16/10): cadastro de cidades, rotas pública e admin, validação no imóvel. Falta `migration:run` da `1789862400000` e deploy.
-- **EXIBIR-SITE-20261016** (16/10): visibilidade pública e contato só por `ativo`; testes de `ImoveisService` e `PessoasService`. Falta deploy (sem migration).
-- **SEIS-PONTOS-20261009** (09/10, `6b987a5`): CRECI, `tipo_id` em lista e pessoas elegíveis. Publicação em DEPLOY-001.
+- **CIDADES-20261016** (16/10): cadastro de cidades, rotas pública e admin, validação no imóvel. Migration `1789862400000` aplicada (backup `backups/backup_20261016_1926.sql`); falta deploy.
+- **EXIBIR-SITE-20261016** (16/10): visibilidade pública e contato só por `ativo`; testes de `ImoveisService` e `PessoasService`. Migration `1789776000000` aplicada; falta deploy da API e front.
+- **SEIS-PONTOS-20261009** (09/10, `6b987a5`): CRECI, `tipo_id` em lista e pessoas elegíveis. Migration `1789689600000` aplicada; falta deploy da API.
 - **OPS-001** (02/10 e 06/10): limpeza de sessões expiradas no boot e a cada hora, por `setInterval` no `SessoesService`.
