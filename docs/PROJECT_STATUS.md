@@ -1,6 +1,10 @@
 # Estado atual — corretor-api
 
-## Estado atual (14/10/2026)
+## Estado atual (16/10/2026)
+
+> **16/10 (Claude, sem commit):** site público, detalhe e contato passam a exigir só `imovel.ativo = true`
+> (vendido/alugado continuam como referência; corretor inativo não esconde). Sem migration. 2 testes novos.
+> Publicar antes do front correspondente. Detalhes no `CHANGELOG_AI.md`.
 
 > **14/10 (Claude), já na `main` (`3358ebd`, `0b457bf`):** catálogo público enxuto com cache, aviso de contato por e-mail (Resend),
 > encerramento antecipado e renovação de contratos com a migration `1789776000000` **não aplicada**, logs JSON,

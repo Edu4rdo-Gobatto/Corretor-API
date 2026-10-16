@@ -150,3 +150,13 @@ com o `ValidationPipe` (os cenários chamaram os services direto).
 
 Pendências: backup + `migration:run` + deploy da API antes do front; conta Resend e variáveis no Render; ADMIN-001;
 validação contábil das parcelas (RENTAL-004); Sentry/Logtail (LOGS-001); homologações em ambiente real.
+
+### 16/10/2026 — Exibição pública só por `ativo` (Claude)
+- **Entregue:** `RESTRICAO_PUBLICA = 'imovel.ativo = true'`; `encontrar_publico` e `criarPublico` exigem só
+  `ativo`; testes `src/imoveis/imoveis.service.spec.ts` e `src/pessoas/pessoas.service.spec.ts`; docs
+  (`DECISIONS`, `ENTENDENDO-O-BACKEND`, `PROJECT_STATUS`, `TASKS`).
+- **Validação:** `npm run lint`, `npm run build` e `npm test` (3 suítes, 8 testes) passam. O teste de contato
+  falha contra a regra antiga (conferido trocando o service pelo do `HEAD`). API local em `--watch` com o Neon, só
+  leitura: `GET /imoveis` foi de 7 para 9 itens (entraram um Alugado e um Reservado); detalhe do Alugado 200.
+- **Sem validação:** contato real (`POST /clientes`) para imóvel vendido; nenhum dado do Neon foi alterado.
+- **Pendências:** deploy da API antes do front (sem migration).

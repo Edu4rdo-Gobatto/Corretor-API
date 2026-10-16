@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import { AvisosService } from '../avisos/avisos.service';
 import { Corretor } from '../corretores/corretor.entity';
-import { Imovel, StatusImovel } from '../imoveis/imovel.entity';
+import { Imovel } from '../imoveis/imovel.entity';
 import { Contrato } from '../locacoes/contrato.entity';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { dataCivilValida, documentoValido, escaparBusca } from '../comum/validacao';
@@ -21,7 +21,8 @@ export class PessoasService {
     if (dto.consentimento !== true) throw new BadRequestException('O consentimento é obrigatório.');
     const { pessoa, imovel } = await this.banco.transaction(async gerenciador => {
       const imovel = await gerenciador.getRepository(Imovel).findOne({
-        where: { id: dto.imovel_id, ativo: true, status: StatusImovel.DISPONIVEL, corretor: { ativo: true } }, relations: { corretor: true },
+        // Mesma regra do site: imóvel exibido (ativo) aceita contato em qualquer situação, inclusive vendido.
+        where: { id: dto.imovel_id, ativo: true }, relations: { corretor: true },
       });
       if (!imovel) throw new BadRequestException('Imóvel indisponível para atendimento.');
       const repositorio = gerenciador.getRepository(Pessoa);

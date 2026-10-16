@@ -13,7 +13,8 @@ import { AtualizarImovelDto, CaracteristicaImovelDto, ConsultaImoveisDto, Consul
 import { Imovel, StatusImovel } from './imovel.entity';
 import { resposta_imovel, resposta_imovel_publico, resposta_imovel_resumo } from './imoveis.resposta';
 
-const RESTRICAO_PUBLICA = 'imovel.ativo = true AND imovel.status = :disponivel AND corretor.ativo = true';
+/** Site público: basta o imóvel estar ativo ("Exibir no site"). Vendido/alugado continua como referência; corretor inativo não esconde. */
+export const RESTRICAO_PUBLICA = 'imovel.ativo = true';
 const PRECO_PADRAO = 'COALESCE(imovel.valor_venda, imovel.valor_locacao)';
 /** O slug de uma finalidade quase nunca muda; guardá-lo evita uma consulta a mais em cada listagem filtrada. */
 const VALIDADE_COLUNA_PRECO_MS = 5 * 60_000;
@@ -38,7 +39,7 @@ export class ImoveisService {
     if (!/^[a-z0-9-]{1,240}$/.test(slug)) throw new BadRequestException('Slug inválido.');
     const id = Number(slug.match(/(?:^|-)(\d+)$/)?.[1]);
     if (!Number.isInteger(id) || id < 1) throw new NotFoundException('Imóvel não encontrado.');
-    return resposta_imovel_publico(await this.encontrar({ id, ativo: true, status: StatusImovel.DISPONIVEL, corretor: { ativo: true } }));
+    return resposta_imovel_publico(await this.encontrar({ id, ativo: true }));
   }
 
   async encontrar_interno(id: number) { return resposta_imovel(await this.encontrar({ id }, true)); }
@@ -121,7 +122,7 @@ export class ImoveisService {
         base.andWhere("NOT EXISTS (SELECT 1 FROM contrato c WHERE c.imovel_id = imovel.id AND c.status = 'ATIVO')");
       }
     } else {
-      base.andWhere(RESTRICAO_PUBLICA, { disponivel: StatusImovel.DISPONIVEL });
+      base.andWhere(RESTRICAO_PUBLICA);
     }
     if (consulta.tipo_id?.length) base.andWhere('imovel.tipo_id IN (:...tipos)', { tipos: [...new Set(consulta.tipo_id)] });
     if (consulta.finalidade_id) base.andWhere('imovel.finalidade_id = :finalidade', { finalidade: consulta.finalidade_id });

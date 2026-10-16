@@ -591,7 +591,7 @@ corta em 100 caracteres. Também é usada pelos imóveis.
 
 ### Público e interno
 
-- O público força `imovel.ativo = true AND imovel.status = 'DISPONIVEL' AND corretor.ativo = true`.
+- O público força só `imovel.ativo = true` (desde 16/10): vendido e alugado aparecem; corretor inativo não esconde.
 - O interno aceita filtros extras: `status`, `ativo`, `apenas_disponiveis`, `sem_contrato_ativo`, `corretor_id`,
   `proprietario_id`, `id`. Sem `ativo`, a lista interna traz só ativos (04/10).
 - Todo corretor autenticado lê qualquer imóvel interno. `verificar_edicao` exige dono ou ADMIN para alterar (403).
@@ -707,7 +707,7 @@ existe coluna de papel: o papel aparece pelo vínculo (proprietário do imóvel,
 
 1. `LimitePessoasGuard` limita por IP.
 2. `PessoaPublicaDto` exige nome, telefone brasileiro válido, `imovel_id` e `consentimento` exatamente `true`.
-3. O service confere o consentimento de novo e exige imóvel ativo, disponível e com corretor ativo.
+3. O service confere o consentimento de novo e exige imóvel ativo (qualquer situação, desde 16/10).
 4. Grava com o corretor do imóvel, `origem = SITE`, `status_contato = PENDENTE`, IP, data e `versao_termos = 'v1.0'`.
 5. O CHECK `consentimento_site` é a última barreira no banco.
 6. Responde só `{ id }`.
@@ -1044,7 +1044,7 @@ Entity herdando de `Auditoria`; `TypeOrmModule.forFeature([...])` no módulo; in
 - Declare `@UseGuards(AutenticacaoGuard)`, e `CargosGuard` com `@Cargos('ADMIN')` se for só de ADMIN. O padrão é público.
 - Ids na URL com `ParseIntPipe`.
 - Passe `requisicao.user` ao service e filtre pelo dono no `WHERE`.
-- Rota pública de imóvel replica `ativo = true`, `status = DISPONIVEL` e corretor ativo.
+- Rota pública de imóvel exige só `ativo = true` (desde 16/10).
 - Monte a resposta com uma função `resposta_*`, nunca devolvendo a entity crua.
 - Rota que depende do cookie leva `OrigemGuard`.
 

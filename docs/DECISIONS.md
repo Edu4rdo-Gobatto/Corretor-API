@@ -7,6 +7,16 @@ O texto completo das versões anteriores está no histórico do Git.
 
 ## Decisões em vigor
 
+### 16/10 — Site público e contato dependem só de `ativo`
+- `RESTRICAO_PUBLICA = 'imovel.ativo = true'` (`src/imoveis/imoveis.service.ts`). Catálogo, detalhe
+  (`encontrar_publico`) e contato do site (`PessoasService.criarPublico`) aceitam imóvel ativo em **qualquer**
+  `status`: Vendido e Alugado continuam no site como referência de portfólio. Pedido do dono, junto com o
+  interruptor "Exibir no site" do painel (`PATCH /admin/imoveis/:id { ativo }`).
+- Corretor desativado **não** esconde os imóveis dele; o aviso de contato continua indo ao e-mail desse corretor.
+- O filtro `status` segue só no catálogo interno (o público responde 400 a `status`). `destaque` continua na
+  entidade e nos DTOs, mas o front deixou de usar e de enviar.
+- Testes: `imoveis.service.spec.ts` e `pessoas.service.spec.ts`, com repositórios simulados (sem banco).
+
 ### 14/10 — Catálogo enxuto, aviso de contato, encerramento e renovação de contratos
 - **Contrato de endpoint:** `GET /imoveis` (público) devolve só o item do cartão: id, título, slug, tipo, finalidade,
   `valor_venda`, `valor_locacao`, área útil, bairro, cidade, estado, status, destaque, datas e `midias` com **só a capa**
@@ -105,8 +115,8 @@ Não colocar a relação um-para-muitos dentro da consulta paginada: o `LIMIT` p
 do JWT. E-mail, `cargo` e `ativo` só mudam por `PATCH /admin/corretores/:id`, exclusivo do ADMIN.
 
 ### 13/09 — Filtro `status` só no catálogo interno
-`status` existe em `ConsultaInternaImoveisDto`. O catálogo público não aceita o parâmetro (400) e só lista
-`DISPONIVEL`.
+`status` existe em `ConsultaInternaImoveisDto`. O catálogo público não aceita o parâmetro (400). Desde 16/10 ele lista
+qualquer imóvel ativo, não só `DISPONIVEL` (ver 16/10).
 
 ### 14/09 — Modelo integral em português
 - Domínio, rotas, DTOs e colunas em português e `snake_case`, com auditoria em todas as tabelas.
@@ -194,6 +204,7 @@ ativo, com proxy do R2 ou redirect para URL externa HTTPS.
 
 | Data | Decisão antiga | Substituída por |
 |---|---|---|
+| até 16/10 | Público só com imóvel `DISPONIVEL` e corretor ativo | Só `ativo` (16/10) |
 | 11/09 | Sessão de 30 dias com refresh rotativo de uso único | Sessão de 4h por inatividade, token fixo (06/10) |
 | 11/09 | "As 5 migrations foram aplicadas"; `migration:revert` derruba a tabela | Banco recriado com 10 migrations (17/09); as duas últimas recusam reversão |
 | 11/09 | Contexto dos agentes com pasta `docs/handoffs/` | Documentação plana em `docs/` (04/10) |
