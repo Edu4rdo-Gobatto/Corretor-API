@@ -1,6 +1,7 @@
 import { EntityManager } from 'typeorm';
-import { Caracteristica, FinalidadeImovel, ImovelCaracteristica, TipoImovel } from '../cadastros/cadastros.entity';
-import { CriarCadastroDto, CriarCaracteristicaDto } from '../cadastros/cadastros.dto';
+import { Caracteristica, Cidade, FinalidadeImovel, ImovelCaracteristica, TipoImovel } from '../cadastros/cadastros.entity';
+import { CriarCadastroDto, CriarCaracteristicaDto, CriarCidadeDto } from '../cadastros/cadastros.dto';
+import { normalizarNome } from '../comum/estados';
 import { CadastrosService, gerar_slug } from '../cadastros/cadastros.service';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { Imovel } from '../imoveis/imovel.entity';
@@ -12,7 +13,7 @@ import { ItemPrivado, LOTE } from './seed-catalogo-journal';
 
 export async function referencias(manager: EntityManager, executar: boolean, usuario: UsuarioAutenticado, contagens: { cadastros_faltantes: number }) {
   const tipos = new Map<string, number>(); const finalidades = new Map<string, number>(); const caracteristicas = new Map<string, number>();
-  const servico = new CadastrosService(manager.getRepository(TipoImovel), manager.getRepository(FinalidadeImovel), manager.getRepository(Caracteristica));
+  const servico = new CadastrosService(manager.getRepository(TipoImovel), manager.getRepository(FinalidadeImovel), manager.getRepository(Caracteristica), manager.getRepository(Cidade));
   let provisoria = 1_000_000;
   for (const [categoria, classe, slugs, mapa] of [
     ['tipos-imovel', TipoImovel, [...new Set(catalogoCarga.map(i => i.tipo_slug))], tipos],
@@ -36,6 +37,16 @@ export async function referencias(manager: EntityManager, executar: boolean, usu
       contagens.cadastros_faltantes++;
       const dto = validarDto(CriarCaracteristicaDto, definicao);
       caracteristicas.set(definicao.nome, executar ? (await servico.criar('caracteristicas', dto, usuario)).id : provisoria++);
+    }
+  }
+  // O imóvel exige cidade ativa cadastrada no estado; a carga cadastra as que faltarem (Juara/MT).
+  const cidades = new Map(catalogoCarga.map((item) => [`${normalizarNome(item.dados.cidade)}|${item.dados.estado}`, { nome: item.dados.cidade, estado: item.dados.estado }]));
+  for (const [, cidade] of cidades) {
+    const registro = await manager.getRepository(Cidade).findOneBy({ nome_normalizado: normalizarNome(cidade.nome), estado: cidade.estado });
+    if (registro) exigir(registro.ativo, 'Cidade preexistente inativa; reativação automática recusada.');
+    else {
+      contagens.cadastros_faltantes++;
+      if (executar) await servico.criar('cidades', validarDto(CriarCidadeDto, cidade), usuario);
     }
   }
   return { tipos, finalidades, caracteristicas };

@@ -4,6 +4,7 @@ import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsO
 import { IdRegistro, ListaIds, aparar, booleano, decimal, definido, informado } from '../comum/dto';
 import { DataCivilValida } from '../comum/validacao';
 import { StatusImovel } from './imovel.entity';
+import { ESTADOS } from '../comum/estados';
 
 const DECIMAL_12 = /^\d{1,10}(\.\d{1,2})?$/;
 const DECIMAL_10 = /^\d{1,8}(\.\d{1,2})?$/;
@@ -31,7 +32,7 @@ export class CriarImovelDto {
   @ValidateIf(informado) @Transform(aparar) @IsString() @MaxLength(200) complemento?: string | null;
   @Transform(aparar) @IsString() @Length(1, 100) bairro!: string;
   @Transform(aparar) @IsString() @Length(1, 100) cidade!: string;
-  @IsIn(['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']) estado!: string;
+  @IsIn(ESTADOS) estado!: string;
   @Transform(aparar) @IsString() @Length(1, 20000) descricao!: string;
   @ValidateIf(definido) @IsEnum(StatusImovel) status?: StatusImovel;
   @ValidateIf(definido) @IsBoolean() destaque?: boolean;

@@ -4,6 +4,7 @@ import { FindOptionsWhere, ILike, Repository } from 'typeorm';
 import { ConsultaCadastrosDto } from '../cadastros/cadastros.dto';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
 import { escaparBusca } from '../comum/validacao';
+import { normalizarNome } from '../comum/estados';
 import { CriarIndiceReajusteDto, CriarTipoContratoDto } from './cadastros-contrato.dto';
 import { IndiceReajuste, TipoContrato } from './cadastros-contrato.entity';
 
@@ -11,8 +12,7 @@ export type CategoriaContrato = 'indices-reajuste' | 'tipos-contrato';
 type Registro = IndiceReajuste | TipoContrato;
 type Dados = Partial<CriarIndiceReajusteDto & CriarTipoContratoDto>;
 
-export const normalizarNome = (nome: string): string =>
-  nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+export { normalizarNome };
 
 @Injectable()
 export class CadastrosContratoService {

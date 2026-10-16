@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, FindOptionsWhere, In, Repository } from 'typeorm';
-import { Caracteristica, FinalidadeImovel, ImovelCaracteristica, TipoImovel } from '../cadastros/cadastros.entity';
+import { Caracteristica, Cidade, FinalidadeImovel, ImovelCaracteristica, TipoImovel } from '../cadastros/cadastros.entity';
+import { normalizarNome } from '../comum/estados';
 import { gerar_slug } from '../cadastros/cadastros.service';
 import { Corretor } from '../corretores/corretor.entity';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
@@ -53,6 +54,7 @@ export class ImoveisService {
     let id = 0;
     await this.imoveis.manager.transaction(async (gerenciador) => {
       await this.validar_referencias(gerenciador, dto, usuario);
+      await this.validar_cidade(gerenciador, dto.cidade, dto.estado);
       const { caracteristicas, ...campos } = dto;
       const repositorio = gerenciador.getRepository(Imovel);
       const imovel = repositorio.create({
@@ -76,6 +78,10 @@ export class ImoveisService {
       this.verificar_edicao(imovel, usuario);
       this.validar_areas(dto.area_util ?? imovel.area_util, dto.area_total ?? imovel.area_total);
       await this.validar_referencias(gerenciador, dto, usuario);
+      // Imóvel antigo com cidade fora do cadastro continua salvando enquanto a cidade não mudar.
+      const cidade = dto.cidade ?? imovel.cidade;
+      const estado = dto.estado ?? imovel.estado;
+      if (normalizarNome(cidade) !== normalizarNome(imovel.cidade) || estado !== imovel.estado) await this.validar_cidade(gerenciador, cidade, estado);
       const { caracteristicas, ...campos } = dto;
       Object.assign(imovel, definidos(campos), { alterado_por: usuario.id });
       imovel.slug = this.slug(imovel.titulo, id);
@@ -197,6 +203,12 @@ export class ImoveisService {
     if (dto.corretor_id && usuario.cargo !== 'ADMIN' && dto.corretor_id !== usuario.id) throw new ForbiddenException('Somente ADMIN pode atribuir imóvel a outro corretor.');
     const corretor_id = dto.corretor_id ?? usuario.id;
     if (!await gerenciador.getRepository(Corretor).findOne({ where: { id: corretor_id, ativo: true }, lock })) throw new BadRequestException('Corretor ativo não encontrado.');
+  }
+
+  /** A cidade do imóvel vem do cadastro de Cidades (ativa e no mesmo estado); a comparação ignora acento e caixa. */
+  private async validar_cidade(gerenciador: EntityManager, cidade: string, estado: string) {
+    const encontrada = await gerenciador.getRepository(Cidade).findOne({ where: { nome_normalizado: normalizarNome(cidade), estado, ativo: true }, lock: { mode: 'pessimistic_read' } });
+    if (!encontrada) throw new BadRequestException('Cidade ativa não encontrada no cadastro para este estado.');
   }
 
   private async salvar_caracteristicas(gerenciador: EntityManager, id: number, dados: CaracteristicaImovelDto[], usuario: UsuarioAutenticado) {

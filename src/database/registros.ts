@@ -1,6 +1,6 @@
 import { Corretor } from '../corretores/corretor.entity';
 import { SessaoLogin } from '../autenticacao/sessao-login.entity';
-import { TipoImovel, FinalidadeImovel, Caracteristica, ImovelCaracteristica } from '../cadastros/cadastros.entity';
+import { TipoImovel, FinalidadeImovel, Caracteristica, ImovelCaracteristica, Cidade } from '../cadastros/cadastros.entity';
 import { Imovel } from '../imoveis/imovel.entity';
 import { ImovelMidia } from '../midias/imovel-midia.entity';
 import { Pessoa } from '../pessoas/pessoa.entity';
@@ -22,8 +22,9 @@ import { ModeloPortugues1789516800000 } from './migrations/1789516800000-modelo-
 import { IdsInteirosPessoas1789603200000 } from './migrations/1789603200000-ids-inteiros-pessoas';
 import { ComissaoVersionadaCadastrosContrato1789689600000 } from './migrations/1789689600000-comissao-versionada-cadastros-contrato';
 import { EncerramentoRenovacaoContrato1789776000000 } from './migrations/1789776000000-encerramento-renovacao-contrato';
+import { Cidades1789862400000 } from './migrations/1789862400000-cidades';
 
-export const entidades = [Corretor, SessaoLogin, TipoImovel, FinalidadeImovel, Caracteristica, ImovelCaracteristica, Imovel, ImovelMidia, Pessoa, Contrato, Comissao, ParcelaComissao, RevisaoComissao, IndiceReajuste, TipoContrato, RegistroPastaDrive];
+export const entidades = [Corretor, SessaoLogin, TipoImovel, FinalidadeImovel, Caracteristica, ImovelCaracteristica, Cidade, Imovel, ImovelMidia, Pessoa, Contrato, Comissao, ParcelaComissao, RevisaoComissao, IndiceReajuste, TipoContrato, RegistroPastaDrive];
 // O histórico aplicado permanece imutável. Hardening nunca esteve registrado no CLI deste checkout.
 export const migracoesLegadas = [CreateAgents1789084800000, CreateProperties1789084801000, CreatePropertyMedia1789084802000, CreateLeads1789084803000, CreateRefreshSessions1789084804000, CreateRentalAdministration1789257600000, CreateAcquisitionCommissions1789344000000, CreateRentPayments1789430400000];
-export const migracoes = [...migracoesLegadas, ModeloPortugues1789516800000, IdsInteirosPessoas1789603200000, ComissaoVersionadaCadastrosContrato1789689600000, EncerramentoRenovacaoContrato1789776000000];
+export const migracoes = [...migracoesLegadas, ModeloPortugues1789516800000, IdsInteirosPessoas1789603200000, ComissaoVersionadaCadastrosContrato1789689600000, EncerramentoRenovacaoContrato1789776000000, Cidades1789862400000];

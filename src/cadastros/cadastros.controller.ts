@@ -4,7 +4,7 @@ import { AutenticacaoGuard } from '../autenticacao/autenticacao.guard';
 import { Cargos, CargosGuard } from '../autenticacao/cargos.guard';
 import { CachePublico } from '../comum/cache-publico';
 import { UsuarioAutenticado } from '../comum/usuario-autenticado';
-import { AtualizarCadastroDto, AtualizarCaracteristicaDto, ConsultaCadastrosDto, CriarCadastroDto, CriarCaracteristicaDto } from './cadastros.dto';
+import { AtualizarCadastroDto, AtualizarCaracteristicaDto, AtualizarCidadeDto, ConsultaCadastrosDto, CriarCadastroDto, CriarCaracteristicaDto, CriarCidadeDto } from './cadastros.dto';
 import { CadastrosService, CategoriaCadastro } from './cadastros.service';
 
 type Requisicao = Request & { user: UsuarioAutenticado };
@@ -45,7 +45,20 @@ export class CaracteristicasController {
   @Delete(':id') @HttpCode(204) async desativar(@Param('id', ParseIntPipe) id: number, @Req() requisicao: Requisicao) { await this.cadastros.atualizar('caracteristicas', id, { ativo: false }, requisicao.user); }
 }
 
+/** Cidades: nome + estado; o público lista só as ativas (filtro do catálogo). */
+@Controller('admin/cidades')
+@UseGuards(AutenticacaoGuard, CargosGuard)
+@Cargos('ADMIN')
+export class CidadesController {
+  constructor(private readonly cadastros: CadastrosService) {}
+  @Get() listar(@Query() consulta: ConsultaCadastrosDto) { return this.cadastros.listar('cidades', consulta); }
+  @Get(':id') encontrar(@Param('id', ParseIntPipe) id: number) { return this.cadastros.encontrar('cidades', id); }
+  @Post() criar(@Body() dto: CriarCidadeDto, @Req() requisicao: Requisicao) { return this.cadastros.criar('cidades', dto, requisicao.user); }
+  @Patch(':id') atualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: AtualizarCidadeDto, @Req() requisicao: Requisicao) { return this.cadastros.atualizar('cidades', id, dto, requisicao.user); }
+  @Delete(':id') @HttpCode(204) async desativar(@Param('id', ParseIntPipe) id: number, @Req() requisicao: Requisicao) { await this.cadastros.atualizar('cidades', id, { ativo: false }, requisicao.user); }
+}
+
 export const controladoresCadastros = [
-  controladorPublico('tipos-imovel'), controladorPublico('finalidades-imovel'), controladorPublico('caracteristicas'),
-  controladorAdministrativo('tipos-imovel'), controladorAdministrativo('finalidades-imovel'), CaracteristicasController,
+  controladorPublico('tipos-imovel'), controladorPublico('finalidades-imovel'), controladorPublico('caracteristicas'), controladorPublico('cidades'),
+  controladorAdministrativo('tipos-imovel'), controladorAdministrativo('finalidades-imovel'), CaracteristicasController, CidadesController,
 ];

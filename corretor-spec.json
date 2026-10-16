@@ -2699,5 +2699,13 @@
     },
     "estado": "implementado; homologacao isolada; sem publicacao",
     "frontend": "contrato antigo ainda em uso; adaptar antes do deploy conjunto"
+  },
+  "cidades_e_visibilidade_2026_10_16": {
+    "resumo": "Cadastro de cidades (nome + UF, ativo) no grupo Imóveis de Cadastros; seletor único em todo o sistema; site público e contato só por imovel.ativo.",
+    "tabela_cidades": "cidades(id, nome text 2..100, nome_normalizado text, estado char(2) entre as 27 UFs, ativo, auditoria); UNIQUE(nome_normalizado, estado); migration 1789862400000 com carga inicial das cidades distintas de imoveis",
+    "rotas": "GET /cidades (público, só ativas, CachePublico); admin/cidades GET/GET :id/POST/PATCH/DELETE (ADMIN). Resposta: id, nome, estado, ativo, criado_em, alterado_em",
+    "imovel": "imoveis.cidade continua texto, sem FK. Criar exige cidade ativa cadastrada no estado (comparação sem acento/caixa); atualizar só valida se cidade ou estado mudarem (imóvel antigo fora do cadastro continua salvando)",
+    "web": "Formulário do imóvel: Estado → Cidade (lista das ativas do estado; cidade fora do cadastro aparece como '(não cadastrada)'). Catálogo: Cidade vira lista do cadastro com 'Todas as cidades'. Falha em /cidades não derruba o catálogo (lista vazia).",
+    "visibilidade_publica": "Desde 16/10 catálogo, detalhe e contato exigem só imovel.ativo = true, em qualquer status e com corretor inativo"
   }
 }

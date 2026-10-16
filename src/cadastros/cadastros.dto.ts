@@ -1,6 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { ESTADOS } from '../comum/estados';
 
 export class CriarCadastroDto {
   @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value)
@@ -18,6 +19,14 @@ export class CriarCaracteristicaDto {
   @ValidateIf((_objeto, valor: unknown) => valor !== undefined) @IsBoolean() ativo?: boolean;
 }
 export class AtualizarCaracteristicaDto extends PartialType(CriarCaracteristicaDto, { skipNullProperties: false }) {}
+
+export class CriarCidadeDto {
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value)
+  @IsString() @Length(2, 100) nome!: string;
+  @IsIn(ESTADOS) estado!: string;
+  @ValidateIf((_objeto, valor: unknown) => valor !== undefined) @IsBoolean() ativo?: boolean;
+}
+export class AtualizarCidadeDto extends PartialType(CriarCidadeDto, { skipNullProperties: false }) {}
 
 export class ConsultaCadastrosDto {
   @Type(() => Number) @IsInt() @Min(1) pagina = 1;

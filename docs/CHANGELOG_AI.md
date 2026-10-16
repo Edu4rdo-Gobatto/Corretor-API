@@ -160,3 +160,12 @@ validação contábil das parcelas (RENTAL-004); Sentry/Logtail (LOGS-001); homo
   leitura: `GET /imoveis` foi de 7 para 9 itens (entraram um Alugado e um Reservado); detalhe do Alugado 200.
 - **Sem validação:** contato real (`POST /clientes`) para imóvel vendido; nenhum dado do Neon foi alterado.
 - **Pendências:** deploy da API antes do front (sem migration).
+
+### 16/10/2026 — Cadastro de cidades (Claude)
+- **Entregue:** entidade `Cidade`, migration `1789862400000-cidades` (tabela + carga inicial), `CriarCidadeDto`/
+  `AtualizarCidadeDto`, `CadastrosService` com a categoria `cidades`, `GET /cidades` e `admin/cidades`, validação da
+  cidade no imóvel (`validar_cidade`), `comum/estados.ts` (`ESTADOS`, `normalizarNome`), seed com cidades, specs.
+- **Validação:** `lint`, `build` e `jest` (5 suítes, 16 testes; novos: `cadastros.service.spec.ts` e
+  `imoveis.cidade.spec.ts`) passam.
+- **Sem validação:** migration no Neon (pendente de autorização); rotas novas por HTTP.
+- **Pendências:** backup → `migration:run` → deploy da API, antes do web.

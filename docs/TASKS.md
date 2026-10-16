@@ -140,6 +140,7 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
 
 ## 3. Concluídas recentemente
 
+- **CIDADES-20261016** (16/10): cadastro de cidades, rotas pública e admin, validação no imóvel. Falta `migration:run` da `1789862400000` e deploy.
 - **EXIBIR-SITE-20261016** (16/10): visibilidade pública e contato só por `ativo`; testes de `ImoveisService` e `PessoasService`. Falta deploy (sem migration).
 - **SEIS-PONTOS-20261009** (09/10, `6b987a5`): CRECI, `tipo_id` em lista e pessoas elegíveis. Publicação em DEPLOY-001.
 - **OPS-001** (02/10 e 06/10): limpeza de sessões expiradas no boot e a cada hora, por `setInterval` no `SessoesService`.

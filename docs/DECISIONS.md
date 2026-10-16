@@ -7,6 +7,17 @@ O texto completo das versões anteriores está no histórico do Git.
 
 ## Decisões em vigor
 
+### 16/10 — Cadastro de cidades
+- Tabela `cidades` (nome, `estado` UF, ativo, auditoria) com unicidade por `nome_normalizado` + `estado`
+  (sem acento/caixa; a mesma cidade pode existir em dois estados). Migration `1789862400000` carrega as cidades
+  distintas dos imóveis atuais. Normalização em `comum/estados.ts` (`normalizarNome`), compartilhada com os cadastros
+  de contrato; a extensão `unaccent` não é usada.
+- Rotas no padrão dos cadastros: `GET /cidades` público (ativas, cache) e `admin/cidades` (ADMIN). 409 próprio para
+  cidade repetida no estado.
+- O imóvel guarda a cidade em texto (sem FK). Criar exige cidade ativa cadastrada no estado; atualizar só valida se
+  cidade ou estado mudarem, para imóveis antigos fora do cadastro continuarem editáveis.
+- Comandos de carga (`seed-catalogo-*`) cadastram as cidades que faltarem antes de criar imóveis.
+
 ### 16/10 — Site público e contato dependem só de `ativo`
 - `RESTRICAO_PUBLICA = 'imovel.ativo = true'` (`src/imoveis/imoveis.service.ts`). Catálogo, detalhe
   (`encontrar_publico`) e contato do site (`PessoasService.criarPublico`) aceitam imóvel ativo em **qualquer**

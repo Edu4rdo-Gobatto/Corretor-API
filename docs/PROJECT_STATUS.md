@@ -2,6 +2,10 @@
 
 ## Estado atual (16/10/2026)
 
+> **16/10 (Claude), cadastro de cidades:** migration `1789862400000` (tabela `cidades` + carga das cidades dos imóveis)
+> **ainda não aplicada**; criar imóvel passa a exigir cidade cadastrada. Ordem: backup → `migration:run` → deploy da
+> API → front.
+
 > **16/10 (Claude, sem commit):** site público, detalhe e contato passam a exigir só `imovel.ativo = true`
 > (vendido/alugado continuam como referência; corretor inativo não esconde). Sem migration. 2 testes novos.
 > Publicar antes do front correspondente. Detalhes no `CHANGELOG_AI.md`.
