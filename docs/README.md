@@ -8,17 +8,20 @@ pastas de contratos no Google Drive compartilhado. Node `>=24 <25` e npm `>=11`.
 
 Repositório irmão: **corretor-web** (React 18 + Vite 7 + SSR próprio), em `../Corretor-web`.
 
-> A fonte de verdade é o código. Este README descreve a `main` em 09/10/2026 (commit `6b987a5`).
+> A fonte de verdade é o código. Este README descreve a `main` em 16/10/2026 (commit `849148a`).
 
-## Situação (09/10/2026)
+## Situação (16/10/2026)
 
 - Contrato v2 em vigor desde 16/09: ids inteiros e cadastro único de pessoas.
 - Banco do Neon recriado em 17/09 com as 10 migrations registradas. Em 03/10 recebeu a carga ilustrativa do
   catálogo: 12 imóveis, 36 mídias e um segundo ADMIN.
 - Sessão de 4h por inatividade (06/10), foto do perfil (06/10) e as correções de 09/10 (CRECI, `tipo_id` em lista,
   pessoas elegíveis da comissão) estão na `main`.
+- Em 16/10, as migrations `1789689600000`, `1789776000000` e `1789862400000` foram aplicadas no Neon com backup em
+  `backups/backup_20261016_1926.sql`. Tabela `cidades` criada com Juara/MT e Sinop/MT.
 - Ambiente de teste: API no Render e front na Vercel (`corretor-web-test.vercel.app`). Último registro de
-  publicação da API: 08/10, commit `86ecf29`. O `6b987a5` ainda não foi publicado.
+  publicação da API: 08/10, commit `86ecf29`. O commit `849148a` (cadastro de cidades) está na `main` local; o deploy
+  aguarda autorização do dono (DEPLOY-001).
 - Não há suítes de teste desde 03/10.
 
 Estado detalhado em [PROJECT_STATUS.md](PROJECT_STATUS.md) e pendências em [TASKS.md](TASKS.md).
