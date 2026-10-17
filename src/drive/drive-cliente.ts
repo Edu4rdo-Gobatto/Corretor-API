@@ -1,6 +1,9 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'node:crypto';
 const ORIGEM = 'https://www.googleapis.com/drive/v3';
+const ORIGEM_UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
+export type DocumentoDrive = { id: string; nome: string; tipo: string; tamanho: number | null; criado_em: string; url: string | null };
 const MIME_PASTA = 'application/vnd.google-apps.folder';
 const objeto = (valor: unknown): Record<string, unknown> => {
   if (!valor || typeof valor !== 'object' || Array.isArray(valor)) throw new ServiceUnavailableException('Resposta inválida do Google Drive.');
@@ -23,10 +26,10 @@ export class DriveCliente {
     return { cliente, segredo, renovacao, raiz };
   }
 
-  private async transporte(url: string, opcoes: RequestInit): Promise<Response> {
+  private async transporte(url: string, opcoes: RequestInit, limiteMs = 10000): Promise<Response> {
     for (let tentativa = 0; tentativa < 3; tentativa++) {
       try {
-        const resposta = await fetch(url, { ...opcoes, redirect: 'error', signal: AbortSignal.timeout(10000) });
+        const resposta = await fetch(url, { ...opcoes, redirect: 'error', signal: AbortSignal.timeout(limiteMs) });
         if (resposta.status !== 429 && resposta.status < 500) return resposta;
       } catch {
         // Erros externos nunca incluem credenciais nem dados pessoais em logs/respostas.
@@ -67,6 +70,43 @@ export class DriveCliente {
     throw new ServiceUnavailableException('Falha na autenticação do Google Drive.');
   }
 
+  /** Envia um arquivo para a pasta (upload multipart do Drive v3); o Drive decide quais tipos aceita. */
+  async enviarArquivo(pasta: string, nome: string, tipo: string, conteudo: Buffer): Promise<{ id: string; nome: string }> {
+    const limite = `drive-${randomUUID()}`;
+    const metadados = JSON.stringify({ name: nome, parents: [pasta] });
+    const corpo = Buffer.concat([
+      Buffer.from(`--${limite}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadados}\r\n--${limite}\r\nContent-Type: ${tipo}\r\n\r\n`),
+      conteudo,
+      Buffer.from(`\r\n--${limite}--`),
+    ]);
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      const token = await this.obterToken();
+      const resposta = await this.transporte(`${ORIGEM_UPLOAD}/files?uploadType=multipart&supportsAllDrives=true&fields=id,name`, {
+        method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${limite}`, Authorization: `Bearer ${token}` }, body: corpo,
+      }, 60000);
+      if (resposta.status === 401 && tentativa === 0) { this.token = undefined; continue; }
+      if (!resposta.ok) throw new ErroDrive(resposta.status);
+      const arquivo = objeto(await resposta.json());
+      if (typeof arquivo.id !== 'string' || typeof arquivo.name !== 'string') throw new ServiceUnavailableException('Resposta inválida do Google Drive.');
+      return { id: arquivo.id, nome: arquivo.name };
+    }
+    throw new ServiceUnavailableException('Falha na autenticação do Google Drive.');
+  }
+
+  async listarArquivos(pasta: string): Promise<DocumentoDrive[]> {
+    const consulta = encodeURIComponent(`'${pasta}' in parents and trashed = false and mimeType != '${MIME_PASTA}'`);
+    const resposta = await this.requisitar(`/files?supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=100&orderBy=createdTime%20desc&q=${consulta}&fields=files(id,name,mimeType,size,createdTime,webViewLink)`);
+    if (!Array.isArray(resposta.files)) throw new ServiceUnavailableException('Resposta inválida do Google Drive.');
+    return resposta.files.map(item => {
+      const arquivo = objeto(item);
+      return {
+        id: String(arquivo.id), nome: String(arquivo.name), tipo: String(arquivo.mimeType),
+        tamanho: arquivo.size === undefined ? null : Number(arquivo.size), criado_em: String(arquivo.createdTime),
+        url: typeof arquivo.webViewLink === 'string' ? arquivo.webViewLink : null,
+      };
+    });
+  }
+
   async gerarId(): Promise<string> {
     const resposta = await this.requisitar('/files/generateIds?count=1&space=drive&type=files');
     const ids = resposta.ids;
@@ -82,7 +122,7 @@ export class DriveCliente {
     }
     let pagina = '';
     do {
-      const permissoes = await this.requisitar(`${caminho}/permissions?supportsAllDrives=true&pageSize=100&fields=nextPageToken,permissions(type)&pageToken=${encodeURIComponent(pagina)}`);
+      const permissoes = await this.requisitar(`${caminho}/permissions?supportsAllDrives=true&pageSize=100&fields=nextPageToken,permissions(type)${pagina ? `&pageToken=${encodeURIComponent(pagina)}` : ''}`);
       if (!Array.isArray(permissoes.permissions) || permissoes.permissions.some(permissao => ['anyone', 'domain'].includes(String(objeto(permissao).type)))) {
         throw new ServiceUnavailableException('A pasta do Google Drive deve ter acesso restrito a usuários e grupos autorizados.');
       }

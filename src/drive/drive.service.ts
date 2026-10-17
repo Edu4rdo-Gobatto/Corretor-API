@@ -25,13 +25,37 @@ export class DriveService {
     return this.cliente.criarPasta(registro.id_drive, registro.nome, registro.pasta_pai_id);
   }
 
+  /** Extrai o ID da pasta a partir da URL gravada no contrato. */
+  idPastaDaUrl(url: string | null): string {
+    const id = url?.match(/^https:\/\/drive\.google\.com\/drive\/folders\/([\w-]+)$/)?.[1];
+    if (!id) throw new ServiceUnavailableException('A pasta do contrato ainda não está disponível.');
+    return id;
+  }
+
+  async enviarDocumento(url: string | null, arquivo: { originalname: string; mimetype: string; buffer: Buffer }) {
+    const pasta = this.idPastaDaUrl(url);
+    const nome = Buffer.from(arquivo.originalname, 'latin1').toString('utf8').replace(/[\\/\u0000-\u001f]/g, '_').slice(0, 200) || 'documento';
+    try {
+      return await this.cliente.enviarArquivo(pasta, nome, arquivo.mimetype || 'application/octet-stream', arquivo.buffer);
+    } catch (erro) {
+      if (erro instanceof ServiceUnavailableException) throw erro;
+      throw new ServiceUnavailableException(`O Google Drive não aceitou o arquivo "${nome}".`);
+    }
+  }
+
+  async listarDocumentos(url: string | null) {
+    const pasta = this.idPastaDaUrl(url);
+    try { return await this.cliente.listarArquivos(pasta); } catch (erro) {
+      if (erro instanceof ServiceUnavailableException) throw erro;
+      throw new ServiceUnavailableException('Não foi possível listar os documentos do Google Drive.');
+    }
+  }
+
   async criarPastaContrato(contrato: { id: number; numero_contrato: string; locatario: string }, usuario: number): Promise<string> {
     try {
       const { raiz } = this.cliente.configuracao();
       await this.cliente.validarPastaPrivada(raiz);
-      const imobiliaria = await this.garantirPasta(`raiz:${raiz}:imobiliaria`, 'Imobiliária', raiz, usuario);
-      const contratos = await this.garantirPasta(`raiz:${raiz}:contratos`, 'Contratos', imobiliaria, usuario);
-      const id = await this.garantirPasta(`contrato:${contrato.id}`, `${contrato.numero_contrato} - ${contrato.locatario}`, contratos, usuario);
+      const id = await this.garantirPasta(`contrato:${contrato.id}`, `${contrato.numero_contrato} - ${contrato.locatario}`, raiz, usuario);
       return `https://drive.google.com/drive/folders/${encodeURIComponent(id)}`;
     } catch {
       throw new ServiceUnavailableException('Não foi possível preparar a pasta privada do contrato no Google Drive. Tente novamente pela operação de pasta do contrato.');

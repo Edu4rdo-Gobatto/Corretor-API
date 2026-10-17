@@ -15,7 +15,8 @@ O texto completo das versões anteriores está no histórico do Git.
   por `npm run drive:autorizar`, que também imprime o refresh token. O comando não grava arquivo.
 - O app OAuth fica **publicado** ("Em produção"): em "Teste" o refresh token expira em 7 dias. `drive.file` não exige
   verificação do Google; o aviso de app não verificado aparece só para o dono, na autorização.
-- Mesma hierarquia (`Imobiliária / Contratos / <número> - <locatário>`), mesma recusa de pasta com acesso `anyone` ou
+- Hierarquia achatada em 16/10: `Corretor - Contratos / <número> - <locatário>`, sem as pastas `Imobiliária` e
+  `Contratos`, para achar o contrato mais rápido. Mesma recusa de pasta com acesso `anyone` ou
   `domain`, mesmo `registro_pasta_drive`. Sem migration e sem dependência nova.
 - Não: voltar a pedir escopo `drive` (acesso ao Drive pessoal inteiro); comitar ou registrar em log o refresh token.
 

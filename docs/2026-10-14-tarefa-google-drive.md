@@ -38,7 +38,7 @@
 ## Validação (critério de conclusão)
 
 - Criar um contrato ativo no painel: a resposta volta com `status_pasta_drive = CRIADA` e o link abre
-  `Corretor - Contratos / Imobiliária / Contratos / <número> - <locatário>`.
+  `Corretor - Contratos / <número> - <locatário>`.
 - Renomear o número do contrato e confirmar que a pasta é renomeada, não duplicada.
 - "Tentar preparar pasta novamente" devolve a mesma pasta.
 - Abrir o link numa janela anônima ou com outra conta: o acesso precisa ser negado.
@@ -53,8 +53,8 @@ compartilhada por link. Para refazer a autorização, rodar `npm run drive:autor
 ## Não fazer
 
 - Não comitar o `.env` nem colar o refresh token em chat, log ou documento: ele dá acesso às pastas criadas pela API.
-- Não apagar `Imobiliária` e `Contratos` depois da primeira criação: os ids ficam no `registro_pasta_drive` e um id
-  apagado não volta. Trocar a raiz (rodar `npm run drive:autorizar` de novo e usar a pasta nova) serve para
-  contratos novos; contratos que já têm pasta registrada passam a falhar na repetição, porque o registro aponta para
-  a raiz antiga. Para só renovar o token, mantenha o `GOOGLE_DRIVE_ROOT_FOLDER_ID` atual e apague a pasta extra criada.
+- Não apagar nem mover a pasta de um contrato no Drive: o id dela fica em `pastas_drive` e um id apagado não volta.
+  Trocar a raiz (rodar `npm run drive:autorizar` de novo e usar a pasta nova) serve para contratos novos; contratos
+  que já têm pasta registrada passam a falhar na repetição, porque o registro aponta para a raiz antiga. Para só
+  renovar o token, mantenha o `GOOGLE_DRIVE_ROOT_FOLDER_ID` atual e apague a pasta extra criada.
 - Não compartilhar a pasta raiz por link: a API recusa pasta com acesso `anyone` ou `domain`.

@@ -182,3 +182,12 @@ validação contábil das parcelas (RENTAL-004); Sentry/Logtail (LOGS-001); homo
 - **Sem validação:** autorização real no Google, criação de pastas no Meu Drive, renomeação e acesso negado a terceiros.
 - **Pendências:** dono cria o cliente OAuth, publica o app, roda `drive:autorizar` e homologa (DRIVE-001); as quatro
   variáveis no Render junto com o deploy.
+
+### 16/10/2026 — Pasta do contrato direto na raiz do Drive (Claude)
+- **Motivo:** achar o contrato com menos cliques. Estrutura nova: `Corretor - Contratos / <número> - <locatário>`.
+- **Correção na integração OAuth:** a conferência de privacidade da raiz mandava `pageToken=` vazio e o Google
+  respondia 403 `pageTokenExpired`, o que deixava todo contrato em FALHOU. Agora o parâmetro só vai quando há página.
+- **Entregue:** `DriveService.criarPastaContrato` cria só a pasta do contrato, com a raiz como pai. Contrato 13
+  (teste) migrado: pasta movida no Drive, `pastas_drive` atualizada, registros `imobiliaria` e `contratos`
+  desativados e as duas pastas vazias enviadas à lixeira.
+- **Validação:** ver a sessão (typecheck, lint, testes). Pasta nova de contrato ainda sem teste ponta a ponta.

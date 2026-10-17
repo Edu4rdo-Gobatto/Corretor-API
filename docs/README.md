@@ -224,7 +224,7 @@ migrations.
 ## Google Drive
 
 - Documentos de contrato ficam no Drive compartilhado privado, em
-  `Imobiliária/Contratos/{numero_contrato} - {locatário}`, criada depois de salvar um contrato ATIVO.
+  `{numero_contrato} - {locatário}`, direto na pasta raiz, criada depois de salvar um contrato ATIVO.
 - Requisitos: Drive API habilitada; a Service Account é membro do Drive compartilhado com permissão de criar e
   renomear pastas; a raiz é privada e pertence ao Drive informado. A API recusa pastas com permissão `anyone` ou
   `domain`.

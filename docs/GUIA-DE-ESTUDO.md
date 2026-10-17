@@ -711,8 +711,8 @@ A leitura pública mostra só os ativos. Duplicata de nome ou slug responde 409,
 - Contrato liga imóvel, locador, locatário e corretor. Locador e locatário precisam ser pessoas diferentes.
 - Corretor comum só cria contrato sob a própria intermediação.
 - Contratos com `data_fim` no passado viram INATIVO: a cada hora pelo `@Cron` e também antes de cada consulta.
-- Ao salvar um contrato ativo, o serviço tenta criar a pasta `Imobiliária/Contratos/{número} - {locatário}` no
-  Drive compartilhado. **Se o Drive falhar, o contrato continua salvo** com `status_pasta_drive = FALHOU`, e existe
+- Ao salvar um contrato ativo, o serviço tenta criar a pasta `{número} - {locatário}` dentro da raiz no
+  Drive. **Se o Drive falhar, o contrato continua salvo** com `status_pasta_drive = FALHOU`, e existe
   uma rota para tentar de novo.
 
 ### `comissoes/`

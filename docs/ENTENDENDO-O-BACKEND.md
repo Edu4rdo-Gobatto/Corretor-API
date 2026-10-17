@@ -765,8 +765,7 @@ A pasta é criada **depois** de salvar o contrato, fora da transação.
 
 1. `DriveCliente.validarPastaPrivada` confere que a raiz pertence ao Drive compartilhado configurado e que nenhuma
    permissão é `anyone` ou `domain`.
-2. `garantirPasta` cria ou reaproveita, nesta ordem, `Imobiliária`, `Contratos` e `{numero} - {locatário}`. Para cada
-   uma, numa transação com advisory lock, registra em `pastas_drive` um **id pedido antes ao Google**
+2. `garantirPasta` cria ou reaproveita a pasta `{numero} - {locatário}`, direto dentro da raiz. Para ela, numa transação com advisory lock, registra em `pastas_drive` um **id pedido antes ao Google**
    (`files/generateIds`).
 3. Com a transação confirmada, cria a pasta usando esse id. Se a rede falhar e a operação se repetir, o Google
    responde 409 e o código entende que a criação anterior deu certo. A operação é **idempotente**.

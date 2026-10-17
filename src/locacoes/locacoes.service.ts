@@ -78,6 +78,27 @@ export class LocacoesService {
     return resposta_contrato(contrato, await this.renovacaoDe(contrato.id));
   }
 
+  private async contratoComPasta(id: number, usuario: UsuarioAutenticado): Promise<Contrato> {
+    const contrato = await this.banco.getRepository(Contrato).findOneBy({ id });
+    if (!contrato) throw new NotFoundException('Contrato não encontrado.');
+    this.autorizar(contrato, usuario);
+    if (contrato.status_pasta_drive !== 'CRIADA' || !contrato.url_pasta_drive) throw new ConflictException('A pasta do contrato ainda não foi criada no Google Drive.');
+    return contrato;
+  }
+
+  async listarDocumentos(id: number, usuario: UsuarioAutenticado) {
+    const contrato = await this.contratoComPasta(id, usuario);
+    return { itens: await this.drive.listarDocumentos(contrato.url_pasta_drive) };
+  }
+
+  async enviarDocumentos(id: number, arquivos: { originalname: string; mimetype: string; buffer: Buffer }[], usuario: UsuarioAutenticado) {
+    if (!arquivos.length) throw new BadRequestException('Selecione ao menos um arquivo.');
+    const contrato = await this.contratoComPasta(id, usuario);
+    const enviados: { id: string; nome: string }[] = [];
+    for (const arquivo of arquivos) enviados.push(await this.drive.enviarDocumento(contrato.url_pasta_drive, arquivo));
+    return { itens: enviados };
+  }
+
   private async renovacaoDe(id: number): Promise<number | null> {
     return (await this.banco.getRepository(Contrato).findOne({ where: { contrato_anterior_id: id, ativo: true }, select: { id: true } }))?.id ?? null;
   }
