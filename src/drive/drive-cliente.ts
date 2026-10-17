@@ -1,7 +1,5 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createSign } from 'node:crypto';
-
 const ORIGEM = 'https://www.googleapis.com/drive/v3';
 const MIME_PASTA = 'application/vnd.google-apps.folder';
 const objeto = (valor: unknown): Record<string, unknown> => {
@@ -17,12 +15,12 @@ export class DriveCliente {
   constructor(private readonly config: ConfigService) {}
 
   configuracao() {
-    const email = this.config.get<string>('GOOGLE_DRIVE_CLIENT_EMAIL');
-    const chave = this.config.get<string>('GOOGLE_DRIVE_PRIVATE_KEY');
+    const cliente = this.config.get<string>('GOOGLE_DRIVE_CLIENT_ID');
+    const segredo = this.config.get<string>('GOOGLE_DRIVE_CLIENT_SECRET');
+    const renovacao = this.config.get<string>('GOOGLE_DRIVE_REFRESH_TOKEN');
     const raiz = this.config.get<string>('GOOGLE_DRIVE_ROOT_FOLDER_ID');
-    const drive = this.config.get<string>('GOOGLE_DRIVE_SHARED_DRIVE_ID');
-    if (!email || !chave || !raiz || !drive) throw new ServiceUnavailableException('Google Drive não configurado.');
-    return { email, chave, raiz, drive };
+    if (!cliente || !segredo || !renovacao || !raiz) throw new ServiceUnavailableException('Google Drive não configurado.');
+    return { cliente, segredo, renovacao, raiz };
   }
 
   private async transporte(url: string, opcoes: RequestInit): Promise<Response> {
@@ -39,19 +37,11 @@ export class DriveCliente {
   }
 
   private async renovarToken(): Promise<string> {
-    const { email, chave } = this.configuracao();
-    const agora = Math.floor(Date.now() / 1000);
-    const cabecalho = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-    const conteudo = Buffer.from(JSON.stringify({ iss: email, scope: 'https://www.googleapis.com/auth/drive', aud: 'https://oauth2.googleapis.com/token', iat: agora, exp: agora + 3600 })).toString('base64url');
-    let assinatura: string;
-    try {
-      assinatura = createSign('RSA-SHA256').update(`${cabecalho}.${conteudo}`).sign(chave.replace(/\\n/g, '\n'), 'base64url');
-    } catch {
-      throw new ServiceUnavailableException('Configuração de autenticação do Google Drive inválida.');
-    }
+    // OAuth do dono no Meu Drive: o refresh token vem de `npm run drive:autorizar`, com escopo `drive.file`.
+    const { cliente, segredo, renovacao } = this.configuracao();
     const resposta = await this.transporte('https://oauth2.googleapis.com/token', {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: `${cabecalho}.${conteudo}.${assinatura}` }).toString(),
+      body: new URLSearchParams({ grant_type: 'refresh_token', client_id: cliente, client_secret: segredo, refresh_token: renovacao }).toString(),
     });
     if (!resposta.ok) throw new ServiceUnavailableException('Falha na autenticação do Google Drive.');
     const corpo = objeto(await resposta.json());
@@ -85,11 +75,10 @@ export class DriveCliente {
   }
 
   async validarPastaPrivada(id: string, pai?: string): Promise<void> {
-    const { drive } = this.configuracao();
     const caminho = `/files/${encodeURIComponent(id)}`;
-    const pasta = await this.requisitar(`${caminho}?supportsAllDrives=true&fields=id,mimeType,driveId,parents,trashed`);
-    if (pasta.id !== id || pasta.driveId !== drive || pasta.mimeType !== MIME_PASTA || pasta.trashed !== false || (pai && (!Array.isArray(pasta.parents) || !pasta.parents.includes(pai)))) {
-      throw new ServiceUnavailableException('Pasta inválida no Drive compartilhado configurado.');
+    const pasta = await this.requisitar(`${caminho}?supportsAllDrives=true&fields=id,mimeType,parents,trashed`);
+    if (pasta.id !== id || pasta.mimeType !== MIME_PASTA || pasta.trashed !== false || (pai && (!Array.isArray(pasta.parents) || !pasta.parents.includes(pai)))) {
+      throw new ServiceUnavailableException('Pasta inválida no Google Drive configurado.');
     }
     let pagina = '';
     do {

@@ -169,3 +169,16 @@ validação contábil das parcelas (RENTAL-004); Sentry/Logtail (LOGS-001); homo
   `imoveis.cidade.spec.ts`) passam.
 - **Sem validação:** migration no Neon (pendente de autorização); rotas novas por HTTP.
 - **Pendências:** backup → `migration:run` → deploy da API, antes do web.
+
+### 16/10/2026 — Google Drive no Meu Drive do dono, por OAuth (Claude)
+- **Motivo:** o dono não tem Workspace, então não há Drive compartilhado; o plano sempre foi o Meu Drive.
+- **Entregue:** `DriveCliente` troca a Service Account (JWT RS256) por refresh token OAuth e deixa de exigir
+  `driveId`; `env.validation.ts` com `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`,
+  `GOOGLE_DRIVE_REFRESH_TOKEN` e `GOOGLE_DRIVE_ROOT_FOLDER_ID` (juntas ou nenhuma; sem checagem RSA); comando
+  `npm run drive:autorizar` (`src/commands/drive-autorizar.ts`: loopback em 127.0.0.1, PKCE, `state`, escopo
+  `drive.file`, cria a raiz `Corretor - Contratos` e imprime as duas linhas do `.env`); `.env.example`,
+  `corretor-spec.json`, `DECISIONS`, `README`, `INDICE`, `TASKS` e o passo a passo do DRIVE-001.
+- **Validação:** `typecheck`, `lint`, `build` e `npm test` passam (ver a sessão).
+- **Sem validação:** autorização real no Google, criação de pastas no Meu Drive, renomeação e acesso negado a terceiros.
+- **Pendências:** dono cria o cliente OAuth, publica o app, roda `drive:autorizar` e homologa (DRIVE-001); as quatro
+  variáveis no Render junto com o deploy.

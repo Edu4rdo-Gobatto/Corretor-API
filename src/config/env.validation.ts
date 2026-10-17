@@ -1,8 +1,7 @@
 import 'reflect-metadata';
-import { createPrivateKey } from 'node:crypto';
 import { plainToInstance, Type } from 'class-transformer';
 import {
-  IsIn, IsInt, IsString, IsUrl, IsEmail, Matches, Max, Min, MinLength, ValidateIf,
+  IsIn, IsInt, IsString, IsUrl, Matches, Max, Min, MinLength, ValidateIf,
   Validate, ValidatorConstraint, validateSync,
   type ValidatorConstraintInterface,
 } from 'class-validator';
@@ -97,21 +96,22 @@ export class EnvironmentVariables {
   @IsUrl({ protocols: ['https'], require_protocol: true })
   R2_PUBLIC_URL!: string;
 
+  // Meu Drive do dono por OAuth (escopo drive.file). Refresh token e pasta raiz saem de `npm run drive:autorizar`.
   @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
-  @IsEmail()
-  GOOGLE_DRIVE_CLIENT_EMAIL?: string;
+  @Matches(/^[\w.-]+\.apps\.googleusercontent\.com$/)
+  GOOGLE_DRIVE_CLIENT_ID?: string;
 
   @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
-  @IsString()
-  GOOGLE_DRIVE_PRIVATE_KEY?: string;
+  @Matches(/^\S+$/)
+  GOOGLE_DRIVE_CLIENT_SECRET?: string;
+
+  @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
+  @Matches(/^\S+$/)
+  GOOGLE_DRIVE_REFRESH_TOKEN?: string;
 
   @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
   @Matches(/^[A-Za-z0-9_-]+$/)
   GOOGLE_DRIVE_ROOT_FOLDER_ID?: string;
-
-  @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
-  @Matches(/^[A-Za-z0-9_-]+$/)
-  GOOGLE_DRIVE_SHARED_DRIVE_ID?: string;
 
   // Aviso de novo contato por e-mail (Resend). Opcionais, mas só valem juntas; vazias, o aviso fica desligado.
   @ValidateIf((_object, value: unknown) => value !== undefined && value !== '')
@@ -164,17 +164,9 @@ export function validateEnvironment(environment: Record<string, unknown>): Envir
     }
   }
 
-  const camposDrive = ['GOOGLE_DRIVE_CLIENT_EMAIL', 'GOOGLE_DRIVE_PRIVATE_KEY', 'GOOGLE_DRIVE_ROOT_FOLDER_ID', 'GOOGLE_DRIVE_SHARED_DRIVE_ID'] as const;
-  if (camposDrive.some(campo => Boolean(configuration[campo]))) {
-    if (camposDrive.some(campo => !configuration[campo])) {
-      throw new Error(`Configuração de ambiente inválida: configure juntos ${camposDrive.join(', ')}.`);
-    }
-    try {
-      const chave = createPrivateKey(configuration.GOOGLE_DRIVE_PRIVATE_KEY!.replace(/\\n/g, '\n'));
-      if (chave.asymmetricKeyType !== 'rsa' || (chave.asymmetricKeyDetails?.modulusLength ?? 0) < 2048) throw new Error();
-    } catch {
-      throw new Error('Configuração de ambiente inválida: GOOGLE_DRIVE_PRIVATE_KEY deve ser uma chave privada RSA válida.');
-    }
+  const camposDrive = ['GOOGLE_DRIVE_CLIENT_ID', 'GOOGLE_DRIVE_CLIENT_SECRET', 'GOOGLE_DRIVE_REFRESH_TOKEN', 'GOOGLE_DRIVE_ROOT_FOLDER_ID'] as const;
+  if (camposDrive.some(campo => Boolean(configuration[campo])) && camposDrive.some(campo => !configuration[campo])) {
+    throw new Error(`Configuração de ambiente inválida: configure juntos ${camposDrive.join(', ')}.`);
   }
 
   if (Boolean(configuration.RESEND_API_KEY) !== Boolean(configuration.AVISO_EMAIL_REMETENTE)) {

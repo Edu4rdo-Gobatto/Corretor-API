@@ -20,6 +20,7 @@
     "migration:run": "ts-node src/commands/migracoes.ts executar",
     "migration:revert": "ts-node src/commands/migracoes.ts reverter",
     "bootstrap:admin": "ts-node src/commands/bootstrap-admin.ts",
+    "drive:autorizar": "ts-node src/commands/drive-autorizar.ts",
     "seed:catalogo:simular": "ts-node src/commands/seed-demonstracao.ts simular",
     "seed:catalogo:executar": "ts-node src/commands/seed-demonstracao.ts executar"
   },

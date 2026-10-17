@@ -23,7 +23,7 @@
 
 - [2026-10-14-tarefa-r2-url-publica.md](2026-10-14-tarefa-r2-url-publica.md): R2-URL-001, URL pública própria do bucket (`R2_PUBLIC_URL`). Prioridade alta.
 - [2026-10-14-tarefa-resend-aviso-contato.md](2026-10-14-tarefa-resend-aviso-contato.md): NOTIFY-001, conta Resend (`RESEND_API_KEY`, `AVISO_EMAIL_REMETENTE`).
-- [2026-10-14-tarefa-google-drive.md](2026-10-14-tarefa-google-drive.md): DRIVE-001, conta de serviço e Drive compartilhado (`GOOGLE_DRIVE_*`).
+- [2026-10-14-tarefa-google-drive.md](2026-10-14-tarefa-google-drive.md): DRIVE-001, Meu Drive do dono por OAuth e `npm run drive:autorizar` (`GOOGLE_DRIVE_*`).
 - [2026-10-14-tarefa-monitoramento-erros.md](2026-10-14-tarefa-monitoramento-erros.md): LOGS-001, Sentry ou Better Stack (`SENTRY_DSN`).
 - [2026-10-14-tarefa-dados-admin.md](2026-10-14-tarefa-dados-admin.md): ADMIN-001, dados reais do admin e remoção de `BOOTSTRAP_ADMIN_*`.
 

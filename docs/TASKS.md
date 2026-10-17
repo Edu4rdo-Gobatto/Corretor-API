@@ -69,7 +69,7 @@ Tarefas do front ficam em [../../Corretor-web/docs/TASKS.md](../../Corretor-web/
   - A09/A10 com PostgreSQL real: características inativas na ficha e busca telefônica com +55.
   - A11 em ambiente implantado: cold start da API e tempo de resposta do SSR.
   - Upload e leitura de mídias no R2 publicado.
-  - Pastas de contrato no Google Drive com credenciais reais.
+  - Pastas de contrato no Google Drive com credenciais reais (desde 16/10, Meu Drive por OAuth; ver DRIVE-001).
 - **Referência:** [auditoria full stack](../../Corretor-web/docs/2026-10-02-auditoria-fullstack.md).
 
 ### NOTIFY-001 — Avisar o corretor de novo contato

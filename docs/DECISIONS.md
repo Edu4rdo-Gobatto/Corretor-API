@@ -7,6 +7,18 @@ O texto completo das versões anteriores está no histórico do Git.
 
 ## Decisões em vigor
 
+### 16/10 — Pastas de contrato no Meu Drive do dono, por OAuth
+- O dono usa conta Google pessoal (Google One), sem Workspace, então não há Drive compartilhado nem Service Account.
+  A API age como o dono por OAuth: `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`,
+  `GOOGLE_DRIVE_REFRESH_TOKEN` e `GOOGLE_DRIVE_ROOT_FOLDER_ID`, as quatro juntas ou nenhuma.
+- Escopo `drive.file`: a API só enxerga o que ela mesma criou. Por isso a pasta raiz `Corretor - Contratos` é criada
+  por `npm run drive:autorizar`, que também imprime o refresh token. O comando não grava arquivo.
+- O app OAuth fica **publicado** ("Em produção"): em "Teste" o refresh token expira em 7 dias. `drive.file` não exige
+  verificação do Google; o aviso de app não verificado aparece só para o dono, na autorização.
+- Mesma hierarquia (`Imobiliária / Contratos / <número> - <locatário>`), mesma recusa de pasta com acesso `anyone` ou
+  `domain`, mesmo `registro_pasta_drive`. Sem migration e sem dependência nova.
+- Não: voltar a pedir escopo `drive` (acesso ao Drive pessoal inteiro); comitar ou registrar em log o refresh token.
+
 ### 16/10 — Cadastro de cidades
 - Tabela `cidades` (nome, `estado` UF, ativo, auditoria) com unicidade por `nome_normalizado` + `estado`
   (sem acento/caixa; a mesma cidade pode existir em dois estados). Migration `1789862400000` carrega as cidades
@@ -133,7 +145,8 @@ qualquer imóvel ativo, não só `DISPONIVEL` (ver 16/10).
 - Domínio, rotas, DTOs e colunas em português e `snake_case`, com auditoria em todas as tabelas.
 - Exclusão lógica com `ativo`. Exceções físicas: mídia e sessão.
 - Dados pessoais em colunas reais, sem criptografia de coluna. A proteção vem de TLS, disco cifrado e autorização.
-- Documentos de contrato no Google Drive compartilhado, por Service Account; as quatro `GOOGLE_DRIVE_*` juntas.
+- Documentos de contrato no Google Drive; as quatro `GOOGLE_DRIVE_*` juntas. Desde 16/10, Meu Drive do dono por
+  OAuth (ver 16/10).
   Falha do Drive preserva o contrato com `status_pasta_drive = FALHOU`.
 - Comissão é receita da imobiliária, de venda ou de locação, com valor informado e até 600 parcelas. Não presumir
   valor de aluguel, repasse mensal, integração bancária ou comissão de corretor.
@@ -215,6 +228,7 @@ ativo, com proxy do R2 ou redirect para URL externa HTTPS.
 
 | Data | Decisão antiga | Substituída por |
 |---|---|---|
+| 14/09 | Drive compartilhado por Service Account (`CLIENT_EMAIL`, `PRIVATE_KEY`, `SHARED_DRIVE_ID`) | Meu Drive do dono por OAuth, escopo `drive.file` (16/10) |
 | até 16/10 | Público só com imóvel `DISPONIVEL` e corretor ativo | Só `ativo` (16/10) |
 | 11/09 | Sessão de 30 dias com refresh rotativo de uso único | Sessão de 4h por inatividade, token fixo (06/10) |
 | 11/09 | "As 5 migrations foram aplicadas"; `migration:revert` derruba a tabela | Banco recriado com 10 migrations (17/09); as duas últimas recusam reversão |

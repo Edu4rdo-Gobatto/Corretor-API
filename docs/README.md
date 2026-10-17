@@ -84,7 +84,7 @@ o nome do campo. São 16 variáveis validadas:
 | `JWT_EXPIRES_IN` | número seguido de `s`, `m`, `h` ou `d`; padrão `15m` | não |
 | `ALLOWED_ORIGINS` | origens exatas, separadas por vírgula, sem barra final; padrão `http://localhost:5173`; só HTTPS em produção | não |
 | `R2_REQUEST_TIMEOUT_MS`, `R2_CONNECTION_TIMEOUT_MS` | padrões `30000` e `5000` | não |
-| `GOOGLE_DRIVE_CLIENT_EMAIL`, `GOOGLE_DRIVE_PRIVATE_KEY`, `GOOGLE_DRIVE_ROOT_FOLDER_ID`, `GOOGLE_DRIVE_SHARED_DRIVE_ID` | Service Account e Drive compartilhado; as quatro juntas ou nenhuma; chave RSA de 2048 bits ou mais | não |
+| `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`, `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Meu Drive do dono por OAuth (escopo `drive.file`); as quatro juntas ou nenhuma; token e pasta raiz vêm de `npm run drive:autorizar` | não |
 
 Lidas fora da validação, só pelos comandos de linha:
 
